@@ -1,0 +1,51 @@
+services:
+
+  backend-primary:
+    build:
+      context: .
+      dockerfile: BackendAwSmartstay.API/Dockerfile
+    container_name: backend-primary
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "server=host.docker.internal;port=3306;user=root;password=12345678;database=backend-smartstay-db;"
+      ConnectionStrings__RedisConnection: "host.docker.internal:6379"
+    depends_on:
+      - activemq
+    restart: always
+
+  backend-secondary:
+    build:
+      context: .
+      dockerfile: BackendAwSmartstay.API/Dockerfile
+    container_name: backend-secondary
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "server=host.docker.internal;port=3306;user=root;password=12345678;database=backend-smartstay-db;"
+      ConnectionStrings__RedisConnection: "host.docker.internal:6379"
+    depends_on:
+      - activemq
+    restart: always
+
+  activemq:
+    image: apache/activemq-classic:latest
+    container_name: activemq
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    restart: always
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend-primary
+      - backend-secondary
+    restart: always
