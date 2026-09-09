@@ -53,7 +53,13 @@ builder.Services.AddHealthChecks()
         tags: new[] { "database" });
 
 // Redis implementation (Dinámico para Local y Nube)
-var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
+
+if (string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    redisConnectionString = "localhost:6379";
+}
+
 var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
 redisOptions.AbortOnConnectFail = false; // Evita que la app muera si Redis tarda en responder
 
