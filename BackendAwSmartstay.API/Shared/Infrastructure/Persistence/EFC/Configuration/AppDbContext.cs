@@ -7,8 +7,9 @@ using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.IAM.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Payments.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Payments.Infrastructure.Persistence.EFC.Configuration.Extensions;
-using BackendAwSmartstay.API.Profiles.Domain.Model.Aggregates;
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Configuration.Extensions;
+using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Entities;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using EntityFrameworkCore.CreatedUpdatedDate.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -34,9 +35,19 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
     #region Profiles Context
 
     /// <summary>
-    /// Gets or sets the set of Profile aggregates.
+    /// Gets or sets the set of GuestProfile aggregates.
     /// </summary>
-    public DbSet<Profile> Profiles { get; set; }
+    public DbSet<GuestProfile> GuestProfiles { get; set; }
+
+    /// <summary>
+    /// Gets or sets the set of StaffProfile aggregates.
+    /// </summary>
+    public DbSet<StaffProfile> StaffProfiles { get; set; }
+
+    /// <summary>
+    /// Gets or sets the set of EmployeeCodeSequence entities for atomic code generation.
+    /// </summary>
+    public DbSet<EmployeeCodeSequence> EmployeeCodeSequences { get; set; }
 
     #endregion
 

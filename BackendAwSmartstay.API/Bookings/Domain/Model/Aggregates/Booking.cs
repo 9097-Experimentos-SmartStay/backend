@@ -14,22 +14,24 @@ public class Booking
     }
 
     public Booking(int roomId, string guestName, string guestEmail, DateTime checkInDate,
-        DateTime checkOutDate) : this()
+        DateTime checkOutDate, Guid? guestProfileId = null) : this()
     {
         RoomId = roomId;
         GuestName = guestName;
         GuestEmail = guestEmail;
         CheckInDate = checkInDate;
         CheckOutDate = checkOutDate;
+        GuestProfileId = guestProfileId;
         Status = BookingStatus.Pending;
     }
 
-    public Booking(CreateBookingCommand command) : this(
+    public Booking(CreateBookingCommand command, Guid? guestProfileId = null) : this(
         command.RoomId,
         command.GuestName,
         command.GuestEmail,
         command.CheckInDate,
-        command.CheckOutDate)
+        command.CheckOutDate,
+        guestProfileId ?? command.GuestProfileId)
     {
     }
 
@@ -42,6 +44,11 @@ public class Booking
     ///     The identifier of the room being booked.
     /// </summary>
     public int RoomId { get; private set; }
+
+    /// <summary>
+    ///     The logical external identifier of the associated guest profile.
+    /// </summary>
+    public Guid? GuestProfileId { get; private set; }
 
     /// <summary>
     ///     The name of the guest making the booking.

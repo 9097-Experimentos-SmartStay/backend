@@ -12,7 +12,9 @@ public static class CreateBookingCommandFromResourceAssembler
             resource.GuestName,
             resource.GuestEmail,
             resource.CheckInDate,
-            resource.CheckOutDate);
+            resource.CheckOutDate,
+            resource.UserId,
+            resource.GuestProfileId);
     }
 }
 

@@ -85,9 +85,9 @@ public partial class Room
     /// <summary>
     /// The room type associated with this room.
     /// </summary>
-    public virtual RoomType RoomType { get; private set; } 
+    public virtual RoomType RoomType { get; private set; } = null!;
     /// <summary>
     /// The hotel this room belongs to.
     /// </summary>
-    public virtual Hotel Hotel { get; private set; }
+    public virtual Hotel Hotel { get; private set; } = null!;
 }

@@ -10,4 +10,13 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 /// <param name="CheckInDate">The check-in date of the booking.</param>
 /// <param name="CheckOutDate">The check-out date of the booking.</param>
 /// <param name="Status">The current status of the booking.</param>
-public record BookingResource(int Id, int RoomId, string GuestName, string GuestEmail, DateTime CheckInDate, DateTime CheckOutDate, string Status);
+/// <param name="GuestProfileId">The logical external identifier of the associated guest profile.</param>
+public record BookingResource(
+    int Id,
+    int RoomId,
+    string GuestName,
+    string GuestEmail,
+    DateTime CheckInDate,
+    DateTime CheckOutDate,
+    string Status,
+    Guid? GuestProfileId = null);

@@ -41,17 +41,21 @@
 
 <ItemGroup>
     <!-- Carpeta para los servicios de comandos internos del módulo Analytics -->
-    <Folder Include="Analytics\Application\Internal\CommandServices"/>
+    <Folder Include="Analytics\Application\Internal\CommandServices" />
 
     <!-- Carpeta que contiene los comandos del dominio de Analytics -->
-    <Folder Include="Analytics\Domain\Model\Commands"/>
+    <Folder Include="Analytics\Domain\Model\Commands" />
 
     <!-- Carpeta destinada al módulo de pagos -->
-    <Folder Include="Payments"/>
+    <Folder Include="Payments" />
 </ItemGroup>
 
     <ItemGroup>
         <None Remove="Dockerfile" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\BackendAwSmartstay.Domain\BackendAwSmartstay.Domain.csproj" />
     </ItemGroup>
 
 

@@ -8,9 +8,13 @@ namespace BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 /// <param name="GuestEmail">The email of the guest.</param>
 /// <param name="CheckInDate">The check-in date.</param>
 /// <param name="CheckOutDate">The check-out date.</param>
+/// <param name="UserId">Optional user identifier for authenticated guests.</param>
+/// <param name="GuestProfileId">Optional guest profile identifier.</param>
 public record CreateBookingCommand(
     int RoomId,
     string GuestName,
     string GuestEmail,
     DateTime CheckInDate,
-    DateTime CheckOutDate);
+    DateTime CheckOutDate,
+    int? UserId = null,
+    Guid? GuestProfileId = null);

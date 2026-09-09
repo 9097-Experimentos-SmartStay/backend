@@ -22,8 +22,6 @@ public static class WebApplicationExtensions
             // Sugerencia: Deja la ruta vacía para ingresar a Swagger desde el link principal de Render
             c.RoutePrefix = string.Empty; 
         });
-
-        return app;
     }
 
     /// <summary>
