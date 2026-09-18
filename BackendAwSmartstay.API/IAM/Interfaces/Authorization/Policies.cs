@@ -48,6 +48,8 @@ public static class Policies
     // ── IAM / Profiles ───────────────────────────────────────────────
     /// <summary>Manage user accounts and roles (hierarchy and scope enforced by the IAM domain).</summary>
     public const string ManageUsers = nameof(ManageUsers);
+    /// <summary>Read the access audit log (admins: their hotel's accounts; chain admins: all).</summary>
+    public const string ViewAuditLog = nameof(ViewAuditLog);
     /// <summary>Manage staff profiles and their assignments.</summary>
     public const string ManageStaff = nameof(ManageStaff);
     /// <summary>Read, create and update guest profiles (guests only their own profile).</summary>
@@ -108,6 +110,7 @@ public static class Policies
         [OperateAnalyticsLab] = [UserRoles.ChainAdmin],
 
         [ManageUsers] = Administrators,
+        [ViewAuditLog] = Administrators,
         [ManageStaff] = Administrators,
         [AccessGuestProfiles] = GuestOrFrontDesk,
         [SearchGuestProfiles] = FrontDesk,

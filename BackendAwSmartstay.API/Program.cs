@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Audit.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Payments.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Documentation.OpenApi.Configuration.Extensions;
@@ -39,6 +40,7 @@ builder.AddPaymentsContextServices();
 builder.AddIamContextServices();
 builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
+builder.AddAuditContextServices();
 builder.AddIoTEmulatorServices();
 
 // Mediator for Services

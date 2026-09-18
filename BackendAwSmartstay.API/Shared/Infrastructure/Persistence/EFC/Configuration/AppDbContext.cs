@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.Audit.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Entities;
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
@@ -132,6 +133,9 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
 
         // Apply configuration for Payments Bounded Context
         builder.ApplyPaymentsConfiguration();
+
+        // Apply configuration for Audit Bounded Context
+        builder.ApplyAuditConfiguration();
 
         // Apply snake_case naming convention for database compatibility (e.g., MySQL)
         builder.UseSnakeCaseNamingConvention();

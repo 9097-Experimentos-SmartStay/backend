@@ -1,0 +1,87 @@
+using BackendAwSmartstay.API.Audit.Application.OutboundServices;
+using BackendAwSmartstay.API.Audit.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.Audit.Domain.Model.ValueObjects;
+using BackendAwSmartstay.API.Audit.Domain.Repositories;
+using BackendAwSmartstay.API.IAM.Domain.Model.Events;
+using BackendAwSmartstay.API.IAM.Interfaces.ACL;
+using BackendAwSmartstay.API.Shared.Application.Internal.EventHandlers;
+using BackendAwSmartstay.API.Shared.Domain.Repositories;
+
+namespace BackendAwSmartstay.API.Audit.Application.Internal.EventHandlers;
+
+/// <summary>
+///     Subscribes the Audit context to the access events published by IAM and records one audit entry per event.
+///     The e-mail of an administrator who acted on another account is resolved through the IAM ACL facade.
+/// </summary>
+public class IamAccessAuditHandler(
+    IAuditEntryRepository auditEntryRepository,
+    IIamContextFacade iamContextFacade,
+    IRequestOriginProvider requestOrigin,
+    IUnitOfWork unitOfWork) :
+    IDomainEventHandler<UserSignedInEvent>,
+    IDomainEventHandler<SignInFailedEvent>,
+    IDomainEventHandler<UserLockedOutEvent>,
+    IDomainEventHandler<UserSignedOutEvent>,
+    IDomainEventHandler<UserPasswordResetEvent>,
+    IDomainEventHandler<UserPasswordChangedEvent>,
+    IDomainEventHandler<UserCreatedEvent>,
+    IDomainEventHandler<UserRoleChangedEvent>,
+    IDomainEventHandler<UserDeactivatedEvent>,
+    IDomainEventHandler<UserActivatedEvent>
+{
+    public Task HandleAsync(UserSignedInEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.SignInSucceeded, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
+
+    public Task HandleAsync(SignInFailedEvent e, CancellationToken cancellationToken) =>
+        RecordAsync(AuditEntry.Record(e.OccurredOn, AuditAction.SignInFailed, AuditOutcome.Failure,
+            e.UserId, e.Email, e.UserId, e.Email, e.HotelId, requestOrigin.ClientIpAddress, $"Reason: {e.Reason}"));
+
+    public Task HandleAsync(UserLockedOutEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.AccountLocked, AuditOutcome.Failure, e.UserId, e.Email, e.HotelId,
+            $"Locked until {e.LockedUntil.UtcDateTime:yyyy-MM-ddTHH:mm:ssZ}");
+
+    public Task HandleAsync(UserSignedOutEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.SignedOut, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
+
+    public Task HandleAsync(UserPasswordResetEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.PasswordReset, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
+
+    public Task HandleAsync(UserPasswordChangedEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.PasswordChanged, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
+
+    public Task HandleAsync(UserCreatedEvent e, CancellationToken cancellationToken) =>
+        RecordByAdministratorAsync(e.OccurredOn, AuditAction.UserCreated, e.CreatedByUserId, e.UserId, e.Email, e.HotelId,
+            $"Role: {e.Role}");
+
+    public Task HandleAsync(UserRoleChangedEvent e, CancellationToken cancellationToken) =>
+        RecordByAdministratorAsync(e.OccurredOn, AuditAction.RoleChanged, e.ChangedByUserId, e.UserId, e.Email, e.HotelId,
+            $"Role: {e.PreviousRole} -> {e.NewRole}");
+
+    public Task HandleAsync(UserDeactivatedEvent e, CancellationToken cancellationToken) =>
+        RecordByAdministratorAsync(e.OccurredOn, AuditAction.UserDeactivated, e.DeactivatedByUserId, e.UserId, e.Email, e.HotelId);
+
+    public Task HandleAsync(UserActivatedEvent e, CancellationToken cancellationToken) =>
+        RecordByAdministratorAsync(e.OccurredOn, AuditAction.UserActivated, e.ActivatedByUserId, e.UserId, e.Email, e.HotelId);
+
+    private Task RecordSelfAsync(DateTimeOffset occurredOn, AuditAction action, AuditOutcome outcome,
+        int userId, string email, int? hotelId, string? details = null) =>
+        RecordAsync(AuditEntry.Record(occurredOn, action, outcome, userId, email, userId, email, hotelId,
+            requestOrigin.ClientIpAddress, details));
+
+    /// <summary>An action performed by an administrator on an account (or by the user themselves when no actor is known).</summary>
+    private async Task RecordByAdministratorAsync(DateTimeOffset occurredOn, AuditAction action, int? actorUserId,
+        int targetUserId, string targetEmail, int? hotelId, string? details = null)
+    {
+        var actorId = actorUserId ?? targetUserId;
+        var actorEmail = actorUserId is null ? targetEmail : await iamContextFacade.FetchEmailByUserId(actorUserId.Value);
+        await RecordAsync(AuditEntry.Record(occurredOn, action, AuditOutcome.Success, actorId,
+            string.IsNullOrEmpty(actorEmail) ? null : actorEmail, targetUserId, targetEmail, hotelId,
+            requestOrigin.ClientIpAddress, details));
+    }
+
+    private async Task RecordAsync(AuditEntry entry)
+    {
+        await auditEntryRepository.AddAsync(entry);
+        await unitOfWork.CompleteAsync();
+    }
+}
