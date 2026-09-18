@@ -17,8 +17,11 @@ public class InitialChainAdminSettings
     public string? LoginEmail => string.IsNullOrWhiteSpace(Email) ? Username : Email;
     public string? Password { get; set; }
 
-    /// <summary>Hotel assigned to the seeded chain administrator.</summary>
-    public int? HotelId { get; set; } = 1;
+    /// <summary>
+    ///     Optional hotel assigned to the seeded chain administrator (<c>InitialChainAdmin__HotelId</c>). None by
+    ///     default: a chain administrator operates every hotel, and a fresh database has no hotels.
+    /// </summary>
+    public int? HotelId { get; set; }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(LoginEmail) && !string.IsNullOrWhiteSpace(Password);
 }

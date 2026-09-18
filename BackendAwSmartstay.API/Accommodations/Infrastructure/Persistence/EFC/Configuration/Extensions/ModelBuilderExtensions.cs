@@ -15,8 +15,14 @@ namespace BackendAwSmartstay.API.Accommodations.Infrastructure.Persistence.EFC.C
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    /// Applies the entity configurations, relationship mappings, and seed data for the Accommodations context.
+    /// Applies the entity configurations, relationship mappings, and the reference catalogs of the Accommodations
+    /// context.
     /// </summary>
+    /// <remarks>
+    ///     Migrations describe the schema plus the reference data the application needs to work (the hotel category
+    ///     and amenity catalogs offered by the hotel form). Hotels, rooms, room types and accounts are business data:
+    ///     they are created through the application, and the demo dataset by <c>DemoDataSeeder</c> (opt-in).
+    /// </remarks>
     /// <param name="builder">The model builder instance.</param>
     public static void ApplyAccommodationsConfiguration(this ModelBuilder builder)
     {
@@ -28,6 +34,7 @@ public static class ModelBuilderExtensions
             v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
 
         // --- 2. Master Data Configuration (Catalogs) ---
+        // Reference data (not demo data): the options of the hotel form (GET /accommodations/options/*).
 
         // HotelCategory Configuration
         builder.Entity<HotelCategory>().ToTable("hotel_categories");
@@ -104,29 +111,6 @@ public static class ModelBuilderExtensions
             settings.Property(p => p.BankAccountCci).HasColumnName("payment_bank_account_cci")
                 .HasMaxLength(HotelPaymentSettings.CciLength);
             settings.Ignore(p => p.OffersBankTransfer);
-
-            // Demo payment methods of the seeded hotels (placeholders, not real accounts)
-            settings.HasData(
-                new
-                {
-                    HotelId = 1,
-                    AccountHolder = "Grand Hotel Bolivar S.A.C. (demo)",
-                    YapeNumber = "999000111",
-                    PlinNumber = (string?)null,
-                    BankName = "BCP",
-                    BankAccountNumber = "191-0000000-0-00",
-                    BankAccountCci = "00219100000000000000"
-                },
-                new
-                {
-                    HotelId = 2,
-                    AccountHolder = "Cusco Andean Lodge E.I.R.L. (demo)",
-                    YapeNumber = (string?)null,
-                    PlinNumber = "999000222",
-                    BankName = (string?)null,
-                    BankAccountNumber = (string?)null,
-                    BankAccountCci = (string?)null
-                });
         });
 
         // Room Entity
@@ -182,81 +166,5 @@ public static class ModelBuilderExtensions
             .WithMany()
             .HasForeignKey(r => r.RoomTypeId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        // --- 5. SEED DATA (Hardcoded Aggregates) ---
-        
-        // Seed Room Types
-        builder.Entity<RoomType>().HasData(
-            new { Id = 1, Name = "Single Standard", Description = "Cozy room for solo travelers." },
-            new { Id = 2, Name = "Double Deluxe", Description = "Spacious room for couples or business." },
-            new { Id = 3, Name = "Presidential Suite", Description = "Luxury suite with best views." }
-        );
-
-        // Seed Hotels
-        builder.Entity<Hotel>().HasData(
-            new {
-                Id = 1,
-                HostId = 1, // Assigned to first staff user
-                Name = "Grand Hotel Bolivar",
-                Address = "Jr. de la Unión 958",
-                City = "Lima",
-                Country = "Peru",
-                Description = "Historic hotel in the center of Lima.",
-                ImageUrl = "https://placehold.co/600x400/3498DB/FFFFFF?text=Bolivar",
-                Type = "Hotel",
-                Amenities = new List<string> { "Wifi", "Restaurante", "Bar" }
-            },
-            new {
-                Id = 2,
-                HostId = 1,
-                Name = "Cusco Andean Lodge",
-                Address = "San Blas 123",
-                City = "Cusco",
-                Country = "Peru",
-                Description = "Experience the mystic energy of the Andes.",
-                ImageUrl = "https://placehold.co/600x400/E67E22/FFFFFF?text=Andean",
-                Type = "Lodge",
-                Amenities = new List<string> { "Desayuno", "Wifi", "Gimnasio" }
-            }
-        );
-
-        // Seed Rooms
-        builder.Entity<Room>().HasData(
-            // Rooms for Hotel 1 (Bolivar)
-            new {
-                Id = 101,
-                Number = "101",
-                StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
-                HotelId = 1,
-                RoomTypeId = 1,
-                Price = 85.00m,
-                Status = RoomStatus.Available,
-                Description = "Room 101 - Standard view.",
-                Amenities = new List<string> { "Wifi", "TV" }
-            },
-            new {
-                Id = 102,
-                Number = "102",
-                StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
-                HotelId = 1,
-                RoomTypeId = 2,
-                Price = 150.00m,
-                Status = RoomStatus.Available,
-                Description = "Room 102 - Plaza view with balcony.",
-                Amenities = new List<string> { "Wifi", "TV", "Minibar" }
-            },
-            // Rooms for Hotel 2 (Cusco)
-            new {
-                Id = 201,
-                Number = "201",
-                StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
-                HotelId = 2,
-                RoomTypeId = 3,
-                Price = 320.00m,
-                Status = RoomStatus.Available,
-                Description = "Suite 201 - Panoramic mountain view.",
-                Amenities = new List<string> { "Jacuzzi", "Wifi", "Desayuno", "Chimenea" }
-            }
-        );
     }
 }
