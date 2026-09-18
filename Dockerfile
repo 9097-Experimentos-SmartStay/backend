@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 
 WORKDIR /src
 
@@ -9,7 +9,7 @@ COPY BackendAwSmartstay.Domain/BackendAwSmartstay.Domain.csproj BackendAwSmartst
 # Restaurar dependencias
 RUN dotnet restore BackendAwSmartstay.API/BackendAwSmartstay.API.csproj
 
-# Copiar el código fuente
+# Copiar el código fuente (ver .dockerignore: sin bin/obj, .git, tests ni secretos)
 COPY . .
 
 # Compilar y publicar
@@ -29,5 +29,8 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:10000
 
 EXPOSE 10000
+
+# Run as the non-root user shipped with the official .NET images (UID 1654)
+USER $APP_UID
 
 ENTRYPOINT ["dotnet", "BackendAwSmartstay.API.dll"]

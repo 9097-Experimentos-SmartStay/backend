@@ -1,0 +1,17 @@
+# Keep the build context small and free of secrets / host build output
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+.git/
+.github/
+.idea/
+.config/
+.env
+.env.*
+!.env.example
+BackendAwSmartstay.API.Tests/
+docker-compose*.yml
+nginx.conf
+README.md
+LICENSE.md
