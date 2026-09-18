@@ -66,10 +66,11 @@ builder.Services.AddRateLimiter(options =>
     
 var app = builder.Build();
 
-// --- Bloque de Inicialización y Migraciones Seguras just for developer ---
+// --- Database initialization: migrations + seed. Fail fast: never start with a broken schema ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
         var context = services.GetRequiredService<AppDbContext>(); 
@@ -77,16 +78,16 @@ using (var scope = app.Services.CreateScope())
         // Ejecuta las migraciones pendientes en la nube o local de forma automática
         if (context.Database.IsRelational())
         {
+            logger.LogInformation("Applying pending database migrations...");
             await context.Database.MigrateAsync();
         }
         
-        // Seeder integrado aquí adentro de forma segura
         await app.SeedDatabaseAsync();
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Ocurrió un error al aplicar las migraciones o el seeder en el arranque.");
+        logger.LogCritical(ex, "Database migration or seeding failed at startup. The application will stop.");
+        throw;
     }
 }
 
