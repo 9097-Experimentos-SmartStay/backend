@@ -18,6 +18,7 @@ using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configurati
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 using BackendAwSmartstay.API.Controllers.Authorization;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ReverseProxy;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
 
@@ -71,6 +72,9 @@ builder.AddAnalyticsCacheServices();
 // X-Cron-Key authentication of the external scheduler (scheduled jobs)
 builder.Services.AddScheduledJobsAuthentication(builder.Configuration);
 
+// Real client IP behind Cloudflare + Render's load balancer (X-Forwarded-For from trusted proxies only)
+builder.Services.AddSmartStayForwardedHeaders(builder.Configuration);
+
 // Rate limiting of the anonymous endpoints, per client IP
 builder.Services.AddSmartStayRateLimiting(builder.Configuration);
 
@@ -103,6 +107,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Pipeline de Middlewares (HTTP request pipeline)
+// Forwarded headers first: the client IP and scheme must be resolved before anything reads them
+// (rate limiter partitions, audit log, error responses).
+app.UseSmartStayForwardedHeaders();
 // Global exception handler first, so errors from every later middleware become ProblemDetails
 app.UseExceptionHandler();
 app.UseStatusCodePages();
