@@ -18,6 +18,8 @@ public static class CreateUserCommandFromResourceAssembler
     {
         return new CreateUserCommand(
             actorUserId,
+            resource.FirstName ?? string.Empty,
+            resource.LastName ?? string.Empty,
             resource.LoginEmail,
             resource.Password,
             resource.Role,

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Commands;
@@ -53,7 +54,7 @@ public class StaffProfileCommandService(
             var hotelExists = await accommodationsContextFacade.HotelExistsAsync(command.TargetId.Value);
             if (!hotelExists)
             {
-                throw new DomainValidationException($"Hotel with ID {command.TargetId.Value} does not exist in Accommodations.");
+                throw new DomainValidationException(ProfileErrorCodes.HotelNotFound, $"Hotel with ID {command.TargetId.Value} does not exist in Accommodations.");
             }
         }
 

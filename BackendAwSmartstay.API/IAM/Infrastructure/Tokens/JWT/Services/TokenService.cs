@@ -18,7 +18,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
 {
     private readonly TokenSettings _tokenSettings = tokenSettings.Value;
 
-    public string GenerateToken(User user)
+    public IssuedAccessToken GenerateToken(User user, Guid? rememberedSessionId = null)
     {
         var claims = new List<Claim>
         {
@@ -27,25 +27,51 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
             new(IamClaimTypes.Email, user.Email.Value),
             new(IamClaimTypes.Role, user.Role.Value),
             new(IamClaimTypes.TokenVersion, user.TokenVersion.ToString(CultureInfo.InvariantCulture)),
+            new(IamClaimTypes.EmailVerified, user.EmailVerified ? "true" : "false", ClaimValueTypes.Boolean),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
         };
         if (user.HotelId is { } hotelId)
             claims.Add(new Claim(IamClaimTypes.HotelId, hotelId.ToString(CultureInfo.InvariantCulture)));
         if (user.ChainId is { } chainId)
             claims.Add(new Claim(IamClaimTypes.ChainId, chainId.ToString(CultureInfo.InvariantCulture)));
+        if (rememberedSessionId is { } sessionId)
+            claims.Add(new Claim(IamClaimTypes.SessionId, sessionId.ToString("N")));
 
+        var (value, expiresAt) = Sign(claims, _tokenSettings.Audience, _tokenSettings.AccessTokenExpirationMinutes);
+        return new IssuedAccessToken(value, expiresAt);
+    }
+
+    public IssuedMfaChallengeToken GenerateMfaChallengeToken(User user, MfaChallengeKind kind, bool rememberMe)
+    {
+        var claims = new List<Claim>
+        {
+            new(IamClaimTypes.UserId, user.Id.ToString(CultureInfo.InvariantCulture)),
+            new(IamClaimTypes.Username, user.Email.Value),
+            new(IamClaimTypes.TokenVersion, user.TokenVersion.ToString(CultureInfo.InvariantCulture)),
+            new(IamClaimTypes.MfaChallenge, kind == MfaChallengeKind.Enrollment
+                ? IamClaimTypes.MfaChallengeEnrollment
+                : IamClaimTypes.MfaChallengeVerification),
+            new(IamClaimTypes.RememberMe, rememberMe ? "true" : "false", ClaimValueTypes.Boolean),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+        };
+        var (value, expiresAt) = Sign(claims, _tokenSettings.MfaChallengeAudience, _tokenSettings.MfaChallengeTokenExpirationMinutes);
+        return new IssuedMfaChallengeToken(kind, value, expiresAt);
+    }
+
+    private (string Value, DateTimeOffset ExpiresAt) Sign(List<Claim> claims, string audience, int lifetimeMinutes)
+    {
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        var expires = now.AddMinutes(lifetimeMinutes);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
             IssuedAt = now,
             NotBefore = now,
-            Expires = now.AddHours(_tokenSettings.ExpirationInHours),
+            Expires = expires,
             Issuer = _tokenSettings.Issuer,
-            Audience = _tokenSettings.Audience,
+            Audience = audience,
             SigningCredentials = new SigningCredentials(_tokenSettings.CreateSigningKey(), SecurityAlgorithms.HmacSha256)
         };
-
-        return new JsonWebTokenHandler().CreateToken(tokenDescriptor);
+        return (new JsonWebTokenHandler().CreateToken(tokenDescriptor), new DateTimeOffset(expires, TimeSpan.Zero));
     }
 }

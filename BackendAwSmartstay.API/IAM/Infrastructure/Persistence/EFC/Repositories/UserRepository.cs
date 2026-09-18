@@ -26,4 +26,11 @@ public class UserRepository(AppDbContext context) : BaseRepository<User>(context
         return await Context.Set<User>()
             .CountAsync(user => user.Role == roleVo && user.Status == UserStatus.Active);
     }
+
+    public async Task<IReadOnlyList<User>> ListActiveByRolesAsync(IReadOnlyCollection<Role> roles)
+    {
+        // Filtered by role in memory: a collection of converted value objects is not translated reliably to SQL.
+        var active = await Context.Set<User>().Where(user => user.Status == UserStatus.Active).ToListAsync();
+        return active.Where(user => roles.Contains(user.Role)).ToList();
+    }
 }

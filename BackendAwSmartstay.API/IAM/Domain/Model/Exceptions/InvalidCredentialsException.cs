@@ -6,5 +6,5 @@ namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 public class InvalidCredentialsException : AuthenticationFailedException
 {
     public InvalidCredentialsException()
-        : base("Invalid credentials") { }
+        : base(IamErrorCodes.InvalidCredentials, "Invalid credentials") { }
 }

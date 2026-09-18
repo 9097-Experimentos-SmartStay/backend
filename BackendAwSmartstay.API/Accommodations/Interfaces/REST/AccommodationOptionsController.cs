@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
@@ -79,7 +81,9 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
         var exists = await context.Set<Domain.Model.Entities.HotelCategory>()
             .AnyAsync(category => category.Name == resource.Name);
             
-        if (exists) return Conflict($"Category '{resource.Name}' already exists within the system constraints.");
+        if (exists)
+            throw new BusinessRuleViolationException(AccommodationErrorCodes.CategoryAlreadyExists,
+                $"Category '{resource.Name}' already exists.");
         
         var category = new Domain.Model.Entities.HotelCategory { Name = resource.Name };
         
@@ -109,7 +113,9 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
         var exists = await context.Set<Domain.Model.Entities.Amenity>()
             .AnyAsync(amenity => amenity.Name == resource.Name);
             
-        if (exists) return Conflict($"Amenity '{resource.Name}' already exists within the master catalogue schemas.");
+        if (exists)
+            throw new BusinessRuleViolationException(AccommodationErrorCodes.AmenityAlreadyExists,
+                $"Amenity '{resource.Name}' already exists.");
 
         var amenity = new Domain.Model.Entities.Amenity { Name = resource.Name };
         

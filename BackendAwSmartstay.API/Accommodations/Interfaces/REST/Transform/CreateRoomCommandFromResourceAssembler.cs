@@ -5,14 +5,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST.Transform;
 
 public static class CreateRoomCommandFromResourceAssembler
 {
-    public static CreateRoomCommand ToCommandFromResource(CreateRoomResource resource)
-    {
-        return new CreateRoomCommand(
-            resource.HotelId,
-            resource.RoomTypeId,
-            resource.Price,
-            resource.Description,
-            resource.Amenities
-        );
-    }
+    public static CreateRoomCommand ToCommandFromResource(CreateRoomResource resource) =>
+        new(resource.HotelId, resource.RoomTypeId, resource.Price, resource.Description!.Trim(),
+            resource.Amenities ?? [], resource.Number!);
 }

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Shared.Application.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +15,8 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionH
 ///         <item><see cref="OperationNotAllowedException"/>: a domain rule forbids the requester → 403</item>
 ///         <item><see cref="EntityNotFoundException"/>: the entity does not exist for the requester → 404</item>
 ///         <item><see cref="BusinessRuleViolationException"/>: the current state does not allow it → 409</item>
+///         <item><see cref="ResourceExpiredException"/>: the resource existed but its lifetime ended → 410</item>
+///         <item><see cref="FeatureNotConfiguredException"/>: an optional feature is not configured here → 503</item>
 ///         <item><see cref="DbUpdateException"/>: a database constraint rejected the change → 409</item>
 ///     </list>
 ///     Anything else (including <see cref="ArgumentException"/> or <see cref="InvalidOperationException"/>
@@ -28,6 +31,8 @@ public static class ExceptionStatusCodeMapper
         OperationNotAllowedException => (StatusCodes.Status403Forbidden, "Operation not allowed"),
         EntityNotFoundException => (StatusCodes.Status404NotFound, "Resource not found"),
         BusinessRuleViolationException => (StatusCodes.Status409Conflict, "Business rule violation"),
+        ResourceExpiredException => (StatusCodes.Status410Gone, "Expired"),
+        FeatureNotConfiguredException => (StatusCodes.Status503ServiceUnavailable, "Service unavailable"),
         BadHttpRequestException badRequest => (badRequest.StatusCode, "Invalid request"),
         DbUpdateException => (StatusCodes.Status409Conflict, "Conflict with existing data"),
         _ => (StatusCodes.Status500InternalServerError, "Unexpected error")

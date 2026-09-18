@@ -17,6 +17,6 @@ public record ChangePasswordResource
     ///     The desired new password.
     /// </summary>
     [Required]
-    [MinLength(6, ErrorMessage = "Password must be at least 6 characters long.")]
+    [MaxLength(256, ErrorMessage = "The password cannot exceed 128 characters.")]
     public required string NewPassword { get; init; }
 }

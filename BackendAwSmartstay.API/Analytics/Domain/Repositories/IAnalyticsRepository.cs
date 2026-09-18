@@ -10,6 +10,7 @@ public interface IAnalyticsRepository
     /// <summary>
     /// Calculates performance metrics based on current data.
     /// </summary>
+    /// <param name="hotelId">Only this hotel's payments, bookings and rooms; null for every hotel.</param>
     /// <returns>A PerformanceMetrics aggregate.</returns>
-    Task<PerformanceMetrics> GetMonthlyMetricsAsync();
+    Task<PerformanceMetrics> GetMonthlyMetricsAsync(int? hotelId);
 }

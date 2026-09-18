@@ -1,4 +1,9 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
+using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
+using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
+using BackendAwSmartstay.API.IAM.Domain.Repositories;
 using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.ACL;
@@ -11,22 +16,25 @@ namespace BackendAwSmartstay.API.IAM.Application.ACL.Services;
 /// </summary>
 public class IamContextFacade(
     IUserCommandService userCommandService,
-    IUserQueryService userQueryService) : IIamContextFacade
+    IUserQueryService userQueryService,
+    IUserRepository userRepository) : IIamContextFacade
 {
-    /// <summary>
-    /// Creates a new user resource within the system using the provided credentials.
-    /// </summary>
-    /// <param name="email">The unique identifier name for the new user resource.</param>
-    /// <param name="password">The plain text password to be securely processed for the new user.</param>
-    /// <returns>The unique identifier of the newly created user resource, or <c>0</c> if the creation failed.</returns>
-    public async Task<int> CreateUser(string email, string password)
+    public async Task<UserContact?> FetchUserContactAsync(int userId)
     {
-        var signUpCommand = new SignUpCommand(email, password);
-        await userCommandService.Handle(signUpCommand);
-        var getUserByEmailQuery = new GetUserByEmailQuery(email);
-        var result = await userQueryService.Handle(getUserByEmailQuery);
-        return result?.Id ?? 0;
+        var user = await userRepository.FindByIdAsync(userId);
+        return user is null || user.Status == UserStatus.Inactive ? null : ToContact(user);
     }
+
+    public async Task<IReadOnlyList<UserContact>> ListHotelStaffAsync(int hotelId, IReadOnlyCollection<string> roles)
+    {
+        var users = await userRepository.ListActiveByRolesAsync(roles.Select(role => new Role(role)).ToList());
+        // Chain administrators operate every hotel; the others only the hotel they are assigned to.
+        return users.Where(user => user.HotelId == hotelId || user.Role.Value == UserRoles.ChainAdmin)
+            .Select(ToContact).ToList();
+    }
+
+    private static UserContact ToContact(User user) => new(user.Id, user.Email.Value,
+        string.IsNullOrWhiteSpace(user.FirstName) ? null : $"{user.FirstName} {user.LastName}".Trim(), user.Role.Value);
 
     /// <summary>
     /// Retrieves the unique identifier of a user resource based on their email.
@@ -52,6 +60,12 @@ public class IamContextFacade(
         return result?.Email.Value ?? string.Empty;
     }
 
-    public Task AssignHotelToAdministratorAsync(int userId, int hotelId) =>
-        userCommandService.Handle(new AssignHotelToAdministratorCommand(userId, hotelId));
+    public async Task<ReissuedSession?> AssignHotelToAdministratorAsync(int userId, int hotelId, SessionContext currentSession)
+    {
+        var session = await userCommandService.Handle(
+            new AssignHotelToAdministratorCommand(userId, hotelId, currentSession.RememberedSessionId));
+        return session is { AccessToken: { } token, AccessTokenExpiresAt: { } expiresAt }
+            ? new ReissuedSession(token, expiresAt, session.RefreshToken?.Value, session.RefreshToken?.ExpiresAt)
+            : null;
+    }
 }

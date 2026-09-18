@@ -26,4 +26,7 @@ public interface IUserRepository : IBaseRepository<User>
     ///     Counts the number of active users that have a specific role.
     /// </summary>
     Task<int> CountActiveByRoleAsync(string role);
+
+    /// <summary>Active users holding one of <paramref name="roles"/>.</summary>
+    Task<IReadOnlyList<User>> ListActiveByRolesAsync(IReadOnlyCollection<Role> roles);
 }

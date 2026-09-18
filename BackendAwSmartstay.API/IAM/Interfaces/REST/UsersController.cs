@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
@@ -22,8 +23,27 @@ namespace BackendAwSmartstay.API.IAM.Interfaces.REST;
 [SwaggerTag("Available User endpoints")]
 public class UsersController(
     IUserQueryService userQueryService,
-    IUserCommandService userCommandService) : ControllerBase
+    IUserCommandService userCommandService,
+    IMfaCommandService mfaCommandService) : ControllerBase
 {
+    /// <summary>Resets the two-factor authentication of a user (US-52 scenario 4, e.g. a lost phone).</summary>
+    /// <remarks>
+    ///     The authenticator and the recovery codes are removed and every session of the user ends. At the next
+    ///     sign-in the user must enroll a new authenticator. Audited as <c>MfaReset</c>. Same hierarchy and scope
+    ///     rules as the other user management operations (an admin: staff of their hotel).
+    /// </remarks>
+    [HttpPost("{id:int}/mfa/reset")]
+    [Authorize(Policy = Policies.ManageUsers)]
+    [SwaggerOperation(Summary = "Reset the two-factor authentication of a user", OperationId = "ResetUserMfa")]
+    [ProducesResponseType(typeof(MessageResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetMfa(int id)
+    {
+        await mfaCommandService.Handle(new ResetMfaCommand(User.GetUserId(), id));
+        return Ok(new MessageResource("Two-factor authentication was reset. The user must set it up again at the next sign-in."));
+    }
+
     /// <summary>
     ///     Creates a new user via management endpoints.
     /// </summary>
@@ -31,19 +51,34 @@ public class UsersController(
     /// <returns>A confirmation message.</returns>
     [HttpPost]
     [Authorize(Policy = Policies.ManageUsers)]
-    [SwaggerOperation(Summary = "Create a new user", Description = "Creates a user within the actor's hierarchical and organizational scope. Note: Location header implementation pending contract update.", OperationId = "CreateUser")]
-    [SwaggerResponse(StatusCodes.Status201Created, "The user was created successfully")]
-    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid request payload or unexpected error")]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "User does not have required hierarchy or scope access")]
-    [SwaggerResponse(StatusCodes.Status409Conflict, "Email already registered")]
+    [SwaggerOperation(Summary = "Create a user", Description = "US-03 scenario 1: an administrator creates a staff user with a role (admin: reception, housekeeping, maintenance for their own hotel; chain_admin: also admin, any hotel). The user receives a verification e-mail.", OperationId = "CreateUser")]
+    [ProducesResponseType(typeof(UserResource), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserResource resource)
     {
-
         var command = CreateUserCommandFromResourceAssembler.ToCommandFromResource(resource, User.GetUserId());
+        var user = await userCommandService.Handle(command);
+        return CreatedAtAction(nameof(GetUserById), new { id = user.Id },
+            UserResourceFromEntityAssembler.ToResourceFromEntity(user));
+    }
 
-        await userCommandService.Handle(command);
-        return StatusCode(StatusCodes.Status201Created, new { message = "User created successfully" });
+    /// <summary>Profile of the signed-in user (like OpenID Connect <c>userinfo</c>), read from the account.</summary>
+    /// <remarks>
+    ///     For profile screens that need fresh account data (names, e-mail, verification, MFA). It is not a way to sync
+    ///     permissions: a change of role or hotel ends the user's sessions (401 <c>auth.session_revoked</c>) and the
+    ///     new permissions come with the next sign-in. Any role.
+    /// </remarks>
+    [HttpGet("me")]
+    [SwaggerOperation(Summary = "Get the profile of the signed-in user", Description = "OIDC userinfo-like profile of the account of the access token: id, email, names, role, hotelId, chainId, emailVerified, mfaEnabled.", OperationId = "GetCurrentUser")]
+    [ProducesResponseType(typeof(CurrentUserResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        var user = await userQueryService.Handle(new GetCurrentUserQuery(User.GetUserId()))
+                   ?? throw new UserNotFoundException(User.GetUserId());
+        return Ok(CurrentUserResourceFromEntityAssembler.ToResourceFromEntity(user));
     }
 
     /// <summary>
@@ -118,6 +153,11 @@ public class UsersController(
     /// <summary>
     ///     Updates an existing user's attributes. All resource fields are optional.
     /// </summary>
+    /// <remarks>
+    ///     A new hotel or chain ends every session of the user (401 <c>auth.session_revoked</c>,
+    ///     <c>reason: "assignment_changed"</c>), sends them the "Tus permisos cambiaron" e-mail and is audited as
+    ///     <c>AssignmentChanged</c>.
+    /// </remarks>
     [HttpPut("{id}")]
     [Authorize(Policy = Policies.ManageUsers)]
     [SwaggerOperation(Summary = "Update an existing user", Description = "Updates user attributes if the actor has scope access and hierarchical superiority.", OperationId = "UpdateUser")]
@@ -139,9 +179,15 @@ public class UsersController(
     /// <summary>
     ///     Assigns a new role to an existing user.
     /// </summary>
+    /// <remarks>
+    ///     US-03 scenario 2: a new role ends every session of the user at once (all access and refresh tokens). Their
+    ///     next request gets 401 <c>auth.session_revoked</c> with <c>reason: "role_changed"</c>, they receive the
+    ///     e-mail "Tus permisos cambiaron, inicia sesión nuevamente" and sign in again with the new permissions.
+    ///     Audited as <c>RoleChanged</c>.
+    /// </remarks>
     [HttpPost("{id}/assign-role")]
     [Authorize(Policy = Policies.ManageUsers)]
-    [SwaggerOperation(Summary = "Assign a new role to a user", Description = "Changes a user's role if the actor has scope access and is allowed to assign the target role.", OperationId = "AssignRole")]
+    [SwaggerOperation(Summary = "Assign a new role to a user", Description = "Changes a user's role if the actor has scope access and is allowed to assign the target role. The user's sessions end immediately (401 auth.session_revoked, reason role_changed) and they are asked by e-mail to sign in again.", OperationId = "AssignRole")]
     [SwaggerResponse(StatusCodes.Status200OK, "Role assigned successfully")]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid request payload or unexpected error")]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]

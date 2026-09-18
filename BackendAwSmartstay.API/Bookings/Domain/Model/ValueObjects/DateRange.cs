@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
@@ -12,7 +13,7 @@ public sealed record DateRange
     public DateRange(DateTime checkIn, DateTime checkOut)
     {
         if (checkOut.Date <= checkIn.Date)
-            throw new DomainValidationException("The check-out date must be at least one day after the check-in date.");
+            throw new DomainValidationException(BookingErrorCodes.CheckOutNotAfterCheckIn, "The check-out date must be at least one day after the check-in date.");
 
         CheckIn = DateTime.SpecifyKind(checkIn.Date, DateTimeKind.Unspecified);
         CheckOut = DateTime.SpecifyKind(checkOut.Date, DateTimeKind.Unspecified);
@@ -32,6 +33,13 @@ public sealed record DateRange
 
     /// <summary>True when <paramref name="day"/> is one of the nights of the stay (check-in day included, check-out day excluded).</summary>
     public bool Includes(DateTime day) => CheckIn <= day.Date && day.Date < CheckOut;
+
+    /// <summary>US-51 scenario 4: a stay cannot start before <paramref name="hotelToday"/> (the hotel's calendar date).</summary>
+    public void EnsureNotInThePast(DateTime hotelToday)
+    {
+        if (CheckIn < hotelToday.Date)
+            throw new DomainValidationException(BookingErrorCodes.CheckInInPast, "The check-in date cannot be in the past.");
+    }
 
     public override string ToString() => $"{CheckIn:yyyy-MM-dd}..{CheckOut:yyyy-MM-dd}";
 }

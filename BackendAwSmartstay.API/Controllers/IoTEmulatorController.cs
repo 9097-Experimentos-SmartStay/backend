@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Controllers.Authorization;
 using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
@@ -27,9 +28,8 @@ public class IoTEmulatorController(
         if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
 
         if (request == null || string.IsNullOrWhiteSpace(request.SimulatedSensorType) || request.ReadingValue == null)
-        {
-            return BadRequest("El cuerpo de la solicitud no puede ser nulo.");
-        }
+            throw new DomainValidationException(IoTErrorCodes.TelemetryInvalid,
+                "Send the simulated sensor type and the reading value.");
 
         IoTEmulatorStore.Update(roomId, state =>
         {
@@ -71,9 +71,8 @@ public class IoTEmulatorController(
         if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
 
         if (request == null || string.IsNullOrWhiteSpace(request.FanSpeed) || string.IsNullOrWhiteSpace(request.SimulationMode))
-        {
-            return BadRequest("Parámetros del termostato inválidos.");
-        }
+            throw new DomainValidationException(IoTErrorCodes.ThermostatInvalid,
+                "Send the fan speed and the simulation mode of the thermostat.");
 
         IoTEmulatorStore.Update(roomId, state =>
         {

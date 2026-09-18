@@ -10,5 +10,5 @@ public static class BookingRequesterFromPrincipalAssembler
     public static BookingRequester ToBookingRequester(this ClaimsPrincipal user) =>
         user.IsGuest()
             ? BookingRequester.Guest(user.GetUserId(), user.GetUsername())
-            : BookingRequester.HotelStaff(user.GetUserId());
+            : BookingRequester.HotelStaff(user.GetUserId(), user.GetHotelId(), user.IsChainAdmin());
 }

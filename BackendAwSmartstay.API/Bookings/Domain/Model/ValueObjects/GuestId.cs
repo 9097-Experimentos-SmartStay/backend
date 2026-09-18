@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
@@ -11,7 +12,7 @@ public sealed record GuestId
     public GuestId(int value)
     {
         if (value <= 0)
-            throw new DomainValidationException("A guest reference must be a positive user id.");
+            throw new DomainValidationException(BookingErrorCodes.InternalInvariant, "A guest reference must be a positive user id.");
         Value = value;
     }
 

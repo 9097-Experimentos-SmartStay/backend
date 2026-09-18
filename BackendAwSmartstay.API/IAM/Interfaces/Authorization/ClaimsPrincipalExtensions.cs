@@ -37,6 +37,14 @@ public static class ClaimsPrincipalExtensions
     public static int? GetTokenVersion(this ClaimsPrincipal principal) =>
         ParseInt(principal.FindFirstValue(IamClaimTypes.TokenVersion));
 
+    /// <summary>The remembered session of the access token (<c>sid</c>), or null when it is not a remembered one.</summary>
+    public static Guid? GetRememberedSessionId(this ClaimsPrincipal principal) =>
+        Guid.TryParseExact(principal.FindFirstValue(IamClaimTypes.SessionId), "N", out var sessionId) ? sessionId : null;
+
+    /// <summary>The requester's current session, as other contexts pass it to the IAM facade.</summary>
+    public static ACL.SessionContext GetSessionContext(this ClaimsPrincipal principal) =>
+        new(principal.GetRememberedSessionId());
+
     /// <summary>True when the requester acts as a guest (as opposed to hotel staff).</summary>
     public static bool IsGuest(this ClaimsPrincipal principal) => principal.IsInRole(UserRoles.Guest);
 
@@ -45,6 +53,10 @@ public static class ClaimsPrincipalExtensions
 
     /// <summary>True when the requester is a chain administrator.</summary>
     public static bool IsChainAdmin(this ClaimsPrincipal principal) => principal.IsInRole(UserRoles.ChainAdmin);
+
+    /// <summary>Whether "remember me" was asked at sign-in (second-factor challenge tokens only).</summary>
+    public static bool RememberMeRequested(this ClaimsPrincipal principal) =>
+        string.Equals(principal.FindFirstValue(IamClaimTypes.RememberMe), "true", StringComparison.OrdinalIgnoreCase);
 
     private static int? ParseInt(string? value) =>
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;

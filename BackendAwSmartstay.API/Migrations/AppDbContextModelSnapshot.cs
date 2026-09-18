@@ -84,34 +84,6 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasName("p_k_hotels");
 
                     b.ToTable("hotels", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Address = "Jr. de la Unión 958",
-                            Amenities = "[\"Wifi\",\"Restaurante\",\"Bar\"]",
-                            City = "Lima",
-                            Country = "Peru",
-                            Description = "Historic hotel in the center of Lima.",
-                            HostId = 1,
-                            ImageUrl = "https://placehold.co/600x400/3498DB/FFFFFF?text=Bolivar",
-                            Name = "Grand Hotel Bolivar",
-                            Type = "Hotel"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Address = "San Blas 123",
-                            Amenities = "[\"Desayuno\",\"Wifi\",\"Gimnasio\"]",
-                            City = "Cusco",
-                            Country = "Peru",
-                            Description = "Experience the mystic energy of the Andes.",
-                            HostId = 1,
-                            ImageUrl = "https://placehold.co/600x400/E67E22/FFFFFF?text=Andean",
-                            Name = "Cusco Andean Lodge",
-                            Type = "Lodge"
-                        });
                 });
 
             modelBuilder.Entity("BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates.Room", b =>
@@ -138,6 +110,16 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("int")
                         .HasColumnName("hotel_id");
 
+                    b.Property<DateTimeOffset?>("MaintenanceAlertSentAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("maintenance_alert_sent_at");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("number");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("price");
@@ -146,45 +128,27 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("int")
                         .HasColumnName("room_type_id");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("StatusChangedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("status_changed_at");
+
                     b.HasKey("Id")
                         .HasName("p_k_rooms");
-
-                    b.HasIndex("HotelId")
-                        .HasDatabaseName("i_x_rooms__hotel_id");
 
                     b.HasIndex("RoomTypeId")
                         .HasDatabaseName("i_x_rooms__room_type_id");
 
-                    b.ToTable("rooms", (string)null);
+                    b.HasIndex("HotelId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_rooms__hotel_id__number");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 101,
-                            Amenities = "[\"Wifi\",\"TV\"]",
-                            Description = "Room 101 - Standard view.",
-                            HotelId = 1,
-                            Price = 85.00m,
-                            RoomTypeId = 1
-                        },
-                        new
-                        {
-                            Id = 102,
-                            Amenities = "[\"Wifi\",\"TV\",\"Minibar\"]",
-                            Description = "Room 102 - Plaza view with balcony.",
-                            HotelId = 1,
-                            Price = 150.00m,
-                            RoomTypeId = 2
-                        },
-                        new
-                        {
-                            Id = 201,
-                            Amenities = "[\"Jacuzzi\",\"Wifi\",\"Desayuno\",\"Chimenea\"]",
-                            Description = "Suite 201 - Panoramic mountain view.",
-                            HotelId = 2,
-                            Price = 320.00m,
-                            RoomTypeId = 3
-                        });
+                    b.ToTable("rooms", (string)null);
                 });
 
             modelBuilder.Entity("BackendAwSmartstay.API.Accommodations.Domain.Model.Entities.Amenity", b =>
@@ -316,6 +280,63 @@ namespace BackendAwSmartstay.API.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BackendAwSmartstay.API.Accommodations.Domain.Model.Entities.RoomStatusChange", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("changed_at");
+
+                    b.Property<string>("ChangedByEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("varchar(254)")
+                        .HasColumnName("changed_by_email");
+
+                    b.Property<int?>("ChangedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("from_status");
+
+                    b.Property<int>("HotelId")
+                        .HasColumnType("int")
+                        .HasColumnName("hotel_id");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("origin");
+
+                    b.Property<int>("RoomId")
+                        .HasColumnType("int")
+                        .HasColumnName("room_id");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("to_status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_room_status_changes");
+
+                    b.HasIndex("RoomId", "ChangedAt")
+                        .HasDatabaseName("i_x_room_status_changes__room_id__changed_at");
+
+                    b.ToTable("room_status_changes", (string)null);
+                });
+
             modelBuilder.Entity("BackendAwSmartstay.API.Accommodations.Domain.Model.Entities.RoomType", b =>
                 {
                     b.Property<int>("Id")
@@ -341,26 +362,81 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasName("p_k_room_types");
 
                     b.ToTable("room_types", (string)null);
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Description = "Cozy room for solo travelers.",
-                            Name = "Single Standard"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Description = "Spacious room for couples or business.",
-                            Name = "Double Deluxe"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Description = "Luxury suite with best views.",
-                            Name = "Presidential Suite"
-                        });
+            modelBuilder.Entity("BackendAwSmartstay.API.Audit.Domain.Model.Aggregates.AuditEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("varchar(254)")
+                        .HasColumnName("actor_email");
+
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("actor_user_id");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("details");
+
+                    b.Property<int?>("HotelId")
+                        .HasColumnType("int")
+                        .HasColumnName("hotel_id");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("varchar(45)")
+                        .HasColumnName("ip_address");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("TargetEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("varchar(254)")
+                        .HasColumnName("target_email");
+
+                    b.Property<int?>("TargetUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("target_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_audit_entries");
+
+                    b.HasIndex("ActorUserId")
+                        .HasDatabaseName("i_x_audit_entries__actor_user_id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("i_x_audit_entries__occurred_at");
+
+                    b.HasIndex("TargetUserId")
+                        .HasDatabaseName("i_x_audit_entries__target_user_id");
+
+                    b.HasIndex("HotelId", "OccurredAt")
+                        .HasDatabaseName("i_x_audit_entries__hotel_id__occurred_at");
+
+                    b.ToTable("audit_entries", (string)null);
                 });
 
             modelBuilder.Entity("BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates.Booking", b =>
@@ -372,6 +448,15 @@ namespace BackendAwSmartstay.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("cancelled_at");
+
                     b.Property<DateTime>("CheckInDate")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("check_in_date");
@@ -380,11 +465,33 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("check_out_date");
 
+                    b.Property<DateTimeOffset?>("CheckedInAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("checked_in_at");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("varchar(12)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
                     b.Property<string>("GuestEmail")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)")
                         .HasColumnName("guest_email");
+
+                    b.Property<int?>("GuestId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
 
                     b.Property<string>("GuestName")
                         .IsRequired()
@@ -392,9 +499,26 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("varchar(100)")
                         .HasColumnName("guest_name");
 
+                    b.Property<string>("GuestPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("guest_phone");
+
                     b.Property<Guid?>("GuestProfileId")
                         .HasColumnType("char(36)")
                         .HasColumnName("guest_profile_id");
+
+                    b.Property<int>("HotelId")
+                        .HasColumnType("int")
+                        .HasColumnName("hotel_id");
+
+                    b.Property<DateTimeOffset?>("PaymentDueAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("payment_due_at");
+
+                    b.Property<decimal>("PricePerNight")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("price_per_night");
 
                     b.Property<int>("RoomId")
                         .HasColumnType("int")
@@ -404,17 +528,292 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("int")
                         .HasColumnName("status");
 
-                    b.Property<int?>("UserId")
+                    b.HasKey("Id")
+                        .HasName("p_k_bookings");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_bookings__code");
+
+                    b.HasIndex("GuestId")
+                        .HasDatabaseName("i_x_bookings_user_id");
+
+                    b.HasIndex("HotelId", "CheckInDate")
+                        .HasDatabaseName("i_x_bookings__hotel_id__check_in_date");
+
+                    b.HasIndex("Status", "PaymentDueAt")
+                        .HasDatabaseName("i_x_bookings__status__payment_due_at");
+
+                    b.ToTable("bookings");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates.DigitalCheckIn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccessCodeProtected")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)")
+                        .HasColumnName("access_code_protected");
+
+                    b.Property<DateTimeOffset>("AccessCodeValidUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("access_code_valid_until");
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("int")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTimeOffset>("CompletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("DocumentContentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("document_content_type");
+
+                    b.Property<string>("DocumentFileId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("document_file_id");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("document_number");
+
+                    b.Property<long>("DocumentSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("document_size_bytes");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("document_type");
+
+                    b.Property<int?>("GuestUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("guest_user_id");
+
+                    b.Property<string>("Nationality")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("varchar(2)")
+                        .HasColumnName("nationality");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_digital_check_ins");
+
+                    b.HasIndex("BookingId")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_digital_check_ins__booking_id");
+
+                    b.ToTable("digital_check_ins", (string)null);
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.Bookings.Infrastructure.Storage.StoredDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("ProtectedContent")
+                        .IsRequired()
+                        .HasColumnType("longblob")
+                        .HasColumnName("protected_content");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("purpose");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_stored_documents");
+
+                    b.ToTable("stored_documents", (string)null);
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.AccountToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("issued_at");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("purpose");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<int>("UserId")
                         .HasColumnType("int")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
-                        .HasName("p_k_bookings");
+                        .HasName("p_k_account_tokens");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_account_tokens__token_hash");
+
+                    b.HasIndex("UserId", "Purpose")
+                        .HasDatabaseName("i_x_account_tokens__user_id__purpose");
+
+                    b.ToTable("account_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.MfaRecoveryCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("code_hash");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("UsedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("used_at");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_mfa_recovery_codes");
 
                     b.HasIndex("UserId")
-                        .HasDatabaseName("i_x_bookings_user_id");
+                        .HasDatabaseName("i_x_mfa_recovery_codes__user_id");
 
-                    b.ToTable("bookings");
+                    b.ToTable("mfa_recovery_codes", (string)null);
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("family_id");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("issued_at");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("revocation_reason");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<int>("TokenVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("token_version");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_refresh_tokens");
+
+                    b.HasIndex("FamilyId")
+                        .HasDatabaseName("i_x_refresh_tokens__family_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_refresh_tokens__token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("i_x_refresh_tokens__user_id");
+
+                    b.ToTable("refresh_tokens", (string)null);
                 });
 
             modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.User", b =>
@@ -442,9 +841,63 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("varchar(254)")
                         .HasColumnName("email");
 
+                    b.Property<bool>("EmailVerified")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("email_verified");
+
+                    b.Property<DateTimeOffset?>("EmailVerifiedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("email_verified_at");
+
+                    b.Property<int>("FailedSignInAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_sign_in_attempts");
+
+                    b.Property<string>("FirstName")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("first_name");
+
                     b.Property<int?>("HotelId")
                         .HasColumnType("int")
                         .HasColumnName("hotel_id");
+
+                    b.Property<string>("LastName")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("last_name");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("locked_until");
+
+                    b.Property<bool>("MfaEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("mfa_enabled");
+
+                    b.Property<DateTimeOffset?>("MfaEnabledAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("mfa_enabled_at");
+
+                    b.Property<long?>("MfaLastUsedTimeStep")
+                        .HasColumnType("bigint")
+                        .HasColumnName("mfa_last_used_time_step");
+
+                    b.Property<string>("MfaPendingSecretProtected")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)")
+                        .HasColumnName("mfa_pending_secret_protected");
+
+                    b.Property<string>("MfaSecretProtected")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)")
+                        .HasColumnName("mfa_secret_protected");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -457,6 +910,11 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)")
                         .HasColumnName("role");
+
+                    b.Property<string>("SessionRevocationReason")
+                        .HasMaxLength(40)
+                        .HasColumnType("varchar(40)")
+                        .HasColumnName("session_revocation_reason");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -493,6 +951,105 @@ namespace BackendAwSmartstay.API.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("BackendAwSmartstay.API.Marketing.Domain.Model.Aggregates.DemoRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccommodationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("accommodation_type");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("varchar(254)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("first_name");
+
+                    b.Property<DateTimeOffset?>("FollowedUpAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("followed_up_at");
+
+                    b.Property<string>("HotelName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("hotel_name");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)")
+                        .HasColumnName("job_title");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("last_name");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("message");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("profile");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("ReferralSource")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("referral_source");
+
+                    b.Property<string>("RoomsRange")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("rooms_range");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_demo_requests");
+
+                    b.HasIndex("Email")
+                        .HasDatabaseName("i_x_demo_requests__email");
+
+                    b.HasIndex("Status", "ReceivedAt")
+                        .HasDatabaseName("i_x_demo_requests__status__received_at");
+
+                    b.ToTable("demo_requests", (string)null);
+                });
+
             modelBuilder.Entity("BackendAwSmartstay.API.Payments.Domain.Model.Aggregates.Payment", b =>
                 {
                     b.Property<int>("Id")
@@ -510,24 +1067,38 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("int")
                         .HasColumnName("booking_id");
 
-                    b.Property<string>("CardHolderName")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("card_holder_name");
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("failure_reason");
 
-                    b.Property<string>("CardNumberMasked")
+                    b.Property<string>("Method")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("card_number_masked");
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("OperationNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("operation_number");
 
                     b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("payment_date");
 
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("payment_method");
+                    b.Property<int?>("RecordedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<DateTimeOffset?>("RefundedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("refunded_at");
 
                     b.Property<int>("Status")
                         .HasColumnType("int")
@@ -535,11 +1106,15 @@ namespace BackendAwSmartstay.API.Migrations
 
                     b.Property<string>("TransactionId")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("transaction_id");
 
                     b.HasKey("Id")
                         .HasName("p_k_payments");
+
+                    b.HasIndex("BookingId")
+                        .HasDatabaseName("i_x_payments__booking_id");
 
                     b.ToTable("payments", (string)null);
                 });
@@ -712,6 +1287,78 @@ namespace BackendAwSmartstay.API.Migrations
                     b.ToTable("staff_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("longtext")
+                        .HasColumnName("friendly_name");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("longtext")
+                        .HasColumnName("xml");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_data_protection_keys");
+
+                    b.ToTable("data_protection_keys");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates.Hotel", b =>
+                {
+                    b.OwnsOne("BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects.HotelPaymentSettings", "PaymentSettings", b1 =>
+                        {
+                            b1.Property<int>("HotelId")
+                                .HasColumnType("int");
+
+                            b1.Property<string>("AccountHolder")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("varchar(100)")
+                                .HasColumnName("payment_account_holder");
+
+                            b1.Property<string>("BankAccountCci")
+                                .HasMaxLength(20)
+                                .HasColumnType("varchar(20)")
+                                .HasColumnName("payment_bank_account_cci");
+
+                            b1.Property<string>("BankAccountNumber")
+                                .HasMaxLength(30)
+                                .HasColumnType("varchar(30)")
+                                .HasColumnName("payment_bank_account_number");
+
+                            b1.Property<string>("BankName")
+                                .HasMaxLength(60)
+                                .HasColumnType("varchar(60)")
+                                .HasColumnName("payment_bank_name");
+
+                            b1.Property<string>("PlinNumber")
+                                .HasMaxLength(9)
+                                .HasColumnType("varchar(9)")
+                                .HasColumnName("payment_plin_number");
+
+                            b1.Property<string>("YapeNumber")
+                                .HasMaxLength(9)
+                                .HasColumnType("varchar(9)")
+                                .HasColumnName("payment_yape_number");
+
+                            b1.HasKey("HotelId");
+
+                            b1.ToTable("hotels");
+
+                            b1.WithOwner()
+                                .HasForeignKey("HotelId");
+                        });
+
+                    b.Navigation("PaymentSettings");
+                });
+
             modelBuilder.Entity("BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates.Room", b =>
                 {
                     b.HasOne("BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates.Hotel", "Hotel")
@@ -731,6 +1378,56 @@ namespace BackendAwSmartstay.API.Migrations
                     b.Navigation("Hotel");
 
                     b.Navigation("RoomType");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.Accommodations.Domain.Model.Entities.RoomStatusChange", b =>
+                {
+                    b.HasOne("BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates.Room", null)
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_room_status_changes_rooms__room_id");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates.DigitalCheckIn", b =>
+                {
+                    b.HasOne("BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates.Booking", null)
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_digital_check_ins_bookings__booking_id");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.AccountToken", b =>
+                {
+                    b.HasOne("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_account_tokens_users__user_id");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.MfaRecoveryCode", b =>
+                {
+                    b.HasOne("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_mfa_recovery_codes_users__user_id");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.RefreshToken", b =>
+                {
+                    b.HasOne("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_refresh_tokens_users__user_id");
                 });
 
             modelBuilder.Entity("BackendAwSmartstay.Domain.Profiles.Domain.Model.Aggregates.GuestProfile", b =>

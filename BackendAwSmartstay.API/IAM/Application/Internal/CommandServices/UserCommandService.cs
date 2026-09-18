@@ -17,75 +17,17 @@ namespace BackendAwSmartstay.API.IAM.Application.Internal.CommandServices;
 /// </summary>
 public class UserCommandService(
     IUserRepository userRepository,
-    ITokenService tokenService,
+    IRefreshTokenRepository refreshTokenRepository,
+    AccountTokenIssuer accountTokenIssuer,
+    IAccountNotificationService notifications,
+    TimeProvider timeProvider,
     IHashingService hashingService,
     IRoleAuthorizationService roleAuthorizationService,
     IUserScopeService userScopeService,
+    NewPasswordValidator newPasswordValidator,
+    SessionIssuer sessionIssuer,
     IUnitOfWork unitOfWork) : IUserCommandService
 {
-    // ═══════════════════════════════════════════════════════════
-    // Existing authentication commands
-    // ═══════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Processes a sign-in request.
-    /// </summary>
-    public async Task<(User user, string token)> Handle(SignInCommand command)
-    {
-        var user = await userRepository.FindByEmailAsync(new Email(command.Email));
-
-        if (user == null || !hashingService.VerifyPassword(command.Password, user.PasswordHash))
-        {
-            throw new InvalidCredentialsException();
-        }
-
-        if (user.Status == UserStatus.Inactive)
-            throw new UnauthorizedOperationException("La cuenta ha sido desactivada. Contacte al administrador.");
-
-        var token = tokenService.GenerateToken(user);
-        return (user, token);
-    }
-
-    /// <summary>
-    /// Processes a sign-up request with optional role assignment.
-    /// Guest registration remains anonymous even if explicitly requested.
-    /// </summary>
-    public async Task Handle(SignUpCommand command)
-    {
-        var email = new Email(command.Email);
-        if (await userRepository.ExistsByEmailAsync(email))
-            throw new EmailAlreadyRegisteredException(email.Value);
-
-        var hashedPassword = hashingService.HashPassword(command.Password);
-        var assignedRole = UserRoles.Guest;
-
-        // Validate the requested role first so an unknown role is a 400 (ArgumentException), not a 403.
-        var requestedRole = string.IsNullOrWhiteSpace(command.Role) ? null : new Role(command.Role.Trim().ToLowerInvariant());
-
-        // If a specific role is requested and it is not the default Guest role, validate the actor's permissions
-        if (requestedRole != null 
-            && !requestedRole.Value.Equals(UserRoles.Guest, StringComparison.OrdinalIgnoreCase))
-        {
-            if (command.ActorUserId == null)
-                throw new UnauthorizedOperationException("Authentication required to assign a specific role during sign-up.");
-
-            var actor = await ResolveActorAsync(command.ActorUserId.Value);
-
-            if (!roleAuthorizationService.CanAssignRole(actor, requestedRole.Value))
-                throw new UnauthorizedOperationException(
-                    $"User {actor.Id} cannot assign role '{requestedRole.Value}'.");
-
-            assignedRole = requestedRole.Value;
-        }
-
-        // HotelId and ChainId default to null via the constructor logic.
-        // For full scope initialization, management endpoints (CreateUser) should be used.
-        var user = new User(email.Value, hashedPassword, assignedRole);
-
-        await userRepository.AddAsync(user);
-        await unitOfWork.CompleteAsync();
-    }
-
     /// <summary>
     /// Processes a password change request.
     /// </summary>
@@ -98,9 +40,10 @@ public class UserCommandService(
         if (!hashingService.VerifyPassword(command.CurrentPassword, user.PasswordHash))
             throw new InvalidCredentialsException();
 
-        var newHashedPassword = hashingService.HashPassword(command.NewPassword);
-        user.UpdatePasswordHash(newHashedPassword);
-        user.IncrementTokenVersion();
+        await newPasswordValidator.EnsureAcceptableAsync(command.NewPassword, user.Role, user.Email, nameof(command.NewPassword));
+        user.ChangePassword(hashingService.HashPassword(command.NewPassword), timeProvider.GetUtcNow());
+        foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))
+            session.Revoke(RefreshTokenRevocationReason.SessionRevoked, timeProvider.GetUtcNow());
 
         await unitOfWork.CompleteAsync();
     }
@@ -113,36 +56,41 @@ public class UserCommandService(
     /// Creates a new user with explicit role, hotel and chain assignment.
     /// Only actors with hierarchy superiority and scope access can create users.
     /// </summary>
-    public async Task Handle(CreateUserCommand command)
+    public async Task<User> Handle(CreateUserCommand command)
     {
         var actor = await ResolveActorAsync(command.ActorUserId);
+        var role = new Role(command.Role.Trim().ToLowerInvariant());
 
-        if (!roleAuthorizationService.CanAssignRole(actor, command.Role))
-            throw new UnauthorizedOperationException(
-                $"User {actor.Id} cannot assign role '{command.Role}'.");
+        if (!roleAuthorizationService.CanAssignRole(actor, role.Value))
+            throw new UnauthorizedOperationException(IamErrorCodes.RoleNotAssignable, $"You cannot assign the role '{role.Value}'.");
 
-        if (command.HotelId.HasValue && !userScopeService.CanAccessHotel(actor, command.HotelId))
-            throw new UnauthorizedOperationException(
-                $"User {actor.Id} cannot create users for hotel {command.HotelId}.");
+        var hotelId = StaffAccountPolicy.ResolveHotel(actor, role.Value, command.HotelId);
+        if (hotelId.HasValue && !userScopeService.CanAccessHotel(actor, hotelId))
+            throw new UnauthorizedOperationException(IamErrorCodes.HotelOutOfScope, $"You cannot create users for hotel {hotelId}.");
 
         if (command.ChainId.HasValue && !roleAuthorizationService.CanAssignChainId(actor, command.ChainId))
-            throw new UnauthorizedOperationException(
-                $"User {actor.Id} cannot assign chain {command.ChainId}.");
+            throw new UnauthorizedOperationException(IamErrorCodes.ChainOutOfScope, $"You cannot assign chain {command.ChainId}.");
 
         var email = new Email(command.Email);
         if (await userRepository.ExistsByEmailAsync(email))
             throw new EmailAlreadyRegisteredException(email.Value);
 
-        var hashedPassword = hashingService.HashPassword(command.Password);
-        var user = new User(
-            email.Value,
-            hashedPassword,
-            command.Role,
-            hotelId: command.HotelId,
-            chainId: command.ChainId);
+        var name = new PersonName(command.FirstName, command.LastName);
+        await newPasswordValidator.EnsureAcceptableAsync(command.Password, role, email, nameof(command.Password));
+        var user = User.Register(name, email, hashingService.HashPassword(command.Password), role,
+            hotelId, command.ChainId, createdByUserId: actor.Id, timeProvider.GetUtcNow());
 
-        await userRepository.AddAsync(user);
-        await unitOfWork.CompleteAsync();
+        PendingAccountToken? verification = null;
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await userRepository.AddAsync(user);
+            await unitOfWork.CompleteAsync();
+            verification = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.EmailVerification);
+            await unitOfWork.CompleteAsync();
+        });
+
+        await notifications.SendEmailVerificationAsync(user, verification!.Value, verification.ExpiresAt);
+        return user;
     }
 
     /// <summary>
@@ -156,7 +104,7 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot manage user {target.Id}.");
 
         if (command.NewEmail is not null)
@@ -170,29 +118,27 @@ public class UserCommandService(
 
         if (command.NewPassword is not null)
         {
+            await newPasswordValidator.EnsureAcceptableAsync(command.NewPassword, target.Role, target.Email, nameof(command.NewPassword));
             var hashed = hashingService.HashPassword(command.NewPassword);
             target.UpdatePasswordHash(hashed);
         }
 
-        if (command.NewHotelId.HasValue)
-        {
-            if (!userScopeService.CanAccessHotel(actor, command.NewHotelId))
-                throw new UnauthorizedOperationException(
-                    $"User {actor.Id} cannot assign hotel {command.NewHotelId}.");
+        if (command.NewHotelId.HasValue && !userScopeService.CanAccessHotel(actor, command.NewHotelId))
+            throw new UnauthorizedOperationException(IamErrorCodes.HotelOutOfScope,
+                $"User {actor.Id} cannot assign hotel {command.NewHotelId}.");
 
-            target.UpdateHotelId(command.NewHotelId);
-        }
+        if (command.NewChainId.HasValue && !roleAuthorizationService.CanAssignChainId(actor, command.NewChainId))
+            throw new UnauthorizedOperationException(IamErrorCodes.ChainOutOfScope,
+                $"User {actor.Id} cannot assign chain {command.NewChainId}.");
 
-        if (command.NewChainId.HasValue)
-        {
-            if (!roleAuthorizationService.CanAssignChainId(actor, command.NewChainId))
-                throw new UnauthorizedOperationException(
-                    $"User {actor.Id} cannot assign chain {command.NewChainId}.");
+        // A new hotel or chain ends the user's sessions: their tokens carry the old scope.
+        var assignmentChanged = target.ChangeAssignment(command.NewHotelId ?? target.HotelId,
+            command.NewChainId ?? target.ChainId, actor.Id, timeProvider.GetUtcNow());
 
-            target.UpdateChainId(command.NewChainId);
-        }
-
-        await unitOfWork.CompleteAsync();
+        if (assignmentChanged)
+            await EndSessionsAsync(target, notifyUser: true);
+        else
+            await unitOfWork.CompleteAsync();
     }
 
     /// <summary>
@@ -205,11 +151,11 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot manage user {target.Id}.");
 
         if (!roleAuthorizationService.CanAssignRole(actor, command.NewRole))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.RoleNotAssignable,
                 $"User {actor.Id} cannot assign role '{command.NewRole}'.");
 
         // --- NEW RULE: Protect the last ChainAdmin ---
@@ -220,8 +166,14 @@ public class UserCommandService(
             await EnsureAtLeastOneChainAdminRemainsAsync();
         }
 
-        target.AssignRole(command.NewRole);
-        await unitOfWork.CompleteAsync();
+        var previousRole = target.Role;
+        target.AssignRole(command.NewRole, actor.Id, timeProvider.GetUtcNow());
+
+        // US-03 scenario 2: the new role ends every session of the user (they sign in again with it).
+        if (target.Role != previousRole)
+            await EndSessionsAsync(target, notifyUser: true);
+        else
+            await unitOfWork.CompleteAsync();
     }
 
     /// <summary>
@@ -234,7 +186,7 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot deactivate user {target.Id}.");
 
         // --- NEW RULE: Protect the last ChainAdmin ---
@@ -244,8 +196,10 @@ public class UserCommandService(
             await EnsureAtLeastOneChainAdminRemainsAsync();
         }
 
-        target.Deactivate();
-        target.IncrementTokenVersion();
+        var now = timeProvider.GetUtcNow();
+        target.Deactivate(actor.Id, now);
+        foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(target.Id))
+            session.Revoke(RefreshTokenRevocationReason.SessionRevoked, now);
         await unitOfWork.CompleteAsync();
     }
 
@@ -259,21 +213,54 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot activate user {target.Id}.");
 
-        target.Activate();
+        target.Activate(actor.Id, timeProvider.GetUtcNow());
         await unitOfWork.CompleteAsync();
     }
 
     /// <summary>
     ///     D2: the hotel registered by a hotel administrator becomes the hotel they administer.
     /// </summary>
-    public async Task Handle(AssignHotelToAdministratorCommand command)
+    public async Task<AuthenticationResult?> Handle(AssignHotelToAdministratorCommand command)
     {
         var user = await ResolveTargetAsync(command.UserId);
-        user.TakeChargeOfHotel(command.HotelId);
+        var now = timeProvider.GetUtcNow();
+        var previousHotel = user.HotelId;
+        // Read before the sessions end: was the session that registered the hotel a remembered one of this user?
+        var remembered = command.RememberedSessionId is { } sessionId
+                         && (await refreshTokenRepository.ListUnrevokedByFamilyAsync(sessionId))
+                         .Any(token => token.UserId == user.Id && token.IsActive(now));
+
+        user.TakeChargeOfHotel(command.HotelId, now);
+        if (user.HotelId == previousHotel)
+        {
+            await unitOfWork.CompleteAsync();
+            return null;
+        }
+
+        // OWASP, privilege change: the tokens without the hotel stop working (new session generation)...
+        await EndSessionsAsync(user, notifyUser: false);
+        // ...and, since the administrator asked for the change, new credentials with the hotel are issued at once
+        // (no second sign-in and MFA just to pick up their own change).
+        return await sessionIssuer.ReissueSessionAsync(user, remembered, now);
+    }
+
+    /// <summary>
+    ///     Commits a change that started a new session generation of <paramref name="user"/>: the remembered
+    ///     sessions are revoked with it (access tokens already fail the version check) and, when an administrator
+    ///     made the change, the user is told by e-mail to sign in again.
+    /// </summary>
+    private async Task EndSessionsAsync(User user, bool notifyUser)
+    {
+        var now = timeProvider.GetUtcNow();
+        foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))
+            session.Revoke(RefreshTokenRevocationReason.SessionRevoked, now);
         await unitOfWork.CompleteAsync();
+
+        if (notifyUser)
+            await notifications.SendPermissionsChangedAsync(user);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -290,7 +277,7 @@ public class UserCommandService(
             throw new UserNotFoundException(actorUserId);
 
         if (actor.Status == UserStatus.Inactive)
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.ActorInactive,
                 $"User {actorUserId} is inactive and cannot perform management operations.");
 
         return actor;
@@ -316,7 +303,7 @@ public class UserCommandService(
         var activeChainAdminsCount = await userRepository.CountActiveByRoleAsync(UserRoles.ChainAdmin);
         if (activeChainAdminsCount <= 1)
         {
-            throw new UnauthorizedOperationException("Operation would leave the system without an active ChainAdmin.");
+            throw new UnauthorizedOperationException(IamErrorCodes.LastChainAdmin, "Operation would leave the system without an active ChainAdmin.");
         }
     }
 }

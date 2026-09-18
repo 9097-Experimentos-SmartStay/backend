@@ -1,4 +1,9 @@
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Audit.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.DemoData.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Marketing.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Media.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Authentication.ScheduledJobs;
 using BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Payments.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Documentation.OpenApi.Configuration.Extensions;
@@ -12,14 +17,18 @@ using BackendAwSmartstay.API.shared.Infrastructure.Persistence.EFC.Configuration
 using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 using BackendAwSmartstay.API.Controllers.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers(options =>
-    options.Conventions.Add(new KebabCaseRouteNamingConvention())
-);
+{
+    options.Conventions.Add(new KebabCaseRouteNamingConvention());
+    // Validation errors are keyed by the JSON (camelCase) property names the clients send.
+    options.ModelMetadataDetailsProviders.Add(new SystemTextJsonValidationMetadataProvider());
+});
 
 // Database
 builder.AddDatabaseConfigurationServices();
@@ -39,7 +48,13 @@ builder.AddPaymentsContextServices();
 builder.AddIamContextServices();
 builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
+builder.AddAuditContextServices();
+builder.AddMarketingContextServices();
+builder.AddMediaContextServices();
 builder.AddIoTEmulatorServices();
+
+// Opt-in demo dataset (DemoData__Enabled), created after the migrations
+builder.AddDemoDataServices();
 
 // Mediator for Services
 builder.AddCortexMediatorServices();
@@ -53,21 +68,15 @@ builder.Services.AddHealthChecks()
 // Optional analytics cache lab: Redis + ActiveMQ fallback (only when configured)
 builder.AddAnalyticsCacheServices();
 
-// Rate Limiting Configuration
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("AuthLimiter", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 10; // Máximo 10 intentos por minuto
-        opt.QueueLimit = 0;   // Rechazo inmediato sin encolar
-    });
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-});
-    
+// X-Cron-Key authentication of the external scheduler (scheduled jobs)
+builder.Services.AddScheduledJobsAuthentication(builder.Configuration);
+
+// Rate limiting of the anonymous endpoints, per client IP
+builder.Services.AddSmartStayRateLimiting(builder.Configuration);
+
 var app = builder.Build();
 
-// --- Database initialization: migrations + seed. Fail fast: never start with a broken schema ---
+// --- Database initialization: migrations + seed (+ demo data when enabled). Fail fast: never start with a broken schema ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -84,6 +93,7 @@ using (var scope = app.Services.CreateScope())
         }
         
         await app.SeedDatabaseAsync();
+        await app.SeedDemoDataAsync();
     }
     catch (Exception ex)
     {
@@ -102,14 +112,14 @@ app.UseCorsPolicy();
 // user httpRedirection
 app.UseHttpsRedirection();
 
-app.UseRateLimiter();
-
-// Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user)
+// Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user).
+// The rate limiter runs after authentication so per-user policies (media uploads) see the signed-in user.
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapSwagger().AllowAnonymous();
+app.MapApiDocumentation();
 app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();

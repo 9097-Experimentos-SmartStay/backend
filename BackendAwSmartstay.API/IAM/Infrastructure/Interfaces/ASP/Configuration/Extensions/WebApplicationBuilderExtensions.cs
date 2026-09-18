@@ -1,4 +1,10 @@
 using BackendAwSmartstay.API.IAM.Application.ACL.Services;
+using BackendAwSmartstay.API.IAM.Application.Internal.Configuration;
+using BackendAwSmartstay.API.IAM.Infrastructure.Notifications;
+using BackendAwSmartstay.API.IAM.Infrastructure.Passwords;
+using BackendAwSmartstay.API.IAM.Interfaces.REST.ExceptionHandling;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
+using BackendAwSmartstay.API.IAM.Infrastructure.Tokens.Opaque;
 using BackendAwSmartstay.API.IAM.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.IAM.Application.Internal.QueryServices;
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
@@ -38,11 +44,44 @@ public static class WebApplicationBuilderExtensions
             });
 
         // IAM Bounded Context Injection Configuration
+        builder.Services.AddOptions<AccountSecuritySettings>()
+            .Bind(builder.Configuration.GetSection(AccountSecuritySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // Password policy (NIST SP 800-63B-4) with the breached password lookup (HIBP range API, k-anonymity)
+        builder.Services.AddOptions<PasswordPolicySettings>()
+            .Bind(builder.Configuration.GetSection(PasswordPolicySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        builder.Services.AddHttpClient<IBreachedPasswordChecker, PwnedPasswordsChecker>((services, client) =>
+        {
+            var settings = services.GetRequiredService<IOptions<PasswordPolicySettings>>().Value;
+            client.BaseAddress = new Uri(settings.PwnedPasswordsApiBaseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(settings.PwnedPasswordsTimeoutSeconds);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartStay-API/1.0");
+        });
+        builder.Services.AddScoped<NewPasswordValidator>();
+
         builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IAccountTokenRepository, AccountTokenRepository>();
+        builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        builder.Services.AddScoped<IMfaRecoveryCodeRepository, MfaRecoveryCodeRepository>();
+        builder.Services.AddScoped<SessionIssuer>();
+        builder.Services.AddScoped<IMfaCommandService, MfaCommandService>();
+        builder.Services.AddOptions<MfaSettings>()
+            .Bind(builder.Configuration.GetSection(MfaSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        builder.Services.AddScoped<AccountTokenIssuer>();
+        builder.Services.AddScoped<IAuthenticationCommandService, AuthenticationCommandService>();
         builder.Services.AddScoped<IUserCommandService, UserCommandService>();
         builder.Services.AddScoped<IUserQueryService, UserQueryService>();
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IHashingService, HashingService>();
+        builder.Services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
+        builder.Services.AddScoped<IAccountNotificationService, AccountEmailNotificationService>();
+        builder.Services.AddSingleton<IProblemDetailsEnricher, IamProblemDetailsEnricher>();
         builder.Services.AddScoped<IIamContextFacade, IamContextFacade>();
 
         builder.Services.AddScoped<IRoleAuthorizationService, RoleAuthorizationService>();
@@ -64,7 +103,9 @@ public static class WebApplicationBuilderExtensions
         services.AddScoped<IamJwtBearerEvents>();
         services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureIamJwtBearerOptions>();
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer()
+            .AddJwtBearer(IamAuthenticationSchemes.MfaChallenge);
         return services;
     }
 
@@ -82,7 +123,16 @@ public static class WebApplicationBuilderExtensions
         services.AddAuthorizationBuilder()
             .SetDefaultPolicy(authenticatedUser)
             .SetFallbackPolicy(authenticatedUser)
-            .AddSmartStayPolicies();
+            .AddSmartStayPolicies()
+            // US-52: the second-factor endpoints only accept the matching challenge token.
+            .AddPolicy(Policies.EnrollSecondFactor, policy => policy
+                .AddAuthenticationSchemes(IamAuthenticationSchemes.MfaChallenge)
+                .RequireAuthenticatedUser()
+                .RequireClaim(IamClaimTypes.MfaChallenge, IamClaimTypes.MfaChallengeEnrollment))
+            .AddPolicy(Policies.VerifySecondFactor, policy => policy
+                .AddAuthenticationSchemes(IamAuthenticationSchemes.MfaChallenge)
+                .RequireAuthenticatedUser()
+                .RequireClaim(IamClaimTypes.MfaChallenge, IamClaimTypes.MfaChallengeVerification));
 
         return services;
     }

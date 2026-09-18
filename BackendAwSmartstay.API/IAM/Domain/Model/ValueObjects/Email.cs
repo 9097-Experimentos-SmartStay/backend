@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -16,20 +17,28 @@ public sealed partial record Email
     public Email(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new DomainValidationException("Email cannot be empty.");
+            throw new DomainValidationException(IamErrorCodes.EmailRequired, "Email cannot be empty.");
 
         var normalized = value.Trim().ToLowerInvariant();
 
         if (normalized.Length > MaxLength)
-            throw new DomainValidationException($"Email cannot exceed {MaxLength} characters.");
+            throw new DomainValidationException(IamErrorCodes.EmailTooLong, $"Email cannot exceed {MaxLength} characters.");
 
         if (!EmailFormat().IsMatch(normalized))
-            throw new DomainValidationException("Email has an invalid format.");
+            throw new DomainValidationException(IamErrorCodes.EmailInvalid, "Email has an invalid format.");
 
         Value = normalized;
     }
 
     private Email(string value, bool _) => Value = value;
+
+    /// <summary>True when <paramref name="value"/> is a valid login e-mail (used by request validation).</summary>
+    public static bool IsValid(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var normalized = value.Trim();
+        return normalized.Length <= MaxLength && EmailFormat().IsMatch(normalized);
+    }
 
     /// <summary>
     ///     Rebuilds a stored identifier without re-validating it. Accounts created before e-mail became the login

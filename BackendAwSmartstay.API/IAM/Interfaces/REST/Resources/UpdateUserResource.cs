@@ -17,7 +17,7 @@ public record UpdateUserResource
     [MaxLength(254)]
     public string? NewUsername { get; init; }
 
-    [MinLength(6, ErrorMessage = "Password must be at least 6 characters long.")]
+    [MaxLength(256, ErrorMessage = "The password cannot exceed 128 characters.")]
     public string? NewPassword { get; init; }
 
     public int? NewHotelId { get; init; }

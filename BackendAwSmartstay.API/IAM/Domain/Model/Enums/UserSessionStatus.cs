@@ -11,6 +11,9 @@ public enum UserSessionStatus
     UserNotFound,
     /// <summary>The user was deactivated (US-03: a deactivated user loses access).</summary>
     Inactive,
-    /// <summary>The token was issued before the last password change or deactivation.</summary>
+    /// <summary>
+    ///     The token was issued before the sessions were last ended (role or hotel change, password change or reset,
+    ///     sign-out everywhere, MFA reset).
+    /// </summary>
     Revoked
 }

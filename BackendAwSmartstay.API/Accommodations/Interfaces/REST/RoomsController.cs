@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
@@ -6,7 +8,9 @@ using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Authorization;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Transform;
 using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using BackendAwSmartstay.API.Accommodations.Application.Internal.Configuration;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -24,7 +28,9 @@ public class RoomsController(
     IRoomCommandService roomCommandService,
     IRoomQueryService roomQueryService,
     IHotelQueryService hotelQueryService,
-    IAuthorizationService authorizationService) : ControllerBase
+    IAuthorizationService authorizationService,
+    IOptions<RoomOperationsSettings> roomSettings,
+    TimeProvider timeProvider) : ControllerBase
 {
     /// <summary>
     ///     Retrieves a single room resource partition by its structural domain identity marker.
@@ -57,8 +63,8 @@ public class RoomsController(
     [HttpPost]
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
-        Summary = "Create a new room entry",
-        Description = "Registers a new room aggregate root within an existing property context. Restricted to management nodes.",
+        Summary = "Create a room (US-53)",
+        Description = "US-53 scenario 3. Admin: rooms of their own hotel; chain_admin: any hotel. The room number is unique in the hotel (409 otherwise), the price per night must be greater than 0 and every missing or invalid field is reported in `errors` (number, roomTypeId, price, description, hotelId). New rooms start Available.",
         OperationId = "CreateRoom")]
     [SwaggerResponse(StatusCodes.Status201Created, "The room aggregate root was successfully processed and initialized.", typeof(RoomResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource layout contains invalid fields or broken constraints.")]
@@ -68,10 +74,8 @@ public class RoomsController(
     {
         var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(resource.HotelId));
         if (hotel is null)
-        {
-            ModelState.AddModelError(nameof(resource.HotelId), $"Hotel {resource.HotelId} does not exist.");
-            return ValidationProblem(ModelState);
-        }
+            throw new InvalidFieldException(nameof(resource.HotelId), AccommodationErrorCodes.HotelNotFound,
+                $"Hotel {resource.HotelId} does not exist.");
         if (!await CanManageAsync(hotel)) return Forbid();
 
         var createRoomCommand = CreateRoomCommandFromResourceAssembler.ToCommandFromResource(resource);
@@ -130,7 +134,7 @@ public class RoomsController(
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Update an existing room aggregate's context properties",
-        Description = "Mutates operational values and parameters on an active room instance. Restricted to verified corporate accounts.",
+        Description = "US-53 scenario 4. Changes type, price, description, amenities and optionally the number (unique in the hotel). A new price only applies to new bookings: existing bookings keep the price per night they were made at.",
         OperationId = "UpdateRoom")]
     [SwaggerResponse(StatusCodes.Status200OK, "The room aggregate state was updated successfully.", typeof(RoomResource))]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
@@ -159,7 +163,7 @@ public class RoomsController(
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Delete a room entity entry",
-        Description = "Triggers complete structural teardown processing for a single room target aggregate. Requires full administrative clearance.",
+        Description = "US-53 scenario 4. A room with active bookings (pending, confirmed or checked in) cannot be deleted: 409 with the number of bookings to cancel or move first.",
         OperationId = "DeleteRoom")]
     [SwaggerResponse(StatusCodes.Status200OK, "The room aggregate instance was successfully cleared and decommissioned from the asset cluster.", typeof(RoomResource))]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
@@ -177,6 +181,81 @@ public class RoomsController(
 
         var roomResource = RoomResourceFromEntityAssembler.ToResourceFromEntity(deletedRoom);
         return Ok(roomResource);
+    }
+
+    /// <summary>Changes the operational status of a room (US-06 scenario 1, US-29 scenario 2).</summary>
+    /// <remarks>
+    ///     The change is recorded in the room's status history (who and when) and the staff in charge of the new
+    ///     status is notified by e-mail: Cleaning and Occupied → housekeeping, Maintenance → maintenance and the hotel
+    ///     admin, Available → reception.
+    ///     Valid transitions: Available → Occupied, Cleaning, Maintenance; Occupied → Cleaning, Maintenance;
+    ///     Cleaning → Available, Maintenance; Maintenance → Available, Cleaning. Setting the current status is a no-op.
+    ///     Hotel staff change the rooms of their hotel; a chain admin any room. PUT is accepted as a synonym.
+    /// </remarks>
+    [HttpPatch("{roomId:int}/status")]
+    [HttpPut("{roomId:int}/status")]
+    [Authorize(Policy = Policies.UpdateRoomStatus)]
+    [SwaggerOperation(Summary = "Change the status of a room", OperationId = "ChangeRoomStatus")]
+    [ProducesResponseType(typeof(RoomResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ChangeRoomStatus(int roomId, [FromBody] ChangeRoomStatusResource resource)
+    {
+        var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId));
+        if (room is null) return NotFound();
+        if (!(await authorizationService.AuthorizeAsync(User, room, RoomOperationsRequirement.Instance)).Succeeded)
+            return Forbid();
+
+        var updated = await roomCommandService.Handle(new ChangeRoomStatusCommand(roomId, resource.ToRoomStatus(),
+            User.GetUserId(), User.GetUsername()));
+        return updated is null ? NotFound() : Ok(RoomResourceFromEntityAssembler.ToResourceFromEntity(updated));
+    }
+
+    /// <summary>Room map of a hotel: every room with its status, for the color-coded view (US-06 scenario 2).</summary>
+    /// <remarks>
+    ///     Hotel staff (reception, housekeeping, maintenance, admin) see their hotel (<c>hotelId</c> optional); a chain
+    ///     admin must send <c>hotelId</c>. Each room has <c>statusSince</c> and <c>maintenanceOverdue</c> (under
+    ///     maintenance for longer than the alert threshold, 24 h). Suggested colors: Available green, Occupied blue,
+    ///     Cleaning amber, Maintenance red.
+    /// </remarks>
+    /// <param name="hotelId">The hotel.</param>
+    [HttpGet("map")]
+    [Authorize(Policy = Policies.ViewRoomOperations)]
+    [SwaggerOperation(Summary = "Room map of a hotel", OperationId = "GetRoomMap")]
+    [ProducesResponseType(typeof(RoomMapResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRoomMap([FromQuery] int? hotelId)
+    {
+        var targetHotelId = hotelId ?? (User.IsChainAdmin() ? null : User.GetHotelId());
+        if (targetHotelId is null)
+            throw new InvalidFieldException("hotelId", AccommodationErrorCodes.HotelRequired, "Send the hotelId of the map.");
+
+        var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(targetHotelId.Value));
+        if (hotel is null) return NotFound();
+        if (!User.IsChainAdmin() && User.GetHotelId() != hotel.Id) return Forbid();
+
+        var rooms = await roomQueryService.Handle(new GetRoomMapQuery(hotel.Id));
+        return Ok(RoomMapResourceAssembler.ToResource(hotel, rooms, timeProvider.GetUtcNow(), roomSettings.Value.MaintenanceAlertAfter));
+    }
+
+    /// <summary>Status history of a room, newest first (US-06 scenario 3): date, time and user of each change.</summary>
+    [HttpGet("{roomId:int}/status-history")]
+    [Authorize(Policy = Policies.ViewRoomOperations)]
+    [SwaggerOperation(Summary = "Status history of a room", OperationId = "GetRoomStatusHistory")]
+    [ProducesResponseType(typeof(IEnumerable<RoomStatusChangeResource>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStatusHistory(int roomId)
+    {
+        var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId));
+        if (room is null) return NotFound();
+        if (!(await authorizationService.AuthorizeAsync(User, room, RoomOperationsRequirement.Instance)).Succeeded)
+            return Forbid();
+
+        var history = await roomQueryService.Handle(new GetRoomStatusHistoryQuery(roomId));
+        return Ok(history.Select(RoomMapResourceAssembler.ToResource));
     }
 
     /// <summary>

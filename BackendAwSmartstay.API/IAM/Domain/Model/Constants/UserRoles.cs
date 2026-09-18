@@ -21,11 +21,6 @@ public static class UserRoles
     public const string ChainAdmin = "chain_admin";
 
     /// <summary>
-    ///     General staff role - generic staff member.
-    /// </summary>
-    public const string Staff = "staff";
-
-    /// <summary>
     ///     Reception staff role - handles assisted check-in/check-out and reception desks.
     /// </summary>
     public const string Reception = "reception";

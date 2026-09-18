@@ -24,7 +24,7 @@ public static class IamClaimTypes
     /// <summary>Account e-mail (JWT <c>email</c>).</summary>
     public const string Email = JwtRegisteredClaimNames.Email;
 
-    /// <summary>Role (<c>role</c>): guest, staff, reception, housekeeping, maintenance, admin or chain_admin.</summary>
+    /// <summary>Role (<c>role</c>): guest, reception, housekeeping, maintenance, admin or chain_admin.</summary>
     public const string Role = "role";
 
     /// <summary>Hotel the user is assigned to (<c>hotel_id</c>), only present when assigned.</summary>
@@ -33,6 +33,28 @@ public static class IamClaimTypes
     /// <summary>Chain the user belongs to (<c>chain_id</c>), only present when assigned.</summary>
     public const string ChainId = "chain_id";
 
+    /// <summary>Whether the account e-mail was verified (<c>email_verified</c>: true/false, US-01).</summary>
+    public const string EmailVerified = "email_verified";
+
     /// <summary>Session generation (<c>token_version</c>); a token whose version is not the current one is revoked.</summary>
     public const string TokenVersion = "token_version";
+
+    /// <summary>
+    ///     Remembered session the access token belongs to (JWT <c>sid</c>, the refresh token family), only present
+    ///     when the user signed in with "remember me". Lets the API renew that session when it issues new
+    ///     credentials on the user's behalf (e.g. after they register their hotel).
+    /// </summary>
+    public const string SessionId = JwtRegisteredClaimNames.Sid;
+
+    /// <summary>
+    ///     Only in second-factor challenge tokens (<c>mfa_challenge</c>): <c>enrollment</c> or <c>verification</c>.
+    /// </summary>
+    public const string MfaChallenge = "mfa_challenge";
+
+    /// <summary>Only in second-factor challenge tokens: whether "remember me" was asked at sign-in.</summary>
+    public const string RememberMe = "remember_me";
+
+    /// <summary>Claim values of <see cref="MfaChallenge"/>.</summary>
+    public const string MfaChallengeEnrollment = "enrollment";
+    public const string MfaChallengeVerification = "verification";
 }

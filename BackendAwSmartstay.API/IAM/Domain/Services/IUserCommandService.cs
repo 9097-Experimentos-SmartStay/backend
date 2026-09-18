@@ -15,24 +15,6 @@ public interface IUserCommandService
 {
     /**
      * <summary>
-     *     Handle sign in command
-     * </summary>
-     * <param name="command">The sign in command</param>
-     * <returns>The authenticated user and the JWT token</returns>
-     */
-    Task<(User user, string token)> Handle(SignInCommand command);
-
-    /**
-     * <summary>
-     *     Handle sign up command
-     * </summary>
-     * <param name="command">The sign-up command</param>
-     * <returns>A confirmation message on successful creation.</returns>
-     */
-    Task Handle(SignUpCommand command);
-
-    /**
-     * <summary>
      *     Handle change password command
      * </summary>
      * <param name="command">The change password command</param>
@@ -42,7 +24,7 @@ public interface IUserCommandService
     /// <summary>
     ///     Handle create user command (admin/chain_admin scoped).
     /// </summary>
-    Task Handle(CreateUserCommand command);
+    Task<User> Handle(CreateUserCommand command);
 
     /// <summary>
     ///     Handle update user command (admin/chain_admin scoped).
@@ -66,6 +48,8 @@ public interface IUserCommandService
 
     /// <summary>
     ///     Handle assign hotel to administrator command (D2: the hotel an admin registers becomes their hotel).
+    ///     The change was asked by the administrator: every previous session ends and a new one is returned.
     /// </summary>
-    Task Handle(AssignHotelToAdministratorCommand command);
+    /// <returns>The new session with the hotel, or null when the administrator already had that hotel.</returns>
+    Task<AuthenticationResult?> Handle(AssignHotelToAdministratorCommand command);
 }

@@ -78,9 +78,9 @@ public class HotelsController(
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Create a new hotel property entry",
-        Description = "Constructs a new hotel aggregate root. Restricted exclusively to administrative and corporate management roles.",
+        Description = "Registers a hotel (US-53). Admin: only their first hotel, which becomes their hotelId; their previous access and refresh tokens are revoked (401 auth.session_revoked, reason assignment_changed) and the response carries their NEW session (token with hotel_id, plus a refresh token when the current session was remembered): use it right away. Chain admin: any number of hotels, session null. The image must be uploaded with POST /media/hotel-images/signature when uploads are configured.",
         OperationId = "CreateHotel")]
-    [SwaggerResponse(StatusCodes.Status201Created, "The hotel aggregate root was successfully created and tracked.", typeof(HotelResource))]
+    [SwaggerResponse(StatusCodes.Status201Created, "The hotel was registered: { hotel, session }.", typeof(HotelRegistrationResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource structure contains invalid constraints.")]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Access denied. Only Admin or ChainAdmin operators are cleared to execute infrastructure initialization.")]
@@ -88,13 +88,17 @@ public class HotelsController(
     public async Task<IActionResult> CreateHotel([FromBody] CreateHotelResource resource)
     {
         var registrant = new HotelRegistrant(User.GetUserId(), User.IsChainAdmin(), User.GetHotelId());
-        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, registrant);
-        var hotel = await hotelCommandService.Handle(command);
-        
-        if (hotel is null) return BadRequest();
-        
-        var hotelResource = HotelResourceFromEntityAssembler.ToResourceFromEntity(hotel);
-        return CreatedAtAction(nameof(GetHotelById), new { hotelId = hotel.Id }, hotelResource);
+        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, registrant, User.GetSessionContext());
+        var registration = await hotelCommandService.Handle(command);
+
+        var session = registration.RegistrantSession;
+        return CreatedAtAction(nameof(GetHotelById), new { hotelId = registration.Hotel.Id },
+            new HotelRegistrationResource(
+                HotelResourceFromEntityAssembler.ToResourceFromEntity(registration.Hotel),
+                session is null
+                    ? null
+                    : new RenewedSessionResource(session.AccessToken, "Bearer", session.AccessTokenExpiresAt,
+                        session.RefreshToken, session.RefreshTokenExpiresAt)));
     }
     
     /// <summary>
@@ -154,6 +158,55 @@ public class HotelsController(
 
         var hotelResource = HotelResourceFromEntityAssembler.ToResourceFromEntity(deletedHotel);
         return Ok(hotelResource);
+    }
+
+    /// <summary>Gets the payment methods of a hotel (US-53).</summary>
+    /// <remarks>
+    ///     Admin and reception of that hotel, chain_admin. A hotel whose settings were never set answers 200 with
+    ///     <c>acceptsBookings: false</c> and null members: it does not accept bookings until its administrator
+    ///     sets at least one payment method.
+    /// </remarks>
+    [HttpGet("{hotelId:int}/payment-settings")]
+    [Authorize(Policy = Policies.ReadHotelPaymentSettings)]
+    [SwaggerOperation(Summary = "Get the payment methods of a hotel", OperationId = "GetHotelPaymentSettings")]
+    [ProducesResponseType(typeof(HotelPaymentSettingsResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPaymentSettings(int hotelId)
+    {
+        var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(hotelId));
+        if (hotel is null) return NotFound();
+
+        var authorization = await authorizationService.AuthorizeAsync(User, hotel, HotelStaffRequirement.Instance);
+        if (!authorization.Succeeded) return Forbid();
+
+        return Ok(HotelPaymentSettingsResourceAssembler.ToResourceFromEntity(hotel));
+    }
+
+    /// <summary>Sets the payment methods of a hotel (US-53): from then on the hotel accepts bookings.</summary>
+    /// <remarks>
+    ///     Admin of that hotel or chain_admin. Replaces the current settings. The account holder and at least one
+    ///     method (Yape, Plin, or bank name + account number) are required; Yape/Plin are 9-digit Peruvian mobiles
+    ///     starting with 9 and the CCI has 20 digits. Every broken rule is reported at once in <c>violations</c>
+    ///     (codes <c>payment_settings.*</c>). The booking e-mails and the booking page show these methods.
+    /// </remarks>
+    [HttpPut("{hotelId:int}/payment-settings")]
+    [Authorize(Policy = Policies.ManageHotels)]
+    [SwaggerOperation(Summary = "Set the payment methods of a hotel", OperationId = "UpdateHotelPaymentSettings")]
+    [ProducesResponseType(typeof(HotelPaymentSettingsResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdatePaymentSettings(int hotelId, [FromBody] UpdateHotelPaymentSettingsResource resource)
+    {
+        var notAllowed = await EnsureCanManageHotelAsync(hotelId);
+        if (notAllowed is not null) return notAllowed;
+
+        var hotel = await hotelCommandService.Handle(
+            HotelPaymentSettingsResourceAssembler.ToCommandFromResource(hotelId, resource));
+        if (hotel is null) return NotFound();
+
+        return Ok(HotelPaymentSettingsResourceAssembler.ToResourceFromEntity(hotel));
     }
 
     /// <summary>

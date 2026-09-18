@@ -8,18 +8,10 @@ public static class CreateBookingCommandFromResourceAssembler
 {
     /// <summary>
     ///     Builds the command. The Booking aggregate decides which fields apply: a guest always books for
-    ///     themselves, so <c>userId</c> and <c>guestProfileId</c> only matter for desk bookings.
+    ///     themselves, so <c>userId</c> and <c>guestProfileId</c> only matter for staff bookings.
     /// </summary>
-    public static CreateBookingCommand ToCommandFromResource(CreateBookingResource resource, BookingRequester requester)
-    {
-        return new CreateBookingCommand(
-            requester,
-            resource.RoomId,
-            resource.GuestName,
-            resource.GuestEmail,
-            resource.CheckInDate,
-            resource.CheckOutDate,
-            resource.UserId,
-            resource.GuestProfileId);
-    }
+    public static CreateBookingCommand ToCommandFromResource(CreateBookingResource resource, BookingRequester requester) =>
+        new(requester, resource.RoomId, resource.GuestName, resource.GuestEmail,
+            resource.CheckInDate!.Value, resource.CheckOutDate!.Value, resource.UserId, resource.GuestProfileId,
+            resource.GuestPhone);
 }
