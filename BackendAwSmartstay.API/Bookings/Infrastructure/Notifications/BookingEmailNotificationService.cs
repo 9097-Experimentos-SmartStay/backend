@@ -84,9 +84,12 @@ public class BookingEmailNotificationService(
         if (instructions.PlinNumber is { } plin) yield return $"Plin: {Mobile(plin)} (a nombre de {instructions.AccountHolder}).";
         if (instructions.BankAccountNumber is { } account)
             yield return $"Transferencia bancaria{(instructions.BankName is { } bank ? $" ({bank})" : string.Empty)}: cuenta {account}" +
-                         $"{(instructions.BankAccountCci is { } cci ? $", CCI {cci}" : string.Empty)}, a nombre de {instructions.AccountHolder}.";
+                         $"{(instructions.BankAccountCci is { } cci ? $", CCI {cci}" : string.Empty)}, a nombre de {Sentence(instructions.AccountHolder)}";
         yield return "También puedes pagar en efectivo o con tarjeta en la recepción del hotel.";
     }
+
+    /// <summary>Ends the text with one period (an account holder such as "Hotel S.A.C." already has it).</summary>
+    private static string Sentence(string text) => text.EndsWith('.') ? text : text + ".";
 
     /// <summary>A 9-digit mobile number grouped as it is read aloud: 987 654 321.</summary>
     private static string Mobile(string number) =>
