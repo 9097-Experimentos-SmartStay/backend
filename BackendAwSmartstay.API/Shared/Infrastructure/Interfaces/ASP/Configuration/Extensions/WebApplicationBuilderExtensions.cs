@@ -1,4 +1,6 @@
+using BackendAwSmartstay.API.Shared.Application.OutboundServices;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using BackendAwSmartstay.API.Shared.Infrastructure.Events;
 using BackendAwSmartstay.API.Shared.Infrastructure.Email.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Repositories;
@@ -17,6 +19,7 @@ public static class WebApplicationBuilderExtensions
     public static void AddSharedContextServices(this WebApplicationBuilder builder)
     {
         builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+        builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 
         // E-mail port (queued, delivered in the background) and client URLs used in the links
         builder.Services.AddEmailServices(builder.Configuration);
