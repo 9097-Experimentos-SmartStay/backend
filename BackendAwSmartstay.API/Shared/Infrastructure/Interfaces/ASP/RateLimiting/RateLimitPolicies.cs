@@ -8,4 +8,7 @@ public static class RateLimitPolicies
 
     /// <summary>Anonymous public forms (demo requests).</summary>
     public const string PublicForms = "public-forms";
+
+    /// <summary>Signatures of uploads to the media library, per signed-in user (Cloudinary quota).</summary>
+    public const string MediaUploads = "media-uploads";
 }

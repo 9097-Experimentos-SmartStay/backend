@@ -4,6 +4,7 @@ using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandl
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
 
@@ -31,6 +32,8 @@ public static class RateLimitingServiceCollectionExtensions
                     PerClientIp(context, limits.CredentialsPermitLimit, limits.CredentialsWindowSeconds));
                 options.AddPolicy(RateLimitPolicies.PublicForms, context =>
                     PerClientIp(context, limits.PublicFormsPermitLimit, limits.PublicFormsWindowSeconds));
+                options.AddPolicy(RateLimitPolicies.MediaUploads, context =>
+                    PerUser(context, limits.MediaUploadsPermitLimit, limits.MediaUploadsWindowSeconds));
                 options.OnRejected = WriteProblemAsync;
             });
 
@@ -46,6 +49,19 @@ public static class RateLimitingServiceCollectionExtensions
                 Window = TimeSpan.FromSeconds(windowSeconds),
                 QueueLimit = 0
             });
+
+    /// <summary>Authenticated endpoints: one window per user (<c>sub</c>), falling back to the client IP.</summary>
+    private static RateLimitPartition<string> PerUser(HttpContext context, int permitLimit, int windowSeconds)
+    {
+        var userId = context.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        var key = userId is null ? $"ip:{context.Connection.RemoteIpAddress}" : $"user:{userId}";
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromSeconds(windowSeconds),
+            QueueLimit = 0
+        });
+    }
 
     private static async ValueTask WriteProblemAsync(OnRejectedContext context, CancellationToken cancellationToken)
     {

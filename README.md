@@ -13,6 +13,8 @@ La API lee su configuración por capas; cada capa sobrescribe a la anterior:
 
 Las opciones se validan al iniciar: si falta un valor obligatorio (por ejemplo `TokenSettings__Secret` o `Email__Smtp__Host` en producción), la API no arranca y el log indica qué variable falta.
 
+Las imágenes de los hoteles se suben directo del navegador a Cloudinary con una **firma de corta vida** que emite la API (`POST /api/v1/media/hotel-images/signature`, solo administradores); el API secret vive solo en el servidor. Define `Cloudinary__CloudName`, `Cloudinary__ApiKey` y `Cloudinary__ApiSecret` (obligatorias en producción; sin ellas, en desarrollo la firma responde 503 `media.uploads_not_configured`). El upload preset firmado es `smartstay-hotels` (`Cloudinary__HotelImagesPreset`).
+
 Los medios de pago de las reservas (Yape, Plin, cuenta bancaria) **no** son variables de entorno: cada administrador los registra para su hotel desde la aplicación (`PUT /api/v1/hotels/{id}/payment-settings`). Un hotel sin medios de pago no acepta reservas.
 
 ### Desarrollo local con `dotnet run`

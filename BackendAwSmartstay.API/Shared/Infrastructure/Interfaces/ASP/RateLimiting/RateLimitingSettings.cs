@@ -24,4 +24,11 @@ public class RateLimitingSettings
 
     [Range(1, 3600)]
     public int PublicFormsWindowSeconds { get; set; } = 300;
+
+    /// <summary>Upload signatures per window and signed-in user (hotel images).</summary>
+    [Range(1, 10_000)]
+    public int MediaUploadsPermitLimit { get; set; } = 30;
+
+    [Range(1, 86_400)]
+    public int MediaUploadsWindowSeconds { get; set; } = 600;
 }

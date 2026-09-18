@@ -26,6 +26,8 @@ public static class Policies
     public const string ViewRoomOperations = nameof(ViewRoomOperations);
     /// <summary>Read the payment methods of a hotel (hotel scope checked per resource, US-53).</summary>
     public const string ReadHotelPaymentSettings = nameof(ReadHotelPaymentSettings);
+    /// <summary>Sign uploads of hotel images to the media library (US-53).</summary>
+    public const string UploadHotelImages = nameof(UploadHotelImages);
     /// <summary>Add hotel categories and amenities to the shared master catalog.</summary>
     public const string ManageCatalog = nameof(ManageCatalog);
 
@@ -122,6 +124,7 @@ public static class Policies
         [ManageHotels] = Administrators,
         [ManageCatalog] = [UserRoles.ChainAdmin],
         [ReadHotelPaymentSettings] = FrontDesk,
+        [UploadHotelImages] = Administrators,
         [UpdateRoomStatus] = HotelStaff,
         [ViewRoomOperations] = HotelStaff,
 

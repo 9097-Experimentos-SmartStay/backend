@@ -1,6 +1,7 @@
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Audit.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Marketing.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Media.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Authentication.ScheduledJobs;
 using BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Payments.Infrastructure.Interfaces.ASP.Configuration.Extensions;
@@ -48,6 +49,7 @@ builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
 builder.AddAuditContextServices();
 builder.AddMarketingContextServices();
+builder.AddMediaContextServices();
 builder.AddIoTEmulatorServices();
 
 // Mediator for Services
@@ -105,10 +107,10 @@ app.UseCorsPolicy();
 // user httpRedirection
 app.UseHttpsRedirection();
 
-app.UseRateLimiter();
-
-// Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user)
+// Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user).
+// The rate limiter runs after authentication so per-user policies (media uploads) see the signed-in user.
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
