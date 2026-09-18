@@ -31,6 +31,9 @@ public static class WebApplicationBuilderExtensions
             {
                 context.ProblemDetails.Instance ??= context.HttpContext.Request.Path;
                 context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+                if (context.Exception is null) return;
+                foreach (var enricher in context.HttpContext.RequestServices.GetServices<IProblemDetailsEnricher>())
+                    enricher.Enrich(context);
             };
         });
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

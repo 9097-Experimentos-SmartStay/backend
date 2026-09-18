@@ -18,7 +18,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
 {
     private readonly TokenSettings _tokenSettings = tokenSettings.Value;
 
-    public string GenerateToken(User user)
+    public IssuedAccessToken GenerateToken(User user)
     {
         var claims = new List<Claim>
         {
@@ -27,6 +27,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
             new(IamClaimTypes.Email, user.Email.Value),
             new(IamClaimTypes.Role, user.Role.Value),
             new(IamClaimTypes.TokenVersion, user.TokenVersion.ToString(CultureInfo.InvariantCulture)),
+            new(IamClaimTypes.EmailVerified, user.EmailVerified ? "true" : "false", ClaimValueTypes.Boolean),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
         };
         if (user.HotelId is { } hotelId)
@@ -35,17 +36,19 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
             claims.Add(new Claim(IamClaimTypes.ChainId, chainId.ToString(CultureInfo.InvariantCulture)));
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
+        var expires = now.AddMinutes(_tokenSettings.AccessTokenExpirationMinutes);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
             IssuedAt = now,
             NotBefore = now,
-            Expires = now.AddHours(_tokenSettings.ExpirationInHours),
+            Expires = expires,
             Issuer = _tokenSettings.Issuer,
             Audience = _tokenSettings.Audience,
             SigningCredentials = new SigningCredentials(_tokenSettings.CreateSigningKey(), SecurityAlgorithms.HmacSha256)
         };
 
-        return new JsonWebTokenHandler().CreateToken(tokenDescriptor);
+        return new IssuedAccessToken(new JsonWebTokenHandler().CreateToken(tokenDescriptor),
+            new DateTimeOffset(expires, TimeSpan.Zero));
     }
 }

@@ -24,6 +24,10 @@ public static class UserResourceFromEntityAssembler
             user.ChainId,
             user.CreatedAt,
             user.UpdatedAt,
-            user.Email.Value);
+            user.Email.Value,
+            user.FirstName,
+            user.LastName,
+            user.EmailVerified,
+            user.LockedUntil);
     }
 }

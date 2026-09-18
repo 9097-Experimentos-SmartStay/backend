@@ -15,24 +15,6 @@ public interface IUserCommandService
 {
     /**
      * <summary>
-     *     Handle sign in command
-     * </summary>
-     * <param name="command">The sign in command</param>
-     * <returns>The authenticated user and the JWT token</returns>
-     */
-    Task<(User user, string token)> Handle(SignInCommand command);
-
-    /**
-     * <summary>
-     *     Handle sign up command
-     * </summary>
-     * <param name="command">The sign-up command</param>
-     * <returns>A confirmation message on successful creation.</returns>
-     */
-    Task Handle(SignUpCommand command);
-
-    /**
-     * <summary>
      *     Handle change password command
      * </summary>
      * <param name="command">The change password command</param>
@@ -42,7 +24,7 @@ public interface IUserCommandService
     /// <summary>
     ///     Handle create user command (admin/chain_admin scoped).
     /// </summary>
-    Task Handle(CreateUserCommand command);
+    Task<User> Handle(CreateUserCommand command);
 
     /// <summary>
     ///     Handle update user command (admin/chain_admin scoped).

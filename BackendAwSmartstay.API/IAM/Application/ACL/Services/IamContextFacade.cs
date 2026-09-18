@@ -14,21 +14,6 @@ public class IamContextFacade(
     IUserQueryService userQueryService) : IIamContextFacade
 {
     /// <summary>
-    /// Creates a new user resource within the system using the provided credentials.
-    /// </summary>
-    /// <param name="email">The unique identifier name for the new user resource.</param>
-    /// <param name="password">The plain text password to be securely processed for the new user.</param>
-    /// <returns>The unique identifier of the newly created user resource, or <c>0</c> if the creation failed.</returns>
-    public async Task<int> CreateUser(string email, string password)
-    {
-        var signUpCommand = new SignUpCommand(email, password);
-        await userCommandService.Handle(signUpCommand);
-        var getUserByEmailQuery = new GetUserByEmailQuery(email);
-        var result = await userQueryService.Handle(getUserByEmailQuery);
-        return result?.Id ?? 0;
-    }
-
-    /// <summary>
     /// Retrieves the unique identifier of a user resource based on their email.
     /// </summary>
     /// <param name="email">The email of the resource to find.</param>

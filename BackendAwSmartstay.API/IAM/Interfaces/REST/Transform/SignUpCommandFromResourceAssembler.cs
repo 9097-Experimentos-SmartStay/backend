@@ -17,8 +17,10 @@ public static class SignUpCommandFromResourceAssembler
     public static SignUpCommand ToCommandFromResource(SignUpResource resource, int? actorUserId = null)
     {
         return new SignUpCommand(
+            resource.FirstName ?? string.Empty,
+            resource.LastName ?? string.Empty,
             resource.LoginEmail,
-            resource.Password, 
+            resource.Password ?? string.Empty,
             resource.Role, 
             actorUserId);
     }

@@ -21,14 +21,13 @@ public class UnitOfWork(AppDbContext context, IDomainEventDispatcher domainEvent
     /// <inheritdoc/>
     public async Task CompleteAsync()
     {
-        var aggregates = context.ChangeTracker.Entries<IHasDomainEvents>()
-            .Select(entry => entry.Entity)
-            .Where(aggregate => aggregate.DomainEvents.Count > 0)
-            .ToList();
-        var events = aggregates.SelectMany(aggregate => aggregate.DomainEvents).ToList();
+        // Taken before saving (deleted entities are detached by SaveChanges), read after it (new aggregates
+        // have their generated ids by then).
+        var aggregates = context.ChangeTracker.Entries<IHasDomainEvents>().Select(entry => entry.Entity).ToList();
 
         await context.SaveChangesAsync();
 
+        var events = aggregates.SelectMany(aggregate => aggregate.DomainEvents).ToList();
         aggregates.ForEach(aggregate => aggregate.ClearDomainEvents());
         _committedEvents.AddRange(events);
 

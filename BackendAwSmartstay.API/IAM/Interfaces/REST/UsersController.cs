@@ -31,19 +31,17 @@ public class UsersController(
     /// <returns>A confirmation message.</returns>
     [HttpPost]
     [Authorize(Policy = Policies.ManageUsers)]
-    [SwaggerOperation(Summary = "Create a new user", Description = "Creates a user within the actor's hierarchical and organizational scope. Note: Location header implementation pending contract update.", OperationId = "CreateUser")]
-    [SwaggerResponse(StatusCodes.Status201Created, "The user was created successfully")]
-    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid request payload or unexpected error")]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "User does not have required hierarchy or scope access")]
-    [SwaggerResponse(StatusCodes.Status409Conflict, "Email already registered")]
+    [SwaggerOperation(Summary = "Create a user", Description = "US-03 scenario 1: an administrator creates a staff user with a role (admin: reception, housekeeping, maintenance for their own hotel; chain_admin: also admin, any hotel). The user receives a verification e-mail.", OperationId = "CreateUser")]
+    [ProducesResponseType(typeof(UserResource), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserResource resource)
     {
-
         var command = CreateUserCommandFromResourceAssembler.ToCommandFromResource(resource, User.GetUserId());
-
-        await userCommandService.Handle(command);
-        return StatusCode(StatusCodes.Status201Created, new { message = "User created successfully" });
+        var user = await userCommandService.Handle(command);
+        return CreatedAtAction(nameof(GetUserById), new { id = user.Id },
+            UserResourceFromEntityAssembler.ToResourceFromEntity(user));
     }
 
     /// <summary>

@@ -17,75 +17,15 @@ namespace BackendAwSmartstay.API.IAM.Application.Internal.CommandServices;
 /// </summary>
 public class UserCommandService(
     IUserRepository userRepository,
-    ITokenService tokenService,
+    IRefreshTokenRepository refreshTokenRepository,
+    AccountTokenIssuer accountTokenIssuer,
+    IAccountNotificationService notifications,
+    TimeProvider timeProvider,
     IHashingService hashingService,
     IRoleAuthorizationService roleAuthorizationService,
     IUserScopeService userScopeService,
     IUnitOfWork unitOfWork) : IUserCommandService
 {
-    // ═══════════════════════════════════════════════════════════
-    // Existing authentication commands
-    // ═══════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Processes a sign-in request.
-    /// </summary>
-    public async Task<(User user, string token)> Handle(SignInCommand command)
-    {
-        var user = await userRepository.FindByEmailAsync(new Email(command.Email));
-
-        if (user == null || !hashingService.VerifyPassword(command.Password, user.PasswordHash))
-        {
-            throw new InvalidCredentialsException();
-        }
-
-        if (user.Status == UserStatus.Inactive)
-            throw new UnauthorizedOperationException("La cuenta ha sido desactivada. Contacte al administrador.");
-
-        var token = tokenService.GenerateToken(user);
-        return (user, token);
-    }
-
-    /// <summary>
-    /// Processes a sign-up request with optional role assignment.
-    /// Guest registration remains anonymous even if explicitly requested.
-    /// </summary>
-    public async Task Handle(SignUpCommand command)
-    {
-        var email = new Email(command.Email);
-        if (await userRepository.ExistsByEmailAsync(email))
-            throw new EmailAlreadyRegisteredException(email.Value);
-
-        var hashedPassword = hashingService.HashPassword(command.Password);
-        var assignedRole = UserRoles.Guest;
-
-        // Validate the requested role first so an unknown role is a 400 (ArgumentException), not a 403.
-        var requestedRole = string.IsNullOrWhiteSpace(command.Role) ? null : new Role(command.Role.Trim().ToLowerInvariant());
-
-        // If a specific role is requested and it is not the default Guest role, validate the actor's permissions
-        if (requestedRole != null 
-            && !requestedRole.Value.Equals(UserRoles.Guest, StringComparison.OrdinalIgnoreCase))
-        {
-            if (command.ActorUserId == null)
-                throw new UnauthorizedOperationException("Authentication required to assign a specific role during sign-up.");
-
-            var actor = await ResolveActorAsync(command.ActorUserId.Value);
-
-            if (!roleAuthorizationService.CanAssignRole(actor, requestedRole.Value))
-                throw new UnauthorizedOperationException(
-                    $"User {actor.Id} cannot assign role '{requestedRole.Value}'.");
-
-            assignedRole = requestedRole.Value;
-        }
-
-        // HotelId and ChainId default to null via the constructor logic.
-        // For full scope initialization, management endpoints (CreateUser) should be used.
-        var user = new User(email.Value, hashedPassword, assignedRole);
-
-        await userRepository.AddAsync(user);
-        await unitOfWork.CompleteAsync();
-    }
-
     /// <summary>
     /// Processes a password change request.
     /// </summary>
@@ -98,9 +38,9 @@ public class UserCommandService(
         if (!hashingService.VerifyPassword(command.CurrentPassword, user.PasswordHash))
             throw new InvalidCredentialsException();
 
-        var newHashedPassword = hashingService.HashPassword(command.NewPassword);
-        user.UpdatePasswordHash(newHashedPassword);
-        user.IncrementTokenVersion();
+        user.ChangePassword(hashingService.HashPassword(command.NewPassword), timeProvider.GetUtcNow());
+        foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))
+            session.Revoke(RefreshTokenRevocationReason.SessionRevoked, timeProvider.GetUtcNow());
 
         await unitOfWork.CompleteAsync();
     }
@@ -113,36 +53,40 @@ public class UserCommandService(
     /// Creates a new user with explicit role, hotel and chain assignment.
     /// Only actors with hierarchy superiority and scope access can create users.
     /// </summary>
-    public async Task Handle(CreateUserCommand command)
+    public async Task<User> Handle(CreateUserCommand command)
     {
         var actor = await ResolveActorAsync(command.ActorUserId);
+        var role = new Role(command.Role.Trim().ToLowerInvariant());
 
-        if (!roleAuthorizationService.CanAssignRole(actor, command.Role))
-            throw new UnauthorizedOperationException(
-                $"User {actor.Id} cannot assign role '{command.Role}'.");
+        if (!roleAuthorizationService.CanAssignRole(actor, role.Value))
+            throw new UnauthorizedOperationException($"You cannot assign the role '{role.Value}'.");
 
-        if (command.HotelId.HasValue && !userScopeService.CanAccessHotel(actor, command.HotelId))
-            throw new UnauthorizedOperationException(
-                $"User {actor.Id} cannot create users for hotel {command.HotelId}.");
+        var hotelId = StaffAccountPolicy.ResolveHotel(actor, role.Value, command.HotelId);
+        if (hotelId.HasValue && !userScopeService.CanAccessHotel(actor, hotelId))
+            throw new UnauthorizedOperationException($"You cannot create users for hotel {hotelId}.");
 
         if (command.ChainId.HasValue && !roleAuthorizationService.CanAssignChainId(actor, command.ChainId))
-            throw new UnauthorizedOperationException(
-                $"User {actor.Id} cannot assign chain {command.ChainId}.");
+            throw new UnauthorizedOperationException($"You cannot assign chain {command.ChainId}.");
 
         var email = new Email(command.Email);
         if (await userRepository.ExistsByEmailAsync(email))
             throw new EmailAlreadyRegisteredException(email.Value);
 
-        var hashedPassword = hashingService.HashPassword(command.Password);
-        var user = new User(
-            email.Value,
-            hashedPassword,
-            command.Role,
-            hotelId: command.HotelId,
-            chainId: command.ChainId);
+        var name = new PersonName(command.FirstName, command.LastName);
+        var user = User.Register(name, email, hashingService.HashPassword(command.Password), role,
+            hotelId, command.ChainId, createdByUserId: actor.Id, timeProvider.GetUtcNow());
 
-        await userRepository.AddAsync(user);
-        await unitOfWork.CompleteAsync();
+        PendingAccountToken? verification = null;
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await userRepository.AddAsync(user);
+            await unitOfWork.CompleteAsync();
+            verification = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.EmailVerification);
+            await unitOfWork.CompleteAsync();
+        });
+
+        await notifications.SendEmailVerificationAsync(user, verification!.Value, verification.ExpiresAt);
+        return user;
     }
 
     /// <summary>
@@ -220,7 +164,7 @@ public class UserCommandService(
             await EnsureAtLeastOneChainAdminRemainsAsync();
         }
 
-        target.AssignRole(command.NewRole);
+        target.AssignRole(command.NewRole, actor.Id, timeProvider.GetUtcNow());
         await unitOfWork.CompleteAsync();
     }
 
@@ -244,8 +188,10 @@ public class UserCommandService(
             await EnsureAtLeastOneChainAdminRemainsAsync();
         }
 
-        target.Deactivate();
-        target.IncrementTokenVersion();
+        var now = timeProvider.GetUtcNow();
+        target.Deactivate(actor.Id, now);
+        foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(target.Id))
+            session.Revoke(RefreshTokenRevocationReason.SessionRevoked, now);
         await unitOfWork.CompleteAsync();
     }
 
@@ -262,7 +208,7 @@ public class UserCommandService(
             throw new UnauthorizedOperationException(
                 $"User {actor.Id} cannot activate user {target.Id}.");
 
-        target.Activate();
+        target.Activate(actor.Id, timeProvider.GetUtcNow());
         await unitOfWork.CompleteAsync();
     }
 

@@ -33,6 +33,9 @@ public static class IamClaimTypes
     /// <summary>Chain the user belongs to (<c>chain_id</c>), only present when assigned.</summary>
     public const string ChainId = "chain_id";
 
+    /// <summary>Whether the account e-mail was verified (<c>email_verified</c>: true/false, US-01).</summary>
+    public const string EmailVerified = "email_verified";
+
     /// <summary>Session generation (<c>token_version</c>); a token whose version is not the current one is revoked.</summary>
     public const string TokenVersion = "token_version";
 }

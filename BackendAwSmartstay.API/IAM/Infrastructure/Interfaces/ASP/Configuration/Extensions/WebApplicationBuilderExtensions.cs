@@ -1,4 +1,9 @@
 using BackendAwSmartstay.API.IAM.Application.ACL.Services;
+using BackendAwSmartstay.API.IAM.Application.Internal.Configuration;
+using BackendAwSmartstay.API.IAM.Infrastructure.Notifications;
+using BackendAwSmartstay.API.IAM.Interfaces.REST.ExceptionHandling;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
+using BackendAwSmartstay.API.IAM.Infrastructure.Tokens.Opaque;
 using BackendAwSmartstay.API.IAM.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.IAM.Application.Internal.QueryServices;
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
@@ -38,11 +43,23 @@ public static class WebApplicationBuilderExtensions
             });
 
         // IAM Bounded Context Injection Configuration
+        builder.Services.AddOptions<AccountSecuritySettings>()
+            .Bind(builder.Configuration.GetSection(AccountSecuritySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IAccountTokenRepository, AccountTokenRepository>();
+        builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        builder.Services.AddScoped<AccountTokenIssuer>();
+        builder.Services.AddScoped<IAuthenticationCommandService, AuthenticationCommandService>();
         builder.Services.AddScoped<IUserCommandService, UserCommandService>();
         builder.Services.AddScoped<IUserQueryService, UserQueryService>();
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IHashingService, HashingService>();
+        builder.Services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
+        builder.Services.AddScoped<IAccountNotificationService, AccountEmailNotificationService>();
+        builder.Services.AddSingleton<IProblemDetailsEnricher, IamProblemDetailsEnricher>();
         builder.Services.AddScoped<IIamContextFacade, IamContextFacade>();
 
         builder.Services.AddScoped<IRoleAuthorizationService, RoleAuthorizationService>();

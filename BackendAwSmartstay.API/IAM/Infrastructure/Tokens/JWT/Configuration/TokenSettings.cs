@@ -25,8 +25,11 @@ public class TokenSettings : IValidatableObject
     [Required]
     public string Audience { get; set; } = string.Empty;
 
-    [Range(1, 24 * 30)]
-    public int ExpirationInHours { get; set; } = 24;
+    /// <summary>
+    ///     Lifetime of an access token. Short on purpose (US-02): "remember me" sessions last through refresh tokens.
+    /// </summary>
+    [Range(1, 24 * 60)]
+    public int AccessTokenExpirationMinutes { get; set; } = 30;
 
     /// <summary>Tolerated clock difference between the issuer and the validator.</summary>
     [Range(0, 300)]

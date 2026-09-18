@@ -33,6 +33,8 @@ public static class IamSeeder
         var hashingService = services.GetRequiredService<IHashingService>();
         var user = new User(email.Value, hashingService.HashPassword(settings.Password!), UserRoles.ChainAdmin,
             hotelId: settings.HotelId);
+        // The operator provides this address: it does not need the verification link.
+        user.VerifyEmail(DateTimeOffset.UtcNow);
 
         await userRepository.AddAsync(user);
         await services.GetRequiredService<IUnitOfWork>().CompleteAsync();
