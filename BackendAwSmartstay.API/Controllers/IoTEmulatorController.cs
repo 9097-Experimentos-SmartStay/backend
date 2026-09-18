@@ -1,18 +1,28 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
+using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
 using BackendAwSmartstay.API.Models.IoT;
 using BackendAwSmartstay.API.Infrastructure.Telemetry;
 
 namespace BackendAwSmartstay.API.Controllers;
 
+// In-memory IoT emulator. Real route: /api/v1/io-t-emulator/... (kebab-case convention).
+// Authorization:
+//   - GET actuators-state: any hotel staff (admin, chain_admin, staff, reception, housekeeping, maintenance)
+//   - POST thermostat: admin, chain_admin, reception, maintenance
+//   - POST inject-telemetry (simulated sensor input): admin, chain_admin, maintenance
+// Guests are excluded because rooms are not linked to guests yet (no ownership check possible).
+[Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
 public class IoTEmulatorController : ControllerBase
 {
-    // POST /api/v1/iotemulator/rooms/{roomId}/inject-telemetry
-    [HttpPost("rooms/{roomId:int}/inject-telemetry")]
+    // POST /api/v1/io-t-emulator/rooms/{roomId}/inject-telemetry
+    [HttpPost("rooms/{roomId:int:min(1)}/inject-telemetry")]
+    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Maintenance)]
     public IActionResult InjectTelemetry(int roomId, [FromBody] InjectTelemetryRequest request)
     {
-        if (request == null)
+        if (request == null || string.IsNullOrWhiteSpace(request.SimulatedSensorType) || request.ReadingValue == null)
         {
             return BadRequest("El cuerpo de la solicitud no puede ser nulo.");
         }
@@ -49,11 +59,12 @@ public class IoTEmulatorController : ControllerBase
         return Ok(updatedState);
     }
 
-    // POST /api/v1/iotemulator/rooms/{roomId}/thermostat
-    [HttpPost("rooms/{roomId:int}/thermostat")]
+    // POST /api/v1/io-t-emulator/rooms/{roomId}/thermostat
+    [HttpPost("rooms/{roomId:int:min(1)}/thermostat")]
+    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception, UserRoles.Maintenance)]
     public IActionResult SetThermostat(int roomId, [FromBody] SetThermostatRequest request)
     {
-        if (request == null)
+        if (request == null || string.IsNullOrWhiteSpace(request.FanSpeed) || string.IsNullOrWhiteSpace(request.SimulationMode))
         {
             return BadRequest("Parámetros del termostato inválidos.");
         }
@@ -70,8 +81,10 @@ public class IoTEmulatorController : ControllerBase
         return Ok(updatedState);
     }
 
-    // GET /api/v1/iotemulator/rooms/{roomId}/actuators-state
-    [HttpGet("rooms/{roomId:int}/actuators-state")]
+    // GET /api/v1/io-t-emulator/rooms/{roomId}/actuators-state
+    [HttpGet("rooms/{roomId:int:min(1)}/actuators-state")]
+    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Staff, UserRoles.Reception,
+        UserRoles.Housekeeping, UserRoles.Maintenance)]
     public IActionResult GetActuatorsState(int roomId)
     {
         var state = IoTEmulatorStore.GetOrAdd(roomId);
