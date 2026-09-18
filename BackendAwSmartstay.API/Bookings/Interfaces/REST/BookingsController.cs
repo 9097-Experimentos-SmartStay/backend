@@ -6,6 +6,7 @@ using BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Bookings.Interfaces.REST.Transform;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -17,6 +18,11 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST;
 /// </summary>
 /// <param name="bookingCommandService">The domain command service used to handle booking state transitions and mutations.</param>
 /// <param name="bookingQueryService">The domain query service used to handle booking state extraction and tracking queries.</param>
+/// <remarks>
+///     Guests only see and cancel their own bookings (created with their account or attached to their guest profile);
+///     other bookings answer 404 for them. Hotel staff roles can read every booking; admin, chain_admin and
+///     reception can confirm/cancel.
+/// </remarks>
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
@@ -32,7 +38,8 @@ public class BookingsController(
     /// <param name="bookingId">The structural domain identity number of the target booking aggregate root.</param>
     /// <returns>An asynchronous action result containing the matching booking resource representation state, or NotFound.</returns>
     [HttpGet("{bookingId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Staff, UserRoles.Reception,
+        UserRoles.Housekeeping, UserRoles.Maintenance)]
     [SwaggerOperation(
         Summary = "Get booking by its unique identifier",
         Description = "Retrieves state parameters, scheduling metrics, and transactional properties for a single booking aggregate entry. Restricted to management nodes.",
@@ -43,8 +50,10 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "No booking aggregate matched the supplied structural query identifier.")]
     public async Task<IActionResult> GetBookingById(int bookingId)
     {
-        var getBookingByIdQuery = new GetBookingByIdQuery(bookingId);
-        var booking = await bookingQueryService.Handle(getBookingByIdQuery);
+        var actor = HttpContext.RequireAuthenticatedUser();
+        var booking = actor.IsInRole(UserRoles.Guest)
+            ? await bookingQueryService.Handle(new GetOwnedBookingByIdQuery(bookingId, actor.Id))
+            : await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId));
         if (booking is null) return NotFound();
         var resource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
         return Ok(resource);
@@ -56,7 +65,7 @@ public class BookingsController(
     /// <param name="resource">The incoming resource payload mapping properties and context metrics required for booking initialization.</param>
     /// <returns>A created resource location confirmation alongside the structural tracking instance state representation.</returns>
     [HttpPost]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
     [SwaggerOperation(
         Summary = "Create a new reservation entry",
         Description = "Registers a new booking partition aggregate. Open to guests for self-service or staff for assisted desks.",
@@ -67,7 +76,25 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status403Forbidden, "The authenticated identity has insufficient privilege levels.")]
     public async Task<IActionResult> CreateBooking([FromBody] CreateBookingResource resource)
     {
-        var createBookingCommand = CreateBookingCommandFromResourceAssembler.ToCommandFromResource(resource);
+        var actor = HttpContext.RequireAuthenticatedUser();
+        CreateBookingCommand createBookingCommand;
+        if (actor.IsInRole(UserRoles.Guest))
+        {
+            // Guests always book for themselves: identity comes from the token, never from the body.
+            // Blank name/email (the web client sometimes sends them empty) default to the username.
+            createBookingCommand = CreateBookingCommandFromResourceAssembler.ToCommandFromResource(
+                resource,
+                userId: actor.Id,
+                guestProfileId: null,
+                guestName: string.IsNullOrWhiteSpace(resource.GuestName) ? actor.Username.Value : resource.GuestName,
+                guestEmail: string.IsNullOrWhiteSpace(resource.GuestEmail) ? actor.Username.Value : resource.GuestEmail);
+        }
+        else
+        {
+            // Assisted booking by hotel staff: may be made on behalf of a guest user/profile.
+            createBookingCommand = CreateBookingCommandFromResourceAssembler.ToCommandFromResource(resource);
+        }
+
         var booking = await bookingCommandService.Handle(createBookingCommand);
         if (booking is null) return BadRequest();
         var bookingResource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
@@ -79,7 +106,8 @@ public class BookingsController(
     /// </summary>
     /// <returns>An asynchronous action result containing an enumerable collection of booking representations.</returns>
     [HttpGet]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Staff, UserRoles.Reception,
+        UserRoles.Housekeeping, UserRoles.Maintenance)]
     [SwaggerOperation(
         Summary = "Get all tracked reservations",
         Description = "Retrieves all booking aggregates converted into view resources. Restricted exclusively to administrative clearance profiles.",
@@ -89,7 +117,10 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status403Forbidden, "The requesting identity lacks the administrative clearance parameter to execute ledger enumeration.")]
     public async Task<IActionResult> GetAllBookings()
     {
-        var bookings = await bookingQueryService.Handle(new GetAllBookingsQuery());
+        var actor = HttpContext.RequireAuthenticatedUser();
+        var bookings = actor.IsInRole(UserRoles.Guest)
+            ? await bookingQueryService.Handle(new GetBookingsByOwnerQuery(actor.Id))
+            : await bookingQueryService.Handle(new GetAllBookingsQuery());
         var bookingResources = bookings.Select(BookingResourceFromEntityAssembler.ToResourceFromEntity);
         return Ok(bookingResources);
     }
@@ -100,7 +131,8 @@ public class BookingsController(
     /// <param name="roomId">The structural tracking domain identity marker of the target room node aggregate.</param>
     /// <returns>An enumerable resource listing matching reservation representations linked to the specific room asset node.</returns>
     [HttpGet("room/{roomId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Staff, UserRoles.Reception,
+        UserRoles.Housekeeping, UserRoles.Maintenance)]
     [SwaggerOperation(
         Summary = "Get booking ledger histories by room node",
         Description = "Retrieves a subset of booking aggregates filtering criteria by their associated target asset mapping node.",
@@ -121,7 +153,7 @@ public class BookingsController(
     /// <param name="bookingId">The unique domain identifier pointing to the aggregate instance undergoing verification state changes.</param>
     /// <returns>The newly updated booking representation state outcome resource reflecting check-in or transactional readiness.</returns>
     [HttpPost("{bookingId:int}/confirm")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
     [SwaggerOperation(
         Summary = "Confirm an active reservation entry status",
         Description = "Mutates structural booking state properties to locked confirmation codes. Strictly for verified operational personnel.",
@@ -145,7 +177,7 @@ public class BookingsController(
     /// <param name="bookingId">The unique domain root aggregate identifier targeted for operational cancellation routines.</param>
     /// <returns>The final detached state cancellation representation resource data layout.</returns>
     [HttpPost("{bookingId:int}/cancel")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
     [SwaggerOperation(
         Summary = "Cancel a registered reservation entry layout",
         Description = "Triggers systemic cancellation state changes for a single booking target, releasing inventory dependencies.",
@@ -156,6 +188,11 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "The targeted booking instance was not active or present within the context persistence tree.")]
     public async Task<IActionResult> CancelBooking(int bookingId)
     {
+        var actor = HttpContext.RequireAuthenticatedUser();
+        if (actor.IsInRole(UserRoles.Guest)
+            && await bookingQueryService.Handle(new GetOwnedBookingByIdQuery(bookingId, actor.Id)) is null)
+            return NotFound();
+
         var cancelBookingCommand = new CancelBookingCommand(bookingId);
         var booking = await bookingCommandService.Handle(cancelBookingCommand);
         if (booking is null) return NotFound();

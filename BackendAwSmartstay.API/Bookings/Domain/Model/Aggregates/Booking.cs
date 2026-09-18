@@ -14,9 +14,15 @@ public class Booking
     }
 
     public Booking(int roomId, string guestName, string guestEmail, DateTime checkInDate,
-        DateTime checkOutDate, Guid? guestProfileId = null) : this()
+        DateTime checkOutDate, Guid? guestProfileId = null, int? userId = null) : this()
     {
+        if (roomId <= 0)
+            throw new ArgumentException("A booking must reference a valid room.", nameof(roomId));
+        if (checkOutDate.Date <= checkInDate.Date)
+            throw new ArgumentException("The check-out date must be at least one day after the check-in date.", nameof(checkOutDate));
+
         RoomId = roomId;
+        UserId = userId;
         GuestName = guestName;
         GuestEmail = guestEmail;
         CheckInDate = checkInDate;
@@ -31,7 +37,8 @@ public class Booking
         command.GuestEmail,
         command.CheckInDate,
         command.CheckOutDate,
-        guestProfileId ?? command.GuestProfileId)
+        guestProfileId ?? command.GuestProfileId,
+        command.UserId)
     {
     }
 
@@ -49,6 +56,11 @@ public class Booking
     ///     The logical external identifier of the associated guest profile.
     /// </summary>
     public Guid? GuestProfileId { get; private set; }
+
+    /// <summary>
+    ///     The IAM user that owns the booking (the guest account that created it), if any.
+    /// </summary>
+    public int? UserId { get; private set; }
 
     /// <summary>
     ///     The name of the guest making the booking.
@@ -76,18 +88,48 @@ public class Booking
     public BookingStatus Status { get; private set; }
 
     /// <summary>
-    ///     Confirms the booking by changing its status to Confirmed.
+    ///     Number of nights covered by the booking (check-out date minus check-in date).
     /// </summary>
+    public int Nights => (CheckOutDate.Date - CheckInDate.Date).Days;
+
+    /// <summary>
+    ///     A booking can be paid while it is Pending or Confirmed.
+    /// </summary>
+    public bool CanBePaid => Status is BookingStatus.Pending or BookingStatus.Confirmed;
+
+    /// <summary>
+    ///     Ownership rule: a guest owns a booking when it was created with their user id,
+    ///     or when it is attached to their guest profile.
+    /// </summary>
+    /// <param name="userId">The IAM user id of the guest.</param>
+    /// <param name="guestProfileId">The guest profile linked to that user, if any.</param>
+    public bool IsOwnedBy(int userId, Guid? guestProfileId)
+    {
+        if (UserId.HasValue && UserId.Value == userId) return true;
+        return guestProfileId.HasValue && GuestProfileId.HasValue && GuestProfileId.Value == guestProfileId.Value;
+    }
+
+    /// <summary>
+    ///     Confirms the booking by changing its status to Confirmed. Confirming twice is a no-op.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">When the booking is cancelled or completed.</exception>
     public void Confirm()
     {
+        if (Status is BookingStatus.Cancelled or BookingStatus.Completed)
+            throw new InvalidOperationException($"A {Status.ToString().ToLowerInvariant()} booking cannot be confirmed.");
+
         Status = BookingStatus.Confirmed;
     }
 
     /// <summary>
-    ///     Cancels the booking by changing its status to Cancelled.
+    ///     Cancels the booking by changing its status to Cancelled. Cancelling twice is a no-op.
     /// </summary>
+    /// <exception cref="InvalidOperationException">When the booking is already completed.</exception>
     public void Cancel()
     {
+        if (Status == BookingStatus.Completed)
+            throw new InvalidOperationException("A completed booking cannot be cancelled.");
+
         Status = BookingStatus.Cancelled;
     }
 }

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 using BackendAwSmartstay.API.Bookings.Domain.Repositories;
@@ -14,7 +15,8 @@ namespace BackendAwSmartstay.API.Bookings.Application.Internal.CommandServices;
 public class BookingCommandService(
     IBookingRepository bookingRepository,
     IUnitOfWork unitOfWork,
-    IGuestProfilesContextFacade guestProfilesContextFacade)
+    IGuestProfilesContextFacade guestProfilesContextFacade,
+    IAccommodationsContextFacade accommodationsContextFacade)
     : IBookingCommandService
 {
     /// <summary>
@@ -24,6 +26,9 @@ public class BookingCommandService(
     /// <returns>The created booking or null if creation failed.</returns>
     public async Task<Booking?> Handle(CreateBookingCommand command)
     {
+        if (!await accommodationsContextFacade.RoomExistsAsync(command.RoomId))
+            throw new ArgumentException($"Room {command.RoomId} does not exist.");
+
         Guid? guestProfileId = command.GuestProfileId;
 
         if (!guestProfileId.HasValue)

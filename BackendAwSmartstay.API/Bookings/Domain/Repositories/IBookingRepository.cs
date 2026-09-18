@@ -8,4 +8,9 @@ namespace BackendAwSmartstay.API.Bookings.Domain.Repositories;
 /// </summary>
 public interface IBookingRepository : IBaseRepository<Booking>
 {
+    /// <summary>Bookings owned by a guest: created by the user or attached to their guest profile.</summary>
+    Task<IEnumerable<Booking>> FindByOwnerAsync(int userId, Guid? guestProfileId);
+
+    /// <summary>Bookings of a given room.</summary>
+    Task<IEnumerable<Booking>> FindByRoomIdAsync(int roomId);
 }

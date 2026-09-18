@@ -14,6 +14,12 @@ public static class ModelBuilderExtensions
         builder.Entity<Booking>().Property(b => b.GuestProfileId)
             .HasColumnName("guest_profile_id")
             .IsRequired(false);
+        builder.Entity<Booking>().Property(b => b.UserId)
+            .HasColumnName("user_id")
+            .IsRequired(false);
+        builder.Entity<Booking>().HasIndex(b => b.UserId);
+        builder.Entity<Booking>().Ignore(b => b.Nights);
+        builder.Entity<Booking>().Ignore(b => b.CanBePaid);
         builder.Entity<Booking>().Property(b => b.GuestName).IsRequired().HasMaxLength(100);
         builder.Entity<Booking>().Property(b => b.GuestEmail).IsRequired().HasMaxLength(200);
         builder.Entity<Booking>().Property(b => b.CheckInDate).IsRequired();

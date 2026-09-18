@@ -28,4 +28,15 @@ public interface IBookingQueryService
     /// <param name="query">The query containing the room ID.</param>
     /// <returns>A collection of bookings for the specified room.</returns>
     Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query);
+
+    /// <summary>
+    /// Handles the query to get the bookings owned by a guest user.
+    /// </summary>
+    Task<IEnumerable<Booking>> Handle(GetBookingsByOwnerQuery query);
+
+    /// <summary>
+    /// Handles the query to get a booking only if it belongs to the given guest user.
+    /// </summary>
+    /// <returns>The booking, or null when it does not exist or belongs to someone else.</returns>
+    Task<Booking?> Handle(GetOwnedBookingByIdQuery query);
 }

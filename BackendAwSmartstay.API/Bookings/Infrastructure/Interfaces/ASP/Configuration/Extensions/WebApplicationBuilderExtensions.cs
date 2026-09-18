@@ -1,8 +1,10 @@
+using BackendAwSmartstay.API.Bookings.Application.ACL;
 using BackendAwSmartstay.API.Bookings.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Bookings.Application.Internal.QueryServices;
 using BackendAwSmartstay.API.Bookings.Domain.Repositories;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
 using BackendAwSmartstay.API.Bookings.Infrastructure.Persistence.EFC.Repositories;
+using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
 
 namespace BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 
@@ -20,6 +22,9 @@ public static class WebApplicationBuilderExtensions
 
         // Query Services
         builder.Services.AddScoped<IBookingQueryService, BookingQueryService>();
+
+        // ACL Facade
+        builder.Services.AddScoped<IBookingsContextFacade, BookingsContextFacade>();
     }
 }
 

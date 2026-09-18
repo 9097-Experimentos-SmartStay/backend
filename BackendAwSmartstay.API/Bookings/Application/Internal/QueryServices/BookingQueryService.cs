@@ -2,6 +2,7 @@ using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
 using BackendAwSmartstay.API.Bookings.Domain.Repositories;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
+using BackendAwSmartstay.API.Profiles.Interfaces.ACL;
 
 namespace BackendAwSmartstay.API.Bookings.Application.Internal.QueryServices;
 
@@ -9,7 +10,9 @@ namespace BackendAwSmartstay.API.Bookings.Application.Internal.QueryServices;
 /// Service implementation for handling booking queries.
 /// Retrieves booking data from the repository.
 /// </summary>
-public class BookingQueryService(IBookingRepository bookingRepository)
+public class BookingQueryService(
+    IBookingRepository bookingRepository,
+    IGuestProfilesContextFacade guestProfilesContextFacade)
     : IBookingQueryService
 {
     /// <summary>
@@ -39,7 +42,26 @@ public class BookingQueryService(IBookingRepository bookingRepository)
     /// <returns>A collection of bookings associated with the specified room.</returns>
     public async Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query)
     {
-        var bookings = await bookingRepository.ListAsync();
-        return bookings.Where(b => b.RoomId == query.RoomId);
+        return await bookingRepository.FindByRoomIdAsync(query.RoomId);
+    }
+
+    /// <inheritdoc />
+    public async Task<IEnumerable<Booking>> Handle(GetBookingsByOwnerQuery query)
+    {
+        var guestProfileId = await guestProfilesContextFacade.FetchGuestProfileIdByUserIdAsync(query.UserId);
+        return await bookingRepository.FindByOwnerAsync(query.UserId, guestProfileId);
+    }
+
+    /// <inheritdoc />
+    public async Task<Booking?> Handle(GetOwnedBookingByIdQuery query)
+    {
+        var booking = await bookingRepository.FindByIdAsync(query.BookingId);
+        if (booking is null) return null;
+
+        // Cheap check first: bookings created by the user do not need the Profiles lookup.
+        if (booking.IsOwnedBy(query.UserId, guestProfileId: null)) return booking;
+
+        var guestProfileId = await guestProfilesContextFacade.FetchGuestProfileIdByUserIdAsync(query.UserId);
+        return booking.IsOwnedBy(query.UserId, guestProfileId) ? booking : null;
     }
 }
