@@ -201,7 +201,7 @@ public class RoomsController(
         if (!(await authorizationService.AuthorizeAsync(User, room, RoomOperationsRequirement.Instance)).Succeeded)
             return Forbid();
 
-        var updated = await roomCommandService.Handle(new ChangeRoomStatusCommand(roomId, resource.ParsedStatus));
+        var updated = await roomCommandService.Handle(new ChangeRoomStatusCommand(roomId, resource.ToRoomStatus()));
         return updated is null ? NotFound() : Ok(RoomResourceFromEntityAssembler.ToResourceFromEntity(updated));
     }
 

@@ -11,7 +11,8 @@ public record ChangeRoomStatusResource : IValidatableObject
     [Required]
     public string? Status { get; init; }
 
-    public RoomStatus ParsedStatus => Enum.Parse<RoomStatus>(Status!, ignoreCase: true);
+    /// <summary>The validated status as a domain value (a method, so model validation never evaluates it).</summary>
+    public RoomStatus ToRoomStatus() => Enum.Parse<RoomStatus>(Status!, ignoreCase: true);
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
