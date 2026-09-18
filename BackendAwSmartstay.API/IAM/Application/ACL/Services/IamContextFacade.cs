@@ -16,39 +16,39 @@ public class IamContextFacade(
     /// <summary>
     /// Creates a new user resource within the system using the provided credentials.
     /// </summary>
-    /// <param name="username">The unique identifier name for the new user resource.</param>
+    /// <param name="email">The unique identifier name for the new user resource.</param>
     /// <param name="password">The plain text password to be securely processed for the new user.</param>
     /// <returns>The unique identifier of the newly created user resource, or <c>0</c> if the creation failed.</returns>
-    public async Task<int> CreateUser(string username, string password)
+    public async Task<int> CreateUser(string email, string password)
     {
-        var signUpCommand = new SignUpCommand(username, password);
+        var signUpCommand = new SignUpCommand(email, password);
         await userCommandService.Handle(signUpCommand);
-        var getUserByUsernameQuery = new GetUserByUsernameQuery(username);
-        var result = await userQueryService.Handle(getUserByUsernameQuery);
+        var getUserByEmailQuery = new GetUserByEmailQuery(email);
+        var result = await userQueryService.Handle(getUserByEmailQuery);
         return result?.Id ?? 0;
     }
 
     /// <summary>
-    /// Retrieves the unique identifier of a user resource based on their username.
+    /// Retrieves the unique identifier of a user resource based on their email.
     /// </summary>
-    /// <param name="username">The username of the resource to find.</param>
+    /// <param name="email">The email of the resource to find.</param>
     /// <returns>The unique identifier (<c>Id</c>) of the user resource, or <c>0</c> if not found.</returns>
-    public async Task<int> FetchUserIdByUsername(string username)
+    public async Task<int> FetchUserIdByEmail(string email)
     {
-        var getUserByUsernameQuery = new GetUserByUsernameQuery(username);
-        var result = await userQueryService.Handle(getUserByUsernameQuery);
+        var getUserByEmailQuery = new GetUserByEmailQuery(email);
+        var result = await userQueryService.Handle(getUserByEmailQuery);
         return result?.Id ?? 0;
     }
 
     /// <summary>
-    /// Retrieves the username representation of a user resource based on their unique identifier.
+    /// Retrieves the email representation of a user resource based on their unique identifier.
     /// </summary>
     /// <param name="userId">The unique identifier of the user resource.</param>
-    /// <returns>The username string belonging to the resource, or an empty string if the resource does not exist.</returns>
-    public async Task<string> FetchUsernameByUserId(int userId)
+    /// <returns>The email string belonging to the resource, or an empty string if the resource does not exist.</returns>
+    public async Task<string> FetchEmailByUserId(int userId)
     {
         var getUserByIdQuery = new GetUserByIdQuery(userId);
         var result = await userQueryService.Handle(getUserByIdQuery);
-        return result?.Username ?? string.Empty;
+        return result?.Email.Value ?? string.Empty;
     }
 }

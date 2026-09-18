@@ -32,8 +32,7 @@ public class UserCommandService(
     /// </summary>
     public async Task<(User user, string token)> Handle(SignInCommand command)
     {
-        var username = new Username(command.Username);
-        var user = await userRepository.FindByUsernameAsync(username);
+        var user = await userRepository.FindByEmailAsync(new Email(command.Email));
 
         if (user == null || !hashingService.VerifyPassword(command.Password, user.PasswordHash))
         {
@@ -53,9 +52,9 @@ public class UserCommandService(
     /// </summary>
     public async Task Handle(SignUpCommand command)
     {
-        var username = new Username(command.Username);
-        if (await userRepository.ExistsByUsernameAsync(username))
-            throw new UsernameAlreadyExistsException(command.Username);
+        var email = new Email(command.Email);
+        if (await userRepository.ExistsByEmailAsync(email))
+            throw new EmailAlreadyRegisteredException(email.Value);
 
         var hashedPassword = hashingService.HashPassword(command.Password);
         var assignedRole = UserRoles.Guest;
@@ -81,7 +80,7 @@ public class UserCommandService(
 
         // HotelId and ChainId default to null via the constructor logic.
         // For full scope initialization, management endpoints (CreateUser) should be used.
-        var user = new User(username, hashedPassword, assignedRole);
+        var user = new User(email.Value, hashedPassword, assignedRole);
 
         await userRepository.AddAsync(user);
         await unitOfWork.CompleteAsync();
@@ -130,13 +129,13 @@ public class UserCommandService(
             throw new UnauthorizedOperationException(
                 $"User {actor.Id} cannot assign chain {command.ChainId}.");
 
-        var username = new Username(command.Username);
-        if (await userRepository.ExistsByUsernameAsync(username))
-            throw new UsernameAlreadyExistsException(command.Username);
+        var email = new Email(command.Email);
+        if (await userRepository.ExistsByEmailAsync(email))
+            throw new EmailAlreadyRegisteredException(email.Value);
 
         var hashedPassword = hashingService.HashPassword(command.Password);
         var user = new User(
-            command.Username,
+            email.Value,
             hashedPassword,
             command.Role,
             hotelId: command.HotelId,
@@ -160,15 +159,13 @@ public class UserCommandService(
             throw new UnauthorizedOperationException(
                 $"User {actor.Id} cannot manage user {target.Id}.");
 
-        if (command.NewUsername is not null)
+        if (command.NewEmail is not null)
         {
-            var newUsername = new Username(command.NewUsername);
-            if (!string.Equals(target.Username.Value, newUsername.Value, StringComparison.OrdinalIgnoreCase)
-                && await userRepository.ExistsByUsernameAsync(newUsername))
-            {
-                throw new UsernameAlreadyExistsException(command.NewUsername);
-            }
-            target.UpdateUsername(command.NewUsername);
+            var newEmail = new Email(command.NewEmail);
+            if (newEmail != target.Email && await userRepository.ExistsByEmailAsync(newEmail))
+                throw new EmailAlreadyRegisteredException(newEmail.Value);
+
+            target.UpdateEmail(newEmail.Value);
         }
 
         if (command.NewPassword is not null)

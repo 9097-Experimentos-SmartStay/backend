@@ -1,4 +1,4 @@
-﻿namespace BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+namespace BackendAwSmartstay.API.IAM.Domain.Model.Commands;
 
 /// <summary>
 ///     Command to update an existing user's core attributes.
@@ -13,7 +13,7 @@
 public record UpdateUserCommand(
     int ActorUserId,
     int TargetUserId,
-    string? NewUsername,
+    string? NewEmail,
     string? NewPassword,
     int? NewHotelId,
     int? NewChainId);

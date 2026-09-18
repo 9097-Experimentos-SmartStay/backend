@@ -8,7 +8,7 @@ public interface IUserQueryService
 {
     Task<User?> Handle(GetUserByIdQuery query);
     Task<IEnumerable<User>> Handle(GetUsersByScopeQuery query);
-    Task<User?> Handle(GetUserByUsernameQuery query);
+    Task<User?> Handle(GetUserByEmailQuery query);
 
     /// <summary>Whether a token issued to the user is still a valid session (used by the authentication handler).</summary>
     Task<UserSession> Handle(GetUserSessionQuery query);

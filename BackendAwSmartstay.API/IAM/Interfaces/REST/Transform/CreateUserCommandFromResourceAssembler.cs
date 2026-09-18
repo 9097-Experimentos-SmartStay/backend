@@ -1,4 +1,4 @@
-﻿using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 
 namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Transform;
@@ -18,7 +18,7 @@ public static class CreateUserCommandFromResourceAssembler
     {
         return new CreateUserCommand(
             actorUserId,
-            resource.Username,
+            resource.LoginEmail,
             resource.Password,
             resource.Role,
             resource.HotelId,

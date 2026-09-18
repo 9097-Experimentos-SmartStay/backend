@@ -11,13 +11,13 @@ namespace BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 /// </summary>
 public class User
 {
-    public User(string username, string passwordHash, string role,
+    public User(string email, string passwordHash, string role,
         UserStatus status = UserStatus.Active,
         int? hotelId = null,
         int? chainId = null,
         int tokenVersion = 0)
     {
-        Username = new Username(username);
+        Email = new Email(email);
         PasswordHash = passwordHash;
         Role = new Role(role);
         Status = status;
@@ -33,7 +33,7 @@ public class User
     /// </summary>
     protected User()
     {
-        Username = null!; // EF populates this via reflection after materialization
+        Email = null!; // EF populates this via reflection after materialization
         PasswordHash = string.Empty;
         Role = null!; // EF populates this via reflection after materialization
         Status = UserStatus.Active;
@@ -43,7 +43,8 @@ public class User
     }
 
     public int Id { get; private set; }
-    public Username Username { get; private set; }
+    /// <summary>The login identifier of the account (US-01/US-02).</summary>
+    public Email Email { get; private set; }
     public string PasswordHash { get; private set; }
     public Role Role { get; private set; }
     public UserStatus Status { get; private set; }
@@ -53,9 +54,9 @@ public class User
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
-    public User UpdateUsername(string username)
+    public User UpdateEmail(string email)
     {
-        Username = new Username(username);
+        Email = new Email(email);
         UpdatedAt = DateTime.UtcNow;
         return this;
     }

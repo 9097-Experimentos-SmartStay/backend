@@ -38,7 +38,7 @@ public class UsersController(
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid request payload or unexpected error")]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "User does not have required hierarchy or scope access")]
-    [SwaggerResponse(StatusCodes.Status409Conflict, "Username already exists")]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "Email already registered")]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserResource resource)
     {
 
@@ -128,7 +128,7 @@ public class UsersController(
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "User does not have required permissions to modify the target")]
     [SwaggerResponse(StatusCodes.Status404NotFound, "User not found")]
-    [SwaggerResponse(StatusCodes.Status409Conflict, "Username already exists")]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "Email already registered")]
     public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserResource resource)
     {
 

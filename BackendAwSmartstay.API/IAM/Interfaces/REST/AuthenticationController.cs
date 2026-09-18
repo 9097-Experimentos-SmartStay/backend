@@ -22,7 +22,7 @@ public class AuthenticationController(IUserCommandService userCommandService) : 
     /// <summary>
     ///     Sign in endpoint.
     /// </summary>
-    /// <param name="signInResource">The sign-in resource containing username and password.</param>
+    /// <param name="signInResource">The sign-in resource containing e-mail and password.</param>
     /// <returns>The authenticated user resource, including a JWT token</returns>
     [HttpPost("sign-in")]
     [SwaggerOperation(Summary = "Sign in", Description = "Sign in a user", OperationId = "SignIn")]
@@ -39,13 +39,13 @@ public class AuthenticationController(IUserCommandService userCommandService) : 
     /// <summary>
     ///     Sign up endpoint. Anonymous; a bearer token is optional and only needed to assign a non-guest role.
     /// </summary>
-    /// <param name="signUpResource">The sign-up resource containing username and password.</param>
+    /// <param name="signUpResource">The sign-up resource containing e-mail and password.</param>
     /// <returns>A confirmation message on successful creation.</returns>
     [HttpPost("sign-up")]
     [SwaggerOperation(Summary = "Sign-up", Description = "Sign up a new user. If a non-guest Role is provided, a valid JWT of a user allowed to assign it is required.", OperationId = "SignUp")]
     [SwaggerResponse(StatusCodes.Status200OK, "The user was created successfully")]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Authentication required or insufficient permissions to assign the requested role")]
-    [SwaggerResponse(StatusCodes.Status409Conflict, "Username already exists")]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "Email already registered")]
     public async Task<IActionResult> SignUp([FromBody] SignUpResource signUpResource)
     {
         // The authentication handler still runs on anonymous endpoints: a valid token identifies the actor.

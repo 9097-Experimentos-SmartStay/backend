@@ -1,4 +1,4 @@
-﻿namespace BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+namespace BackendAwSmartstay.API.IAM.Domain.Model.Commands;
 
 /// <summary>
 ///     Command to create a new user with full control over role, hotel and chain assignment.
@@ -12,7 +12,7 @@
 /// <param name="ChainId">Optional chain affiliation.</param>
 public record CreateUserCommand(
     int ActorUserId,
-    string Username,
+    string Email,
     string Password,
     string Role,
     int? HotelId,

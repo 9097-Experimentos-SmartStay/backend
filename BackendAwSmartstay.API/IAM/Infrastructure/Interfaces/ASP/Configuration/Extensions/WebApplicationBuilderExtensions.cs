@@ -31,8 +31,8 @@ public static class WebApplicationBuilderExtensions
             // Legacy variable names kept for existing deployments.
             .PostConfigure(settings =>
             {
-                if (string.IsNullOrWhiteSpace(settings.Username))
-                    settings.Username = Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_USERNAME");
+                if (string.IsNullOrWhiteSpace(settings.LoginEmail))
+                    settings.Email = Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_USERNAME");
                 if (string.IsNullOrWhiteSpace(settings.Password))
                     settings.Password = Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_PASSWORD");
             });

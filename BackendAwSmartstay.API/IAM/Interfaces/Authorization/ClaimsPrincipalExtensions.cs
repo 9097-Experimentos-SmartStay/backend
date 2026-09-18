@@ -25,7 +25,7 @@ public static class ClaimsPrincipalExtensions
             ? ParseInt(principal.FindFirstValue(IamClaimTypes.UserId))
             : null;
 
-    /// <summary>The username (the identity name).</summary>
+    /// <summary>The login identifier (the account e-mail, identity name).</summary>
     public static string GetUsername(this ClaimsPrincipal principal) =>
         principal.Identity?.Name ?? string.Empty;
 

@@ -23,7 +23,8 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
         var claims = new List<Claim>
         {
             new(IamClaimTypes.UserId, user.Id.ToString(CultureInfo.InvariantCulture)),
-            new(IamClaimTypes.Username, user.Username.Value),
+            new(IamClaimTypes.Username, user.Email.Value),
+            new(IamClaimTypes.Email, user.Email.Value),
             new(IamClaimTypes.Role, user.Role.Value),
             new(IamClaimTypes.TokenVersion, user.TokenVersion.ToString(CultureInfo.InvariantCulture)),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))

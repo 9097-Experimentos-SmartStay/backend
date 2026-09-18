@@ -1,6 +1,7 @@
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
 using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
+using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.IAM.Domain.Repositories;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
 using Microsoft.Extensions.Options;
@@ -22,19 +23,20 @@ public static class IamSeeder
         }
 
         var userRepository = services.GetRequiredService<IUserRepository>();
-        if (await userRepository.ExistsByUsernameAsync(settings.Username!))
+        var email = new Email(settings.LoginEmail!);
+        if (await userRepository.ExistsByEmailAsync(email))
         {
-            logger.LogInformation("IamSeeder: user '{Username}' already exists; skipping seed.", settings.Username);
+            logger.LogInformation("IamSeeder: user '{Email}' already exists; skipping seed.", email.Value);
             return;
         }
 
         var hashingService = services.GetRequiredService<IHashingService>();
-        var user = new User(settings.Username!, hashingService.HashPassword(settings.Password!), UserRoles.ChainAdmin,
+        var user = new User(email.Value, hashingService.HashPassword(settings.Password!), UserRoles.ChainAdmin,
             hotelId: settings.HotelId);
 
         await userRepository.AddAsync(user);
         await services.GetRequiredService<IUnitOfWork>().CompleteAsync();
-        logger.LogInformation("IamSeeder: created initial chain admin '{Username}' (hotel {HotelId}).",
-            settings.Username, settings.HotelId);
+        logger.LogInformation("IamSeeder: created initial chain admin '{Email}' (hotel {HotelId}).",
+            email.Value, settings.HotelId);
     }
 }

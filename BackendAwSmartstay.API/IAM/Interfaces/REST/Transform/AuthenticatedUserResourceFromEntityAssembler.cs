@@ -18,10 +18,11 @@ public static class AuthenticatedUserResourceFromEntityAssembler
     {
         return new AuthenticatedUserResource(
             user.Id, 
-            user.Username.Value, 
+            user.Email.Value,
             token,
             user.Role.Value,
             user.HotelId,
-            user.ChainId);
+            user.ChainId,
+            user.Email.Value);
     }
 }

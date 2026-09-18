@@ -15,8 +15,14 @@ public static class IamClaimTypes
     /// <summary>User id (JWT <c>sub</c>).</summary>
     public const string UserId = JwtRegisteredClaimNames.Sub;
 
-    /// <summary>Username (JWT <c>unique_name</c>). Used as <see cref="System.Security.Claims.ClaimsIdentity.Name"/>.</summary>
+    /// <summary>
+    ///     Login identifier (JWT <c>unique_name</c>, the account e-mail). Used as
+    ///     <see cref="System.Security.Claims.ClaimsIdentity.Name"/>.
+    /// </summary>
     public const string Username = JwtRegisteredClaimNames.UniqueName;
+
+    /// <summary>Account e-mail (JWT <c>email</c>).</summary>
+    public const string Email = JwtRegisteredClaimNames.Email;
 
     /// <summary>Role (<c>role</c>): guest, staff, reception, housekeeping, maintenance, admin or chain_admin.</summary>
     public const string Role = "role";

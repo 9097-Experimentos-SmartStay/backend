@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
 
 namespace BackendAwSmartstay.API.IAM.Domain.Repositories;
@@ -12,14 +13,14 @@ namespace BackendAwSmartstay.API.IAM.Domain.Repositories;
 public interface IUserRepository : IBaseRepository<User>
 {
     /// <summary>
-    ///     Find a user by username
+    ///     Find a user by e-mail
     /// </summary>
-    Task<User?> FindByUsernameAsync(string username);
+    Task<User?> FindByEmailAsync(Email email);
 
     /// <summary>
     ///     Checks asynchronously whether a user with the given username exists.
     /// </summary>
-    Task<bool> ExistsByUsernameAsync(string username);
+    Task<bool> ExistsByEmailAsync(Email email);
 
     /// <summary>
     ///     Counts the number of active users that have a specific role.
