@@ -60,20 +60,23 @@ public class UserCommandService(
         var hashedPassword = hashingService.HashPassword(command.Password);
         var assignedRole = UserRoles.Guest;
 
+        // Validate the requested role first so an unknown role is a 400 (ArgumentException), not a 403.
+        var requestedRole = string.IsNullOrWhiteSpace(command.Role) ? null : new Role(command.Role.Trim().ToLowerInvariant());
+
         // If a specific role is requested and it is not the default Guest role, validate the actor's permissions
-        if (!string.IsNullOrWhiteSpace(command.Role) 
-            && !command.Role.Equals(UserRoles.Guest, StringComparison.OrdinalIgnoreCase))
+        if (requestedRole != null 
+            && !requestedRole.Value.Equals(UserRoles.Guest, StringComparison.OrdinalIgnoreCase))
         {
             if (command.ActorUserId == null)
                 throw new UnauthorizedOperationException("Authentication required to assign a specific role during sign-up.");
 
             var actor = await ResolveActorAsync(command.ActorUserId.Value);
 
-            if (!roleAuthorizationService.CanAssignRole(actor, command.Role))
+            if (!roleAuthorizationService.CanAssignRole(actor, requestedRole.Value))
                 throw new UnauthorizedOperationException(
-                    $"User {actor.Id} cannot assign role '{command.Role}'.");
+                    $"User {actor.Id} cannot assign role '{requestedRole.Value}'.");
 
-            assignedRole = command.Role;
+            assignedRole = requestedRole.Value;
         }
 
         // HotelId and ChainId default to null via the constructor logic.

@@ -3,6 +3,8 @@ using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
 using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Components;
@@ -45,16 +47,12 @@ public class RequestAuthorizationMiddleware(
             return;
         }
         
+        // Anonymous endpoints still resolve the caller when a valid token is sent (optional authentication).
+        // This is what allows an authenticated admin to call sign-up with a non-guest role.
+        // An invalid/expired/revoked token on an anonymous endpoint is simply ignored.
         var allowAnonymous = endpoint.Metadata.Any(metadata => 
             metadata.GetType() == typeof(AllowAnonymousAttribute) ||
             metadata is Microsoft.AspNetCore.Authorization.IAllowAnonymous);
-        
-        if (allowAnonymous)
-        {
-            logger.LogInformation("Endpoint is explicitly marked to allow anonymous access. Skipping validation.");
-            await next(context);
-            return;
-        }
 
         var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
 
@@ -77,44 +75,45 @@ public class RequestAuthorizationMiddleware(
         var getUserByIdQuery = new GetUserByIdQuery(userId.Value);
         var user = await userQueryService.Handle(getUserByIdQuery);
 
+        string? rejectionReason = null;
         if (user == null)
         {
             logger.LogError("Critical Security Inconsistency: Token signature is valid for user ID {UserId}, but the corresponding User aggregate does not exist in the persistence layer.", userId.Value);
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "text/plain";
-            await context.Response.WriteAsync("Token revocado. Inicie sesión nuevamente.");
-            return;
+            rejectionReason = "Token revocado. Inicie sesión nuevamente.";
         }
-
-        if (user.Status == UserStatus.Inactive)
+        else if (user.Status == UserStatus.Inactive)
         {
             logger.LogWarning("Authentication rejected: User ID {UserId} is inactive.", user.Id);
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "text/plain";
-            await context.Response.WriteAsync("La cuenta ha sido desactivada. Contacte al administrador.");
-            return;
+            rejectionReason = "La cuenta ha sido desactivada. Contacte al administrador.";
+        }
+        else
+        {
+            // --- Token version validation ---
+            var jwtReader = new JsonWebTokenHandler();
+            var jsonWebToken = jwtReader.ReadJsonWebToken(token);
+            var tokenVersionClaim = jsonWebToken.Claims.FirstOrDefault(c => c.Type == "token_version");
+
+            if (tokenVersionClaim == null || !int.TryParse(tokenVersionClaim.Value, out var tokenVersion))
+            {
+                logger.LogWarning("Token is missing 'token_version' claim for user ID {UserId}. Rejecting.", user.Id);
+                rejectionReason = "Token revocado. Inicie sesión nuevamente.";
+            }
+            else if (tokenVersion != user.TokenVersion)
+            {
+                logger.LogWarning("Token version mismatch for user ID {UserId}: token={TokenVersion}, db={DbVersion}.", user.Id, tokenVersion, user.TokenVersion);
+                rejectionReason = "Token revocado. Inicie sesión nuevamente.";
+            }
         }
 
-        // --- Token version validation ---
-        var jwtReader = new JsonWebTokenHandler();
-        var jsonWebToken = jwtReader.ReadJsonWebToken(token);
-        var tokenVersionClaim = jsonWebToken.Claims.FirstOrDefault(c => c.Type == "token_version");
-
-        if (tokenVersionClaim == null || !int.TryParse(tokenVersionClaim.Value, out var tokenVersion))
+        if (rejectionReason != null)
         {
-            logger.LogWarning("Token is missing 'token_version' claim for user ID {UserId}. Rejecting.", user.Id);
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "text/plain";
-            await context.Response.WriteAsync("Token revocado. Inicie sesión nuevamente.");
-            return;
-        }
+            if (allowAnonymous)
+            {
+                await next(context);
+                return;
+            }
 
-        if (tokenVersion != user.TokenVersion)
-        {
-            logger.LogWarning("Token version mismatch for user ID {UserId}: token={TokenVersion}, db={DbVersion}.", user.Id, tokenVersion, user.TokenVersion);
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "text/plain";
-            await context.Response.WriteAsync("Token revocado. Inicie sesión nuevamente.");
+            await WriteUnauthorizedAsync(context, rejectionReason);
             return;
         }
 
@@ -122,5 +121,20 @@ public class RequestAuthorizationMiddleware(
         context.Items["User"] = user;
 
         await next(context);
+    }
+
+    private static async Task WriteUnauthorizedAsync(HttpContext context, string detail)
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(
+            new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Unauthorized",
+                Detail = detail,
+                Instance = context.Request.Path
+            },
+            options: (JsonSerializerOptions?)null,
+            contentType: "application/problem+json");
     }
 }

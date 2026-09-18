@@ -36,7 +36,8 @@ public class AuthorizeAttribute : Attribute, IAuthorizationFilter
 
         if (user == null)
         {
-            context.Result = new UnauthorizedResult();
+            context.Result = Problem(StatusCodes.Status401Unauthorized, "Unauthorized",
+                "A valid bearer token is required.");
             return;
         }
 
@@ -45,6 +46,17 @@ public class AuthorizeAttribute : Attribute, IAuthorizationFilter
         var hasAllowedRole = _roles.Any(role =>
             string.Equals(role, user.Role, StringComparison.OrdinalIgnoreCase));
 
-        if (!hasAllowedRole) context.Result = new ForbidResult();
+        // ForbidResult would require ASP.NET authentication handlers (not registered in this app)
+        // and ended up as a 500, so the 403 is written directly.
+        if (!hasAllowedRole)
+            context.Result = Problem(StatusCodes.Status403Forbidden, "Forbidden",
+                $"Role '{user.Role.Value}' is not allowed to perform this operation.");
     }
+
+    private static ObjectResult Problem(int statusCode, string title, string detail) =>
+        new(new ProblemDetails { Status = statusCode, Title = title, Detail = detail })
+        {
+            StatusCode = statusCode,
+            ContentTypes = { "application/problem+json" }
+        };
 }
