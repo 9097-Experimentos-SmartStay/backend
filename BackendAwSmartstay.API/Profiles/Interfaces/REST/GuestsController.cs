@@ -1,6 +1,7 @@
 using System.Net.Mime;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Commands;
 using BackendAwSmartstay.API.Profiles.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Queries;
@@ -35,7 +36,7 @@ public class GuestsController(
     {
         var query = new GetGuestProfileByIdQuery(new GuestProfileId(id));
         var guest = await guestQueryService.Handle(query);
-        if (guest is null) return NotFound();
+        if (guest is null || !CanAccess(guest.UserId)) return NotFound();
         return Ok(GuestResourceAssembler.ToResourceFromEntity(guest));
     }
 
@@ -59,6 +60,9 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
     public async Task<IActionResult> GetByUserId(int userId)
     {
+        // Guests can only look up their own profile
+        if (CallerGuestUserId() is { } guestUserId && guestUserId != userId) return NotFound();
+
         var query = new GetGuestProfileByUserIdQuery(new UserId(userId));
         var guest = await guestQueryService.Handle(query);
         if (guest is null) return NotFound();
@@ -82,6 +86,9 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid input data.")]
     public async Task<IActionResult> Create([FromBody] CreateGuestProfileResource resource)
     {
+        // A guest can only create their own profile: the user link comes from the token
+        if (CallerGuestUserId() is { } guestUserId) resource = resource with { UserId = guestUserId };
+
         var command = GuestResourceAssembler.ToCommandFromResource(resource);
         var guest = await guestCommandService.Handle(command);
         if (guest is null) return BadRequest();
@@ -96,6 +103,10 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
     public async Task<IActionResult> LinkToUser(Guid id, [FromBody] LinkGuestToUserResource resource)
     {
+        // A guest can only link a profile to their own account
+        if (CallerGuestUserId() is { } guestUserId && guestUserId != resource.UserId)
+            throw new UnauthorizedAccessException("Guests can only link a profile to their own user account.");
+
         var command = new LinkGuestToUserCommand(
             new GuestProfileId(id),
             new UserId(resource.UserId),
@@ -113,6 +124,12 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
     public async Task<IActionResult> UpdateContactInfo(Guid id, [FromBody] UpdateGuestContactInformationResource resource)
     {
+        if (CallerGuestUserId() is not null)
+        {
+            var current = await guestQueryService.Handle(new GetGuestProfileByIdQuery(new GuestProfileId(id)));
+            if (current is null || !CanAccess(current.UserId)) return NotFound();
+        }
+
         var address = resource.Street != null && resource.Number != null && resource.City != null && resource.PostalCode != null && resource.Country != null
             ? new StreetAddress(resource.Street, resource.Number, resource.City, resource.PostalCode, resource.Country)
             : null;
@@ -154,7 +171,8 @@ public class GuestsController(
             new GuestProfileId(id),
             new IdentificationDocument(resource.NewDocumentType, resource.NewDocumentNumber),
             resource.Reason,
-            new UserId(resource.StaffUserId));
+            // Audit identity comes from the token, not from the body
+            new UserId(HttpContext.RequireAuthenticatedUser().Id));
 
         var guest = await guestCommandService.Handle(command);
         if (guest is null) return NotFound();
@@ -186,4 +204,15 @@ public class GuestsController(
         if (guest is null) return NotFound();
         return Ok(GuestResourceAssembler.ToResourceFromEntity(guest));
     }
+
+    /// <summary>The caller's user id when the caller is a guest; null for hotel staff roles.</summary>
+    private int? CallerGuestUserId()
+    {
+        var actor = HttpContext.RequireAuthenticatedUser();
+        return actor.IsInRole(UserRoles.Guest) ? actor.Id : null;
+    }
+
+    /// <summary>Staff roles can access any profile; a guest only the profile linked to their account.</summary>
+    private bool CanAccess(UserId? profileUserId) =>
+        CallerGuestUserId() is not { } guestUserId || profileUserId?.Value == guestUserId;
 }
