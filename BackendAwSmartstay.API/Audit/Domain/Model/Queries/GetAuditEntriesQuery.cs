@@ -4,7 +4,7 @@ using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 namespace BackendAwSmartstay.API.Audit.Domain.Model.Queries;
 
 /// <summary>
-///     A page of the audit log visible in <paramref name="Scope"/>, newest first, optionally filtered by user
+///     A page of the audit log visible in the reader's scope, newest first, optionally filtered by user
 ///     (actor or target), action and date range.
 /// </summary>
 public sealed record GetAuditEntriesQuery

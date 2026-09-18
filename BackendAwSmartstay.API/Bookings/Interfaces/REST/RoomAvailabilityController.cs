@@ -15,7 +15,7 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST;
 [Route("api/v1/rooms")]
 [Produces("application/json")]
 [Authorize(Policy = Policies.ReadInventory)]
-[SwaggerTag("Rooms: availability and prices for a stay")]
+[Tags("Rooms")]
 public class RoomAvailabilityController(IRoomAvailabilityQueryService roomAvailabilityQueryService) : ControllerBase
 {
     /// <summary>Lists the rooms free for the whole stay, with price per night and total price.</summary>

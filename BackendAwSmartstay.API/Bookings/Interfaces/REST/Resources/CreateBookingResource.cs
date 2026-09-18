@@ -7,6 +7,7 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 /// <param name="GuestName">The name of the guest.</param>
 /// <param name="GuestEmail">The email of the guest.</param>
 /// <param name="CheckInDate">The check-in date.</param>
+/// <param name="CheckOutDate">The check-out date (at least one day after the check-in).</param>
 /// <param name="UserId">Optional user identifier for authenticated guests.</param>
 /// <param name="GuestProfileId">Optional guest profile identifier.</param>
 public record CreateBookingResource(

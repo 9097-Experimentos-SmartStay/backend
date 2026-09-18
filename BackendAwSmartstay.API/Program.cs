@@ -112,7 +112,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapSwagger().AllowAnonymous();
+app.MapApiDocumentation();
 app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();

@@ -14,11 +14,8 @@ public class RoomQueryService(IRoomRepository roomRepository)
     /// including fetching rooms by ID, type, or listing all available rooms.
     /// </summary>
     public async Task<Room?> Handle(GetRoomByIdQuery query)
-    { /// <summary>
-        /// Retrieves a room based on the provided room identifier.
-        /// </summary>
-        /// <param name="query">Query containing the RoomId to search for.</param>
-        /// <returns>The matching <see cref="Room"/> if found; otherwise null.</returns>
+    {
+        // Retrieves a room based on the provided room identifier.
         return await roomRepository.FindByIdAsync(query.RoomId);  
        
     }
@@ -37,12 +34,8 @@ public class RoomQueryService(IRoomRepository roomRepository)
         roomRepository.FindOfferedForBookingAsync(query.HotelId);
 
     public async Task<IEnumerable<Room>> Handle(GetRoomsByTypeQuery query)
-    { 
-        /// <summary>
-         /// Retrieves all rooms that belong to a specific room type.
-        /// </summary>
-        /// <param name="query">Query containing the RoomTypeId used for filtering.</param>
-        /// <returns>A filtered collection of <see cref="Room"/> that match the requested type.</returns>
+    {
+        // Retrieves all rooms that belong to a specific room type.
         var rooms = await roomRepository.ListAsync();
         return rooms.Where(r => r.RoomTypeId == query.RoomTypeId);
     }        

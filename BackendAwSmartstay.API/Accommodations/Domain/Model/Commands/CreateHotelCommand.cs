@@ -5,7 +5,8 @@ namespace BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 /// <summary>
 /// Command to create a new hotel.
 /// </summary>
-/// <param name="HostId">The identifier of the host creating the hotel.</param>
+/// <param name="Registrant">The administrator who registers the hotel.</param>
+/// <param name="RequestedHostId">Host requested in the request (only honoured for chain administrators).</param>
 /// <param name="Name">The name of the hotel.</param>
 /// <param name="Address">The street address of the hotel.</param>
 /// <param name="City">The city where the hotel is located.</param>

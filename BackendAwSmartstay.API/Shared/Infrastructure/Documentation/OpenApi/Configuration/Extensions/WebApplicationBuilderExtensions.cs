@@ -24,8 +24,18 @@ public static class WebApplicationBuilderExtensions
                 {
                     Title = "SmartStay Platform API",
                     Version = "v1",
-                    Description = "Hotel Management System API - Accommodations, Bookings and Payments",
-                    TermsOfService = new Uri("https://smartstay.com/tos"),
+                    Description = """
+                        REST API of SmartStay, the hotel management platform: accounts and access (authentication,
+                        users, audit log), hotels and rooms, bookings and payments, guest and staff profiles, analytics
+                        and demo requests from the landing.
+
+                        **Authentication.** Sign in with `POST /api/v1/authentication/sign-in` and send the returned
+                        `token` as `Authorization: Bearer <token>`. Access tokens last 30 minutes; with `rememberMe`
+                        the response also carries a refresh token for `POST /api/v1/authentication/refresh`.
+
+                        **Errors.** Every error is an RFC 7807 ProblemDetails (`application/problem+json`): read
+                        `detail`; validation errors list each invalid field in `errors`.
+                        """,
                     Contact = new OpenApiContact
                     {
                         Name = "SmartStay",
@@ -49,10 +59,23 @@ public static class WebApplicationBuilderExtensions
                 Scheme = "bearer"
             });
 
+            // Shared secret of the external scheduler (only for the scheduled job endpoints).
+            options.AddSecurityDefinition(BearerSecurityRequirementOperationFilter.CronKeySchemeId, new OpenApiSecurityScheme
+            {
+                In = ParameterLocation.Header,
+                Name = "X-Cron-Key",
+                Type = SecuritySchemeType.ApiKey,
+                Description = "Shared secret of the scheduler (Cron__ApiKey). Only for scheduled job endpoints."
+            });
+
             // Only endpoints that are not [AllowAnonymous] require the bearer token.
             options.OperationFilter<BearerSecurityRequirementOperationFilter>();
 
             options.EnableAnnotations();
+
+            // XML documentation comments: summaries, remarks, parameters and <example> values of the resources.
+            options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{typeof(Program).Assembly.GetName().Name}.xml"), includeControllerXmlComments: true);
+            options.SupportNonNullableReferenceTypes();
         });
     }
 
