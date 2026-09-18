@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.ComponentModel.DataAnnotations;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -40,7 +41,7 @@ public static class FieldViolationCodes
         LengthAttribute length => new CodedRule(ErrorCodes.FieldLength,
             Parameters(("minLength", length.MinimumLength), ("maxLength", length.MaximumLength))),
         RangeAttribute range => new CodedRule(ErrorCodes.FieldOutOfRange,
-            Parameters(("min", range.Minimum), ("max", range.Maximum))),
+            Parameters(("min", Numeric(range.Minimum)), ("max", Numeric(range.Maximum)))),
         EmailAddressAttribute => new CodedRule(ErrorCodes.FieldEmail, null),
         UrlAttribute => new CodedRule(ErrorCodes.FieldUrl, null),
         PhoneAttribute => new CodedRule(ErrorCodes.FieldPhone, null),
@@ -48,6 +49,12 @@ public static class FieldViolationCodes
         AllowedValuesAttribute or DeniedValuesAttribute => new CodedRule(ErrorCodes.FieldNotAllowed, null),
         _ => new CodedRule(ErrorCodes.FieldInvalid, null)
     };
+
+    /// <summary>Range limits declared as text (e.g. decimals) are reported as numbers.</summary>
+    private static object? Numeric(object? limit) =>
+        limit is string text && decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+            ? number
+            : limit;
 
     private static IReadOnlyDictionary<string, object?> Parameters(params (string Name, object? Value)[] values) =>
         values.ToDictionary(value => value.Name, value => value.Value);
