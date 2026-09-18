@@ -25,23 +25,28 @@ public class BookingCommandService(
 {
     public async Task<Booking> Handle(CreateBookingCommand command)
     {
-        if (!await accommodationsContextFacade.RoomExistsAsync(command.RoomId))
-            throw new DomainValidationException($"Room {command.RoomId} does not exist.");
-
         var dates = new DateRange(command.CheckInDate, command.CheckOutDate);
-        await roomAvailabilityService.EnsureRoomIsAvailableAsync(command.RoomId, dates);
-
         var requester = await ResolveGuestProfileAsync(command.Requester);
         var guestProfileId = requester.IsGuest
             ? requester.GuestProfileId
             : command.GuestProfileId ?? await FindGuestProfileForStaffBookingAsync(command);
 
-        var booking = Booking.Create(requester, command.RoomId, dates, command.GuestName, command.GuestEmail,
-            command.UserId, guestProfileId);
+        Booking? booking = null;
+        // R1 under concurrency: the room row is locked for the transaction, so two requests for the same room
+        // run the availability check and the insert one after the other instead of both seeing a free room.
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            if (!await accommodationsContextFacade.LockRoomForBookingAsync(command.RoomId))
+                throw new DomainValidationException($"Room {command.RoomId} does not exist.");
 
-        await bookingRepository.AddAsync(booking);
-        await unitOfWork.CompleteAsync();
-        return booking;
+            await roomAvailabilityService.EnsureRoomIsAvailableAsync(command.RoomId, dates);
+
+            booking = Booking.Create(requester, command.RoomId, dates, command.GuestName, command.GuestEmail,
+                command.UserId, guestProfileId);
+            await bookingRepository.AddAsync(booking);
+            await unitOfWork.CompleteAsync();
+        });
+        return booking!;
     }
 
     public async Task<Booking> Handle(ConfirmBookingCommand command)

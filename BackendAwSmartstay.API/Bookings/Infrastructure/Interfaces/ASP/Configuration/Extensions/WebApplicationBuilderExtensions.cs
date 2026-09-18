@@ -25,6 +25,7 @@ public static class WebApplicationBuilderExtensions
 
         // Query Services
         builder.Services.AddScoped<IBookingQueryService, BookingQueryService>();
+        builder.Services.AddScoped<IRoomAvailabilityQueryService, RoomAvailabilityQueryService>();
 
         // ACL Facade
         builder.Services.AddScoped<IBookingsContextFacade, BookingsContextFacade>();

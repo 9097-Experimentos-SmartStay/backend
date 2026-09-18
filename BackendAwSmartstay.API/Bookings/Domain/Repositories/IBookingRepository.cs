@@ -20,4 +20,7 @@ public interface IBookingRepository : IBaseRepository<Booking>
 
     /// <summary>True when an active booking (Pending or Confirmed) of the room shares a night with <paramref name="dates"/>.</summary>
     Task<bool> ExistsActiveBookingOverlappingAsync(int roomId, DateRange dates);
+
+    /// <summary>Which of <paramref name="roomIds"/> have an active booking that shares a night with <paramref name="dates"/>.</summary>
+    Task<IReadOnlySet<int>> FindRoomIdsWithActiveBookingOverlappingAsync(IReadOnlyCollection<int> roomIds, DateRange dates);
 }

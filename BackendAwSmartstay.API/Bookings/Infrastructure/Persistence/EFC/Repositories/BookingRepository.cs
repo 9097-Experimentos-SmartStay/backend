@@ -28,6 +28,19 @@ public class BookingRepository(AppDbContext context) : BaseRepository<Booking>(c
             .ToListAsync();
     }
 
+    public async Task<IReadOnlySet<int>> FindRoomIdsWithActiveBookingOverlappingAsync(IReadOnlyCollection<int> roomIds, DateRange dates)
+    {
+        var booked = await Context.Set<Booking>()
+            .Where(b => roomIds.Contains(b.RoomId)
+                        && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed)
+                        && b.CheckInDate < dates.CheckOut
+                        && dates.CheckIn < b.CheckOutDate)
+            .Select(b => b.RoomId)
+            .Distinct()
+            .ToListAsync();
+        return booked.ToHashSet();
+    }
+
     public async Task<bool> ExistsActiveBookingOverlappingAsync(int roomId, DateRange dates)
     {
         // Same predicate as DateRange.Overlaps, translated to SQL. Stored dates are calendar dates.
