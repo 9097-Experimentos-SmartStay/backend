@@ -1,9 +1,9 @@
-using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Net.Mime;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Commands;
 using BackendAwSmartstay.API.Profiles.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Queries;
 using BackendAwSmartstay.API.Profiles.Application.Internal.QueryServices;
+using BackendAwSmartstay.API.Profiles.Interfaces.REST.Authorization;
 using BackendAwSmartstay.API.Profiles.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Profiles.Interfaces.REST.Transform;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
@@ -24,7 +24,8 @@ namespace BackendAwSmartstay.API.Profiles.Interfaces.REST;
 [SwaggerTag("Available Guest Profiles Endpoints.")]
 public class GuestsController(
     IGuestProfileCommandService guestCommandService,
-    IGuestProfileQueryService guestQueryService)
+    IGuestProfileQueryService guestQueryService,
+    IAuthorizationService authorizationService)
     : ControllerBase
 {
     [HttpGet("{id:guid}")]
@@ -36,7 +37,8 @@ public class GuestsController(
     {
         var query = new GetGuestProfileByIdQuery(new GuestProfileId(id));
         var guest = await guestQueryService.Handle(query);
-        if (guest is null || !CanAccess(guest.UserId)) return NotFound();
+        // A guest asking for someone else's profile gets 404: the profile's existence is not disclosed.
+        if (guest is null || !await CanActOnAsync(guest.UserId?.Value)) return NotFound();
         return Ok(GuestResourceAssembler.ToResourceFromEntity(guest));
     }
 
@@ -60,8 +62,7 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
     public async Task<IActionResult> GetByUserId(int userId)
     {
-        // Guests can only look up their own profile
-        if (CallerGuestUserId() is { } guestUserId && guestUserId != userId) return NotFound();
+        if (!await CanActOnAsync(userId)) return NotFound();
 
         var query = new GetGuestProfileByUserIdQuery(new UserId(userId));
         var guest = await guestQueryService.Handle(query);
@@ -86,8 +87,9 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid input data.")]
     public async Task<IActionResult> Create([FromBody] CreateGuestProfileResource resource)
     {
-        // A guest can only create their own profile: the user link comes from the token
-        if (CallerGuestUserId() is { } guestUserId) resource = resource with { UserId = guestUserId };
+        // A guest registers the profile of their own account (linked to it when no userId is sent).
+        if (resource.UserId is null && User.IsGuest()) resource = resource with { UserId = User.GetUserId() };
+        if (!await CanActOnAsync(resource.UserId)) return Forbid();
 
         var command = GuestResourceAssembler.ToCommandFromResource(resource);
         var guest = await guestCommandService.Handle(command);
@@ -103,9 +105,8 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
     public async Task<IActionResult> LinkToUser(Guid id, [FromBody] LinkGuestToUserResource resource)
     {
-        // A guest can only link a profile to their own account
-        if (CallerGuestUserId() is { } guestUserId && guestUserId != resource.UserId)
-            throw new OperationNotAllowedException("Guests can only link a profile to their own user account.");
+        // A guest can only link a profile to their own account.
+        if (!await CanActOnAsync(resource.UserId)) return Forbid();
 
         var command = new LinkGuestToUserCommand(
             new GuestProfileId(id),
@@ -124,11 +125,8 @@ public class GuestsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
     public async Task<IActionResult> UpdateContactInfo(Guid id, [FromBody] UpdateGuestContactInformationResource resource)
     {
-        if (CallerGuestUserId() is not null)
-        {
-            var current = await guestQueryService.Handle(new GetGuestProfileByIdQuery(new GuestProfileId(id)));
-            if (current is null || !CanAccess(current.UserId)) return NotFound();
-        }
+        var current = await guestQueryService.Handle(new GetGuestProfileByIdQuery(new GuestProfileId(id)));
+        if (current is null || !await CanActOnAsync(current.UserId?.Value)) return NotFound();
 
         var address = resource.Street != null && resource.Number != null && resource.City != null && resource.PostalCode != null && resource.Country != null
             ? new StreetAddress(resource.Street, resource.Number, resource.City, resource.PostalCode, resource.Country)
@@ -205,13 +203,8 @@ public class GuestsController(
         return Ok(GuestResourceAssembler.ToResourceFromEntity(guest));
     }
 
-    /// <summary>The caller's user id when the caller is a guest; null for hotel staff roles.</summary>
-    private int? CallerGuestUserId()
-    {
-        return User.IsGuest() ? User.GetUserId() : null;
-    }
-
-    /// <summary>Staff roles can access any profile; a guest only the profile linked to their account.</summary>
-    private bool CanAccess(UserId? profileUserId) =>
-        CallerGuestUserId() is not { } guestUserId || profileUserId?.Value == guestUserId;
+    /// <summary>Resource-based authorization on the account the guest profile belongs to.</summary>
+    private async Task<bool> CanActOnAsync(int? accountUserId) =>
+        (await authorizationService.AuthorizeAsync(User, new GuestAccount(accountUserId), GuestAccountRequirement.Instance))
+        .Succeeded;
 }
