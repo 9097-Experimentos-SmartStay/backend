@@ -1,4 +1,4 @@
-﻿using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 
 namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Transform;
@@ -20,7 +20,7 @@ public static class UpdateUserCommandFromResourceAssembler
         return new UpdateUserCommand(
             actorUserId,
             targetUserId,
-            resource.NewUsername,
+            resource.LoginEmail,
             resource.NewPassword,
             resource.NewHotelId,
             resource.NewChainId);

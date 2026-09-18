@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Entities;
 
@@ -23,6 +24,9 @@ public partial class Room
     /// <param name="command">The command containing room creation data.</param>
     public Room(CreateRoomCommand command) : this()
     {
+        if (command.Price < 0)
+            throw new DomainValidationException("Price cannot be negative.");
+
         RoomTypeId = command.RoomTypeId;
         // NUEVOS CAMPOS
         HotelId = command.HotelId;
@@ -44,7 +48,7 @@ public partial class Room
     {
         // Validation logic can be placed here (e.g., Price > 0)
         if (price < 0) 
-            throw new ArgumentException("Price cannot be negative.");
+            throw new DomainValidationException("Price cannot be negative.");
 
         RoomTypeId = roomTypeId;
         Price = price;

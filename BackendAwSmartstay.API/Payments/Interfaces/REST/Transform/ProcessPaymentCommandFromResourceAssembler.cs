@@ -5,16 +5,17 @@ namespace BackendAwSmartstay.API.Payments.Interfaces.REST.Transform;
 
 public static class ProcessPaymentCommandFromResourceAssembler
 {
-    public static ProcessPaymentCommand ToCommandFromResource(ProcessPaymentResource resource)
+    public static ProcessPaymentCommand ToCommandFromResource(ProcessPaymentResource resource, int? guestUserId = null)
     {
+        // resource.Amount is deliberately ignored: the amount is computed server-side.
         return new ProcessPaymentCommand(
             resource.BookingId,
-            resource.Amount,
             resource.PaymentMethod,
             resource.CardNumber,
             resource.CardHolderName,
             resource.ExpirationDate,
-            resource.Cvv
+            resource.Cvv,
+            guestUserId
         );
     }
 }

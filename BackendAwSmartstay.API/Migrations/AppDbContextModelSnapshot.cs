@@ -404,8 +404,15 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("int")
                         .HasColumnName("status");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
                     b.HasKey("Id")
                         .HasName("p_k_bookings");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("i_x_bookings_user_id");
 
                     b.ToTable("bookings");
                 });
@@ -428,6 +435,12 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("varchar(254)")
+                        .HasColumnName("email");
 
                     b.Property<int?>("HotelId")
                         .HasColumnType("int")
@@ -467,21 +480,15 @@ namespace BackendAwSmartstay.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime>("UpdatedAt"));
 
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("username");
-
                     b.HasKey("Id")
                         .HasName("p_k_users");
 
+                    b.HasIndex(new[] { "Email" }, "i_x_users_email")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_users_email");
+
                     b.HasIndex(new[] { "Status" }, "i_x_users_status")
                         .HasDatabaseName("i_x_users_status");
-
-                    b.HasIndex(new[] { "Username" }, "i_x_users_username")
-                        .IsUnique()
-                        .HasDatabaseName("i_x_users_username");
 
                     b.ToTable("users", (string)null);
                 });

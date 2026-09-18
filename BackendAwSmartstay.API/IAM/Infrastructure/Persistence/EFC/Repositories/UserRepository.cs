@@ -10,16 +10,14 @@ namespace BackendAwSmartstay.API.IAM.Infrastructure.Persistence.EFC.Repositories
 
 public class UserRepository(AppDbContext context) : BaseRepository<User>(context), IUserRepository
 {
-    public async Task<User?> FindByUsernameAsync(string username)
+    public async Task<User?> FindByEmailAsync(Email email)
     {
-        var usernameVo = new Username(username);
-        return await Context.Set<User>().FirstOrDefaultAsync(user => user.Username == usernameVo);
+        return await Context.Set<User>().FirstOrDefaultAsync(user => user.Email == email);
     }
 
-    public async Task<bool> ExistsByUsernameAsync(string username)
+    public async Task<bool> ExistsByEmailAsync(Email email)
     {
-        var usernameVo = new Username(username);
-        return await Context.Set<User>().AnyAsync(user => user.Username == usernameVo);
+        return await Context.Set<User>().AnyAsync(user => user.Email == email);
     }
 
     public async Task<int> CountActiveByRoleAsync(string role)

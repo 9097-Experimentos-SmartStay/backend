@@ -1,8 +1,9 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Analytics.Domain.Model.Queries;
 using BackendAwSmartstay.API.Analytics.Domain.Services;
 using BackendAwSmartstay.API.Analytics.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Analytics.Interfaces.REST.Transform;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 using Swashbuckle.AspNetCore.Annotations;
@@ -12,29 +13,36 @@ using BackendAwSmartstay.API.Shared.Infrastructure.Messaging;
 
 namespace BackendAwSmartstay.API.Analytics.Interfaces.REST;
 
-//REST controller for analytics operations.
-//[Authorize(UserRoles.Admin, UserRoles.ChainAdmin)] // Only Admin/ChainAdmin should access this
+/// <summary>
+///     REST controller for analytics operations.
+/// </summary>
+/// <remarks>
+///     The <c>/cache</c> endpoints are an optional resilience lab (Redis + Polly circuit breaker + ActiveMQ fallback).
+///     Redis and ActiveMQ are only registered when <c>ConnectionStrings:RedisConnection</c> and
+///     <c>Messaging:ActiveMqBrokerUri</c> are configured; otherwise those endpoints answer 503.
+/// </remarks>
+[Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Analytics Endpoints")]
-/*public class AnalyticsController(IAnalyticsQueryService analyticsQueryService, IConnectionMultiplexer redis)
-    : ControllerBase*/
 public class AnalyticsController(
     IAnalyticsQueryService analyticsQueryService,
-    IConnectionMultiplexer redis,
-    ActiveMqProducer activeMqProducer)
+    IConnectionMultiplexer? redis = null,
+    ActiveMqProducer? activeMqProducer = null)
     : ControllerBase
 {
-    private readonly IDatabase _db = redis.GetDatabase();
-    private readonly ActiveMqProducer _producer = activeMqProducer;
+    private const string CacheListKey = "analytics-messages";
+    private const string FallbackQueue = "analytics-fallback";
+    private const int MaxMessageLength = 1024;
+    private const int MaxCachedMessages = 1000;
 
     //  Retrieves monthly performance metrics.
     // <returns>An action result containing the performance metrics resource.</returns>
     [HttpGet("performance/monthly")]
+    [Authorize(Policy = Policies.ViewAnalytics)]
     [SwaggerOperation(
         Summary = "Get monthly performance metrics",
-        Description = "Retrieves aggregated metrics like revenue and occupancy for the current month.",
+        Description = "Retrieves aggregated metrics like revenue and occupancy for the current month. Requires Admin or ChainAdmin.",
         OperationId = "GetMonthlyPerformance")]
     [SwaggerResponse(StatusCodes.Status200OK, "The metrics", typeof(PerformanceMetricsResource))]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]
@@ -47,52 +55,31 @@ public class AnalyticsController(
         var resource = PerformanceMetricsAssembler.ToResourceFromEntity(metrics);
         return Ok(resource);
     }
-/*
-    [HttpPost("cache")]
-    public async Task<IActionResult> CacheData([FromBody] string message)
-    {
-        try
-        {
-            await RedisCircuitBreaker.CircuitBreaker.ExecuteAsync(async () =>
-            {
-                await _db.ListRightPushAsync("analytics-messages", message);
-            });
 
-            return Ok(new
-            {
-                success = true,
-                saved = message
-            });
-        }
-        catch (BrokenCircuitException)
-        {
-            return StatusCode(503, new
-            {
-                success = false,
-                message = "Circuit Breaker is OPEN."
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                success = false,
-                message = ex.Message
-            });
-        }
-    }
-*/
     [HttpPost("cache")]
+    [Authorize(Policy = Policies.OperateAnalyticsLab)]
+    [SwaggerOperation(
+        Summary = "Push a message to the analytics cache (resilience lab)",
+        Description = "Writes to Redis through a circuit breaker; falls back to ActiveMQ. 503 when the lab is not configured. ChainAdmin only.",
+        OperationId = "CacheAnalyticsMessage")]
     public async Task<IActionResult> CacheData([FromBody] string message)
     {
+        if (redis is null) return CacheDisabled();
+
+        if (string.IsNullOrWhiteSpace(message) || message.Length > MaxMessageLength)
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid message",
+                detail: $"The message must be a non-empty string of at most {MaxMessageLength} characters.");
+
         try
         {
             await RedisCircuitBreaker.CircuitBreaker.ExecuteAsync(async () =>
             {
-                await _db.ListRightPushAsync(
-                    "analytics-messages",
-                    message
-                );
+                var db = redis.GetDatabase();
+                await db.ListRightPushAsync(CacheListKey, message);
+                // Keep the list bounded: only the most recent messages are retained.
+                await db.ListTrimAsync(CacheListKey, -MaxCachedMessages, -1);
             });
 
             return Ok(new
@@ -102,26 +89,26 @@ public class AnalyticsController(
                 saved = message
             });
         }
-        catch (BrokenCircuitException)
-        {
-            _producer.Send(
-                "analytics-fallback",
-                message
-            );
-
-            return Ok(new
-            {
-                success = true,
-                source = "ActiveMQ",
-                saved = message
-            });
-        }
         catch (Exception)
         {
-            _producer.Send(
-                "analytics-fallback",
-                message
-            );
+            // Redis failed or the circuit is open: fall back to ActiveMQ if configured.
+            if (activeMqProducer is null)
+                return Problem(
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "Analytics cache unavailable",
+                    detail: "Redis is unavailable and no ActiveMQ fallback is configured (Messaging__ActiveMqBrokerUri).");
+
+            try
+            {
+                activeMqProducer.Send(FallbackQueue, message);
+            }
+            catch (Exception)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "Analytics cache unavailable",
+                    detail: "Redis and the ActiveMQ fallback are both unavailable.");
+            }
 
             return Ok(new
             {
@@ -133,32 +120,43 @@ public class AnalyticsController(
     }
     
     [HttpGet("cache")]
+    [Authorize(Policy = Policies.OperateAnalyticsLab)]
+    [SwaggerOperation(
+        Summary = "Read the analytics cache (resilience lab)",
+        Description = "Reads the cached messages from Redis through a circuit breaker. 503 when the lab is not configured or the circuit is open. ChainAdmin only.",
+        OperationId = "GetAnalyticsCache")]
     public async Task<IActionResult> GetCache()
     {
+        if (redis is null) return CacheDisabled();
+
         try
         {
             var values = await RedisCircuitBreaker.CircuitBreaker.ExecuteAsync(async () =>
             {
-                return await _db.ListRangeAsync("analytics-messages");
+                return await redis.GetDatabase().ListRangeAsync(CacheListKey);
             });
 
             return Ok(values.Select(v => v.ToString()));
         }
         catch (BrokenCircuitException)
         {
-            return StatusCode(503, new
-            {
-                success = false,
-                message = "Circuit Breaker is OPEN."
-            });
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Circuit Breaker is OPEN.",
+                detail: "Redis failed repeatedly; retry later.");
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return StatusCode(500, new
-            {
-                success = false,
-                message = ex.Message
-            });
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Analytics cache unavailable",
+                detail: "Redis is not reachable.");
         }
     }
+
+    private ObjectResult CacheDisabled() => Problem(
+        statusCode: StatusCodes.Status503ServiceUnavailable,
+        title: "Analytics cache disabled",
+        detail: "The analytics cache is not configured on this deployment. Set ConnectionStrings__RedisConnection " +
+                "(and optionally Messaging__ActiveMqBrokerUri) to enable it.");
 }

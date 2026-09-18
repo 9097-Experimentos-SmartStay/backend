@@ -37,9 +37,14 @@ public class UserQueryService(
         return allUsers.Where(target => userScopeService.CanAccessUser(actor, target));
     }
 
-    public async Task<User?> Handle(GetUserByUsernameQuery query)
+    public async Task<User?> Handle(GetUserByEmailQuery query)
     {
-        var username = new Username(query.Username);
-        return await userRepository.FindByUsernameAsync(username);
+        return await userRepository.FindByEmailAsync(new Email(query.Email));
+    }
+
+    public async Task<UserSession> Handle(GetUserSessionQuery query)
+    {
+        var user = await userRepository.FindByIdAsync(query.UserId);
+        return user?.GetSession(query.TokenVersion) ?? UserSession.NotFound();
     }
 }

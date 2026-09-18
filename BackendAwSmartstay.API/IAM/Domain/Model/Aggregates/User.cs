@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
@@ -11,13 +11,13 @@ namespace BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 /// </summary>
 public class User
 {
-    public User(string username, string passwordHash, string role,
+    public User(string email, string passwordHash, string role,
         UserStatus status = UserStatus.Active,
         int? hotelId = null,
         int? chainId = null,
         int tokenVersion = 0)
     {
-        Username = new Username(username);
+        Email = new Email(email);
         PasswordHash = passwordHash;
         Role = new Role(role);
         Status = status;
@@ -31,9 +31,9 @@ public class User
     /// <summary>
     /// EF Core constructor. Do not use directly in domain logic.
     /// </summary>
-    public User()
+    protected User()
     {
-        Username = null!; // EF populates this via reflection after materialization
+        Email = null!; // EF populates this via reflection after materialization
         PasswordHash = string.Empty;
         Role = null!; // EF populates this via reflection after materialization
         Status = UserStatus.Active;
@@ -43,8 +43,9 @@ public class User
     }
 
     public int Id { get; private set; }
-    public Username Username { get; private set; }
-    [JsonIgnore] public string PasswordHash { get; private set; }
+    /// <summary>The login identifier of the account (US-01/US-02).</summary>
+    public Email Email { get; private set; }
+    public string PasswordHash { get; private set; }
     public Role Role { get; private set; }
     public UserStatus Status { get; private set; }
     public int? HotelId { get; private set; }
@@ -53,9 +54,9 @@ public class User
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
-    public User UpdateUsername(string username)
+    public User UpdateEmail(string email)
     {
-        Username = new Username(username);
+        Email = new Email(email);
         UpdatedAt = DateTime.UtcNow;
         return this;
     }
@@ -63,7 +64,7 @@ public class User
     public User UpdatePasswordHash(string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(passwordHash))
-            throw new ArgumentException("Password hash cannot be empty.", nameof(passwordHash));
+            throw new DomainValidationException("Password hash cannot be empty.");
         PasswordHash = passwordHash;
         UpdatedAt = DateTime.UtcNow;
         return this;
@@ -90,12 +91,8 @@ public class User
         return this;
     }
 
-    public User IncrementTokenVersion()
-    {
-        TokenVersion++;
-        UpdatedAt = DateTime.UtcNow;
-        return this;
-    }
+    /// <summary>Revokes every token issued so far (password change, deactivation).</summary>
+    public User IncrementTokenVersion() => StartNewSession();
 
     public User UpdateHotelId(int? hotelId)
     {
@@ -104,9 +101,43 @@ public class User
         return this;
     }
 
+    /// <summary>
+    ///     D2: a hotel administrator administers a single hotel. Taking charge of the hotel they registered is
+    ///     only possible while they have none (or it is the same hotel).
+    /// </summary>
+    public User TakeChargeOfHotel(int hotelId)
+    {
+        if (!Role.Value.Equals(UserRoles.Admin, StringComparison.Ordinal))
+            throw new BusinessRuleViolationException("Only a hotel administrator takes charge of a single hotel.");
+        if (HotelId is not null && HotelId != hotelId)
+            throw new BusinessRuleViolationException("A hotel administrator manages a single hotel and already has one.");
+
+        HotelId = hotelId;
+        UpdatedAt = DateTime.UtcNow;
+        return this;
+    }
+
     public User UpdateChainId(int? chainId)
     {
         ChainId = chainId;
+        UpdatedAt = DateTime.UtcNow;
+        return this;
+    }
+
+    /// <summary>
+    ///     Decides whether an access token issued with <paramref name="tokenVersion"/> still represents a valid
+    ///     session: the account must be active and the token must belong to the current session generation.
+    /// </summary>
+    public UserSession GetSession(int tokenVersion)
+    {
+        if (Status == UserStatus.Inactive) return new UserSession(UserSessionStatus.Inactive);
+        if (tokenVersion != TokenVersion) return new UserSession(UserSessionStatus.Revoked);
+        return new UserSession(UserSessionStatus.Valid, Role.Value, HotelId, ChainId);
+    }
+
+    private User StartNewSession()
+    {
+        TokenVersion++;
         UpdatedAt = DateTime.UtcNow;
         return this;
     }

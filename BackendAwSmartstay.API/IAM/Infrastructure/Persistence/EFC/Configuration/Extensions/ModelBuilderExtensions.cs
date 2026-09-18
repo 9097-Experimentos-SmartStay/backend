@@ -14,10 +14,11 @@ public static class ModelBuilderExtensions
         builder.Entity<User>().HasKey(u => u.Id);
         builder.Entity<User>().Property(u => u.Id).IsRequired().ValueGeneratedOnAdd();
 
-        builder.Entity<User>().Property(u => u.Username)
+        builder.Entity<User>().Property(u => u.Email)
+            .HasColumnName("email")
             .IsRequired()
-            .HasMaxLength(100)
-            .HasConversion(v => v.Value, v => new Username(v));
+            .HasMaxLength(Email.MaxLength)
+            .HasConversion(v => v.Value, v => Email.FromPersistence(v));
 
         builder.Entity<User>().Property(u => u.PasswordHash).IsRequired().HasMaxLength(255);
 
@@ -33,7 +34,7 @@ public static class ModelBuilderExtensions
             .HasDefaultValue(UserStatus.Active);
 
         // Indexes
-        builder.Entity<User>().HasIndex(u => u.Username, "i_x_users_username").IsUnique();
+        builder.Entity<User>().HasIndex(u => u.Email, "i_x_users_email").IsUnique();
         builder.Entity<User>().HasIndex(u => u.Status, "i_x_users_status");
 
         builder.Entity<User>().Property(u => u.HotelId)

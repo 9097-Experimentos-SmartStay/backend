@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 namespace BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 
 public record JobPosition
@@ -7,11 +8,11 @@ public record JobPosition
     public JobPosition(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Job position cannot be empty.");
+            throw new DomainValidationException("Job position cannot be empty.");
 
         var trimmed = value.Trim();
         if (trimmed.Length is < 3 or > 100)
-            throw new ArgumentException("Job position must be between 3 and 100 characters.");
+            throw new DomainValidationException("Job position must be between 3 and 100 characters.");
 
         Value = trimmed;
     }

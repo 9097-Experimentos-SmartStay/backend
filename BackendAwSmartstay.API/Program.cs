@@ -6,16 +6,14 @@ using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Mediator.Cortex.Configuration.Extensions;
 using BackendAwSmartstay.API.IAM.Infrastructure.Interfaces.ASP.Configuration.Extensions;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using BackendAwSmartstay.API.IAM.Infrastructure.Extensions;
 using BackendAwSmartstay.API.Profiles.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
+using BackendAwSmartstay.API.Controllers.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
-using BackendAwSmartstay.API.Shared.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +39,7 @@ builder.AddPaymentsContextServices();
 builder.AddIamContextServices();
 builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
-builder.Services.AddSingleton<ActiveMqProducer>();
+builder.AddIoTEmulatorServices();
 
 // Mediator for Services
 builder.AddCortexMediatorServices();
@@ -52,19 +50,8 @@ builder.Services.AddHealthChecks()
         name: "mysql-db-check", 
         tags: new[] { "database" });
 
-// Redis implementation (Dinámico para Local y Nube)
-var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
-
-if (string.IsNullOrWhiteSpace(redisConnectionString))
-{
-    redisConnectionString = "localhost:6379";
-}
-
-var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
-redisOptions.AbortOnConnectFail = false; // Evita que la app muera si Redis tarda en responder
-
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisOptions));
+// Optional analytics cache lab: Redis + ActiveMQ fallback (only when configured)
+builder.AddAnalyticsCacheServices();
 
 // Rate Limiting Configuration
 builder.Services.AddRateLimiter(options =>
@@ -80,10 +67,11 @@ builder.Services.AddRateLimiter(options =>
     
 var app = builder.Build();
 
-// --- Bloque de Inicialización y Migraciones Seguras just for developer ---
+// --- Database initialization: migrations + seed. Fail fast: never start with a broken schema ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
         var context = services.GetRequiredService<AppDbContext>(); 
@@ -91,32 +79,40 @@ using (var scope = app.Services.CreateScope())
         // Ejecuta las migraciones pendientes en la nube o local de forma automática
         if (context.Database.IsRelational())
         {
+            logger.LogInformation("Applying pending database migrations...");
             await context.Database.MigrateAsync();
         }
         
-        // Seeder integrado aquí adentro de forma segura
         await app.SeedDatabaseAsync();
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Ocurrió un error al aplicar las migraciones o el seeder en el arranque.");
+        logger.LogCritical(ex, "Database migration or seeding failed at startup. The application will stop.");
+        throw;
     }
 }
 
 // Pipeline de Middlewares (HTTP request pipeline)
+// Global exception handler first, so errors from every later middleware become ProblemDetails
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseOpenApiConfiguration();
-// for adding allowFroent
-app.UseCors("AllowFrontend");
+// CORS (origins from Cors__AllowedOrigins)
+app.UseCorsPolicy();
 // user httpRedirection
 app.UseHttpsRedirection();
 
 app.UseRateLimiter();
 
-app.UseRequestAuthorization();
+// Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user)
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
-// maping health checks endpoint
-app.MapHealthChecks("/health");
+app.MapSwagger().AllowAnonymous();
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
+
+/// <summary>Entry point, exposed for integration tests (WebApplicationFactory).</summary>
+public partial class Program;

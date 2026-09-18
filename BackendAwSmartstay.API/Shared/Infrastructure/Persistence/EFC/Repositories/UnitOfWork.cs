@@ -1,4 +1,4 @@
-﻿using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using BackendAwSmartstay.API.Shared.Domain.Repositories;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 
 namespace BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Repositories;
@@ -12,5 +12,18 @@ public class UnitOfWork(AppDbContext context) : IUnitOfWork
     public async Task CompleteAsync()
     {
         await context.SaveChangesAsync();
+    }
+
+    public async Task ExecuteInTransactionAsync(Func<Task> work)
+    {
+        if (context.Database.CurrentTransaction is not null)
+        {
+            await work();
+            return;
+        }
+
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        await work();
+        await transaction.CommitAsync();
     }
 }

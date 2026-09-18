@@ -1,45 +1,44 @@
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Domain.Repositories;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
+using BackendAwSmartstay.API.Profiles.Interfaces.ACL;
 
 namespace BackendAwSmartstay.API.Bookings.Application.Internal.QueryServices;
 
 /// <summary>
-/// Service implementation for handling booking queries.
-/// Retrieves booking data from the repository.
+/// Booking queries. Visibility follows the Booking aggregate (<see cref="Booking.IsVisibleTo"/>).
 /// </summary>
-public class BookingQueryService(IBookingRepository bookingRepository)
+public class BookingQueryService(
+    IBookingRepository bookingRepository,
+    IGuestProfilesContextFacade guestProfilesContextFacade)
     : IBookingQueryService
 {
-    /// <summary>
-    /// Handles the query to retrieve a booking by its identifier.
-    /// </summary>
-    /// <param name="query">The query containing the booking ID.</param>
-    /// <returns>The booking or null if not found.</returns>
     public async Task<Booking?> Handle(GetBookingByIdQuery query)
     {
-        return await bookingRepository.FindByIdAsync(query.BookingId);
+        var booking = await bookingRepository.FindByIdAsync(query.BookingId);
+        if (booking is null || query.Requester is null) return booking;
+
+        return booking.IsVisibleTo(await ResolveGuestProfileAsync(query.Requester)) ? booking : null;
     }
 
-    /// <summary>
-    /// Handles the query to retrieve all bookings.
-    /// </summary>
-    /// <param name="query">The query to list all bookings.</param>
-    /// <returns>A collection of all bookings.</returns>
-    public async Task<IEnumerable<Booking>> Handle(GetAllBookingsQuery query)
+    public async Task<IEnumerable<Booking>> Handle(GetBookingsQuery query)
     {
-        return await bookingRepository.ListAsync();
+        if (!query.Requester.IsGuest)
+            return await bookingRepository.ListNewestFirstAsync();
+
+        var requester = await ResolveGuestProfileAsync(query.Requester);
+        return await bookingRepository.FindByOwnerAsync(requester.UserId, requester.GuestProfileId);
     }
 
-    /// <summary>
-    /// Handles the query to retrieve bookings by room identifier.
-    /// </summary>
-    /// <param name="query">The query containing the room ID.</param>
-    /// <returns>A collection of bookings associated with the specified room.</returns>
     public async Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query)
     {
-        var bookings = await bookingRepository.ListAsync();
-        return bookings.Where(b => b.RoomId == query.RoomId);
+        return await bookingRepository.FindByRoomIdAsync(query.RoomId);
     }
+
+    private async Task<BookingRequester> ResolveGuestProfileAsync(BookingRequester requester) =>
+        requester.IsGuest
+            ? requester.WithGuestProfile(await guestProfilesContextFacade.FetchGuestProfileIdByUserIdAsync(requester.UserId))
+            : requester;
 }

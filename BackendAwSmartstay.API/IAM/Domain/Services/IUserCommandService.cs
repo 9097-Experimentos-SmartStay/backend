@@ -63,4 +63,9 @@ public interface IUserCommandService
     ///     Handle activate user command — reverses a soft delete.
     /// </summary>
     Task Handle(ActivateUserCommand command);
+
+    /// <summary>
+    ///     Handle assign hotel to administrator command (D2: the hotel an admin registers becomes their hotel).
+    /// </summary>
+    Task Handle(AssignHotelToAdministratorCommand command);
 }

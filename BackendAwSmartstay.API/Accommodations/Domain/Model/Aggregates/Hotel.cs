@@ -25,10 +25,11 @@ public partial class Hotel
     /// <summary>
     /// Initializes a new instance of the <see cref="Hotel"/> class from a create command.
     /// </summary>
+    /// <param name="hostId">The host, resolved by <see cref="Services.HotelRegistrationPolicy"/>.</param>
     /// <param name="command">The command containing hotel creation data.</param>
-    public Hotel(CreateHotelCommand command) : this()
+    public Hotel(int hostId, CreateHotelCommand command) : this()
     {
-        HostId = command.HostId;
+        HostId = hostId;
         Name = command.Name;
         Address = command.Address;
         City = command.City;

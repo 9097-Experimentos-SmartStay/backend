@@ -6,7 +6,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 /// Resource definition for creating a new hotel.
 /// </summary>
 public record CreateHotelResource(
-    [Required] int HostId,
+    int? HostId,
     [Required] string Name,
     [Required] string Address, 
     [Required] string City,     

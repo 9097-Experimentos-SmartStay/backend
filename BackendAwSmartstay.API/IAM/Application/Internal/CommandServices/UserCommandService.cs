@@ -32,8 +32,7 @@ public class UserCommandService(
     /// </summary>
     public async Task<(User user, string token)> Handle(SignInCommand command)
     {
-        var username = new Username(command.Username);
-        var user = await userRepository.FindByUsernameAsync(username);
+        var user = await userRepository.FindByEmailAsync(new Email(command.Email));
 
         if (user == null || !hashingService.VerifyPassword(command.Password, user.PasswordHash))
         {
@@ -53,32 +52,35 @@ public class UserCommandService(
     /// </summary>
     public async Task Handle(SignUpCommand command)
     {
-        var username = new Username(command.Username);
-        if (await userRepository.ExistsByUsernameAsync(username))
-            throw new UsernameAlreadyExistsException(command.Username);
+        var email = new Email(command.Email);
+        if (await userRepository.ExistsByEmailAsync(email))
+            throw new EmailAlreadyRegisteredException(email.Value);
 
         var hashedPassword = hashingService.HashPassword(command.Password);
         var assignedRole = UserRoles.Guest;
 
+        // Validate the requested role first so an unknown role is a 400 (ArgumentException), not a 403.
+        var requestedRole = string.IsNullOrWhiteSpace(command.Role) ? null : new Role(command.Role.Trim().ToLowerInvariant());
+
         // If a specific role is requested and it is not the default Guest role, validate the actor's permissions
-        if (!string.IsNullOrWhiteSpace(command.Role) 
-            && !command.Role.Equals(UserRoles.Guest, StringComparison.OrdinalIgnoreCase))
+        if (requestedRole != null 
+            && !requestedRole.Value.Equals(UserRoles.Guest, StringComparison.OrdinalIgnoreCase))
         {
             if (command.ActorUserId == null)
                 throw new UnauthorizedOperationException("Authentication required to assign a specific role during sign-up.");
 
             var actor = await ResolveActorAsync(command.ActorUserId.Value);
 
-            if (!roleAuthorizationService.CanAssignRole(actor, command.Role))
+            if (!roleAuthorizationService.CanAssignRole(actor, requestedRole.Value))
                 throw new UnauthorizedOperationException(
-                    $"User {actor.Id} cannot assign role '{command.Role}'.");
+                    $"User {actor.Id} cannot assign role '{requestedRole.Value}'.");
 
-            assignedRole = command.Role;
+            assignedRole = requestedRole.Value;
         }
 
         // HotelId and ChainId default to null via the constructor logic.
         // For full scope initialization, management endpoints (CreateUser) should be used.
-        var user = new User(username, hashedPassword, assignedRole);
+        var user = new User(email.Value, hashedPassword, assignedRole);
 
         await userRepository.AddAsync(user);
         await unitOfWork.CompleteAsync();
@@ -127,13 +129,13 @@ public class UserCommandService(
             throw new UnauthorizedOperationException(
                 $"User {actor.Id} cannot assign chain {command.ChainId}.");
 
-        var username = new Username(command.Username);
-        if (await userRepository.ExistsByUsernameAsync(username))
-            throw new UsernameAlreadyExistsException(command.Username);
+        var email = new Email(command.Email);
+        if (await userRepository.ExistsByEmailAsync(email))
+            throw new EmailAlreadyRegisteredException(email.Value);
 
         var hashedPassword = hashingService.HashPassword(command.Password);
         var user = new User(
-            command.Username,
+            email.Value,
             hashedPassword,
             command.Role,
             hotelId: command.HotelId,
@@ -157,15 +159,13 @@ public class UserCommandService(
             throw new UnauthorizedOperationException(
                 $"User {actor.Id} cannot manage user {target.Id}.");
 
-        if (command.NewUsername is not null)
+        if (command.NewEmail is not null)
         {
-            var newUsername = new Username(command.NewUsername);
-            if (!string.Equals(target.Username.Value, newUsername.Value, StringComparison.OrdinalIgnoreCase)
-                && await userRepository.ExistsByUsernameAsync(newUsername))
-            {
-                throw new UsernameAlreadyExistsException(command.NewUsername);
-            }
-            target.UpdateUsername(command.NewUsername);
+            var newEmail = new Email(command.NewEmail);
+            if (newEmail != target.Email && await userRepository.ExistsByEmailAsync(newEmail))
+                throw new EmailAlreadyRegisteredException(newEmail.Value);
+
+            target.UpdateEmail(newEmail.Value);
         }
 
         if (command.NewPassword is not null)
@@ -263,6 +263,16 @@ public class UserCommandService(
                 $"User {actor.Id} cannot activate user {target.Id}.");
 
         target.Activate();
+        await unitOfWork.CompleteAsync();
+    }
+
+    /// <summary>
+    ///     D2: the hotel registered by a hotel administrator becomes the hotel they administer.
+    /// </summary>
+    public async Task Handle(AssignHotelToAdministratorCommand command)
+    {
+        var user = await ResolveTargetAsync(command.UserId);
+        user.TakeChargeOfHotel(command.HotelId);
         await unitOfWork.CompleteAsync();
     }
 

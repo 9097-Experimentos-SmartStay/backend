@@ -1,10 +1,10 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Transform;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -16,10 +16,9 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST;
 /// </summary>
 /// <param name="roomTypeCommandService">The domain command service used to handle room type mutations.</param>
 /// <param name="roomTypeQueryService">The domain query service used to handle room type state extraction.</param>
-[Authorize]
+[Authorize(Policy = Policies.ReadInventory)]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Room Type Endpoints")]
 public class RoomTypesController(
     IRoomTypeCommandService roomTypeCommandService,
@@ -31,7 +30,6 @@ public class RoomTypesController(
     /// <param name="roomTypeId">The unique domain identifier value representing the targeted room type entity.</param>
     /// <returns>An asynchronous action result containing the matching room type resource state representation.</returns>
     [HttpGet("{roomTypeId:int}")]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get room type by its unique identifier",
         Description = "Retrieves state parameters, names, and specifications for a single room type category.",
@@ -55,7 +53,7 @@ public class RoomTypesController(
     /// <param name="resource">The incoming input resource containing constraints required for room type construction.</param>
     /// <returns>A created resource response alongside the tracking location parameters of the processed entity.</returns>
     [HttpPost]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Create a new room type category",
         Description = "Registers a new room type scheme within the catalog context. Restricted to management nodes.",
@@ -78,7 +76,6 @@ public class RoomTypesController(
     /// </summary>
     /// <returns>A resource collection mapping all room types present in the persistent tier catalog.</returns>
     [HttpGet]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get all registered room types",
         Description = "Retrieves all room type catalog definitions and transforms them into view resources.",

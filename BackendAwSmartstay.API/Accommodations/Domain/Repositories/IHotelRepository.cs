@@ -8,4 +8,6 @@ namespace BackendAwSmartstay.API.Accommodations.Domain.Repositories;
 /// </summary>
 public interface IHotelRepository : IBaseRepository<Hotel>
 {
+    /// <summary>True when a hotel hosted by the given user exists.</summary>
+    Task<bool> ExistsByHostIdAsync(int hostId);
 }

@@ -1,10 +1,9 @@
-﻿namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
-public class UserNotFoundException : UserDomainException
+namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+
+public class UserNotFoundException : EntityNotFoundException
 {
-    public UserNotFoundException(string username)
-        : base($"User with username '{username}' not found") { }
-
     public UserNotFoundException(int userId)
-        : base($"User with id '{userId}' not found") { }
+        : base("User", userId) { }
 }

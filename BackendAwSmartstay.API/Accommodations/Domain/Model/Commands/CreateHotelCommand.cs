@@ -1,3 +1,5 @@
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
+
 namespace BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 
 /// <summary>
@@ -13,7 +15,8 @@ namespace BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 /// <param name="Type">The type of accommodation.</param>
 /// <param name="Amenities">The list of amenities provided by the hotel.</param>
 public record CreateHotelCommand(
-    int HostId,
+    HotelRegistrant Registrant,
+    int? RequestedHostId,
     string Name,
     string Address,  
     string City,     

@@ -47,7 +47,7 @@ public record CorrectGuestIdentificationResource(
     DocumentType NewDocumentType,
     string NewDocumentNumber,
     string Reason,
-    int StaffUserId);
+    int? StaffUserId = null); // ignored: the audit identity is taken from the token
 
 public record UpdateGuestContactInformationResource(
     string Phone,
