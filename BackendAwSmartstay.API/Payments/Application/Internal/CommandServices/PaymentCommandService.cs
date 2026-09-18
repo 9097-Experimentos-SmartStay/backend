@@ -1,4 +1,5 @@
-using BackendAwSmartstay.API.Bookings.Domain.Repositories; // <--- IMPORTANTE: Acceso a Reservas
+using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
+using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
 using BackendAwSmartstay.API.Payments.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Payments.Domain.Model.Commands;
 using BackendAwSmartstay.API.Payments.Domain.Repositories;
@@ -9,61 +10,70 @@ namespace BackendAwSmartstay.API.Payments.Application.Internal.CommandServices;
 
 /// <summary>
 /// Implementation of the payment command service.
-/// Orchestrates the payment process and updates the booking status upon success.
+/// Orchestrates the payment process and confirms the booking upon success.
 /// </summary>
+/// <remarks>
+///     Payments never touches the Bookings or Accommodations repositories: it reads the booking and the room
+///     price through their ACL facades and confirms the booking through the Bookings application layer.
+/// </remarks>
 public class PaymentCommandService(
     IPaymentRepository paymentRepository,
-    IBookingRepository bookingRepository, // <--- Inject the reserve repository
-    IUnitOfWork unitOfWork) 
+    IBookingsContextFacade bookingsContextFacade,
+    IAccommodationsContextFacade accommodationsContextFacade,
+    IUnitOfWork unitOfWork,
+    ILogger<PaymentCommandService> logger) 
     : IPaymentCommandService
 {
     /// <summary>
-    /// Processes a payment command, simulating bank validation and updating the associated booking if successful.
+    /// Processes a payment command, simulating bank validation and confirming the associated booking if successful.
     /// </summary>
     /// <param name="command">The command containing the payment data.</param>
-    /// <returns>The processed payment or null if processing failed.</returns>
+    /// <returns>The processed payment (Completed or Failed).</returns>
+    /// <exception cref="KeyNotFoundException">The booking does not exist, or a guest does not own it (404).</exception>
+    /// <exception cref="InvalidOperationException">The booking cannot be paid or is already paid (409).</exception>
     public async Task<Payment?> Handle(ProcessPaymentCommand command)
     {
-        // 1. Start the payment process (Pending Status)
-        var payment = new Payment(command);
+        // 1. Load the booking through the Bookings ACL (ownership enforced for guests)
+        var booking = await bookingsContextFacade.FetchBookingAsync(command.BookingId, command.GuestUserId)
+                      ?? throw new KeyNotFoundException($"Booking {command.BookingId} not found.");
 
-        // 2. Simulation Logic (Fake Gateway)
-        bool isApproved = true;
+        if (!booking.CanBePaid)
+            throw new InvalidOperationException(
+                $"Booking {booking.BookingId} is {booking.Status.ToLowerInvariant()} and cannot be paid.");
 
-        // Simulated business rules
-        if (command.Amount <= 0) isApproved = false;
-        if (command.CardNumber.EndsWith("0000")) isApproved = false; // Simulate declined card
+        if (await paymentRepository.ExistsCompletedForBookingAsync(booking.BookingId))
+            throw new InvalidOperationException($"Booking {booking.BookingId} is already paid.");
 
-        if (isApproved)
-        {
-            payment.Complete(); // Change payment status to Completed (1)
+        // 2. The amount is computed by the backend: room price per night × nights
+        var pricePerNight = await accommodationsContextFacade.FetchRoomPricePerNightAsync(booking.RoomId)
+                            ?? throw new InvalidOperationException(
+                                $"Room {booking.RoomId} of booking {booking.BookingId} no longer exists.");
+        var amount = PaymentAmountCalculator.Calculate(pricePerNight, booking.CheckInDate, booking.CheckOutDate);
 
-            // --- KEY PLAY: UPDATE RESERVATION ---
-            var booking = await bookingRepository.FindByIdAsync(command.BookingId);
-            if (booking != null)
-            {
-                booking.Confirm(); // Change reservation status to Confirmed
-                bookingRepository.Update(booking);
-                Console.WriteLine($"Booking #{booking.Id} has been confirmed via Payment.");
-            }
-            else 
-            {
-                // If there is no reservation, we shouldn't charge.
-                throw new Exception("Booking not found provided for payment.");
-            }
-            // -------------------------------------------
-        }
-        else
-        {
-            payment.Fail(); // Change payment status to Failed (2)
-            Console.WriteLine("Payment declined by simulation logic.");
-        }
+        var payment = new Payment(command, amount);
 
-        // 3. Save EVERYTHING in a single transaction (Unit of Work)
+        // 3. Simulation Logic (Fake Gateway)
+        var isApproved = amount > 0 && !command.CardNumber.EndsWith("0000"); // "0000" simulates a declined card
 
-        // This saves the payment and the reservation update at the same time.
         await paymentRepository.AddAsync(payment);
-        await unitOfWork.CompleteAsync();
+
+        if (!isApproved)
+        {
+            payment.Fail();
+            logger.LogInformation("Payment for booking {BookingId} declined by simulation logic.", booking.BookingId);
+            await unitOfWork.CompleteAsync();
+            return payment;
+        }
+
+        payment.Complete();
+
+        // 4. Confirm the booking through the Bookings application layer. It commits the shared unit of work,
+        //    so the payment and the booking confirmation are saved in the same SaveChanges.
+        if (!await bookingsContextFacade.ConfirmBookingAsync(booking.BookingId))
+            throw new KeyNotFoundException($"Booking {booking.BookingId} not found.");
+
+        logger.LogInformation("Booking {BookingId} confirmed via payment {TransactionId} ({Amount}).",
+            booking.BookingId, payment.TransactionId, amount);
 
         return payment;
     }

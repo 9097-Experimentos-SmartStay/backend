@@ -18,10 +18,15 @@ public partial class Payment
         PaymentDate = DateTime.UtcNow;
     }
 
-    public Payment(ProcessPaymentCommand command) : this()
+    /// <param name="command">Payment request data (card data is masked, never stored raw).</param>
+    /// <param name="amount">Amount computed by the backend (room price × nights).</param>
+    public Payment(ProcessPaymentCommand command, decimal amount) : this()
     {
+        if (amount < 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "The payment amount cannot be negative.");
+
         BookingId = command.BookingId;
-        Amount = command.Amount;
+        Amount = amount;
         PaymentMethod = command.PaymentMethod; // e.g., "Credit Card"
         CardHolderName = command.CardHolderName;
         // Solo guardamos los últimos 4 dígitos por seguridad (PCI Compliance simulado)
