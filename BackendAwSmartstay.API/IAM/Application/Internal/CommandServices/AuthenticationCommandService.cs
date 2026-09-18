@@ -69,10 +69,10 @@ public class AuthenticationCommandService(
         if (!hashingService.VerifyPassword(command.Password, user.PasswordHash))
         {
             var lockStarted = user.RegisterFailedSignIn(Settings.LockoutPolicy, now);
+            // The lock e-mail is enlisted in the outbox before the commit: stored with the lock, or not at all.
+            if (lockStarted) await notifications.SendAccountLockedAsync(user, user.LockedUntil!.Value);
             await unitOfWork.CompleteAsync();
             if (!lockStarted) throw new InvalidCredentialsException();
-
-            await notifications.SendAccountLockedAsync(user, user.LockedUntil!.Value);
             throw new AccountTemporarilyLockedException(user.LockedUntil!.Value);
         }
 
@@ -197,16 +197,15 @@ public class AuthenticationCommandService(
         var user = User.Register(name, email, hashingService.HashPassword(command.Password), role,
             hotelId: null, chainId: null, createdByUserId: command.ActorUserId, timeProvider.GetUtcNow());
 
-        PendingAccountToken? verification = null;
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             await userRepository.AddAsync(user);
             await unitOfWork.CompleteAsync();
-            verification = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.EmailVerification);
+            var verification = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.EmailVerification);
+            await notifications.SendEmailVerificationAsync(user, verification.Value, verification.ExpiresAt);
             await unitOfWork.CompleteAsync();
         });
 
-        await notifications.SendEmailVerificationAsync(user, verification!.Value, verification.ExpiresAt);
         return user;
     }
 
@@ -225,8 +224,8 @@ public class AuthenticationCommandService(
         if (user is null || user.EmailVerified || user.Status == UserStatus.Inactive) return;
 
         var verification = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.EmailVerification);
-        await unitOfWork.CompleteAsync();
         await notifications.SendEmailVerificationAsync(user, verification.Value, verification.ExpiresAt);
+        await unitOfWork.CompleteAsync();
     }
 
     // ── Password recovery (US-04) ───────────────────────────────────────────
@@ -241,8 +240,8 @@ public class AuthenticationCommandService(
         }
 
         var reset = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.PasswordReset);
-        await unitOfWork.CompleteAsync();
         await notifications.SendPasswordResetLinkAsync(user, reset.Value, reset.ExpiresAt);
+        await unitOfWork.CompleteAsync();
     }
 
     public async Task Handle(ResetPasswordCommand command)
@@ -258,8 +257,8 @@ public class AuthenticationCommandService(
         foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))
             session.Revoke(RefreshTokenRevocationReason.SessionRevoked, now);
 
-        await unitOfWork.CompleteAsync();
         await notifications.SendPasswordChangedAsync(user);
+        await unitOfWork.CompleteAsync();
     }
 
     private async Task RevokeAsync(IEnumerable<RefreshToken> tokens, RefreshTokenRevocationReason reason, DateTimeOffset now)

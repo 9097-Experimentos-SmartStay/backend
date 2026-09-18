@@ -80,16 +80,15 @@ public class UserCommandService(
         var user = User.Register(name, email, hashingService.HashPassword(command.Password), role,
             hotelId, command.ChainId, createdByUserId: actor.Id, timeProvider.GetUtcNow());
 
-        PendingAccountToken? verification = null;
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             await userRepository.AddAsync(user);
             await unitOfWork.CompleteAsync();
-            verification = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.EmailVerification);
+            var verification = await accountTokenIssuer.IssueAsync(user, AccountTokenPurpose.EmailVerification);
+            await notifications.SendEmailVerificationAsync(user, verification.Value, verification.ExpiresAt);
             await unitOfWork.CompleteAsync();
         });
 
-        await notifications.SendEmailVerificationAsync(user, verification!.Value, verification.ExpiresAt);
         return user;
     }
 
@@ -257,10 +256,9 @@ public class UserCommandService(
         var now = timeProvider.GetUtcNow();
         foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))
             session.Revoke(RefreshTokenRevocationReason.SessionRevoked, now);
-        await unitOfWork.CompleteAsync();
-
         if (notifyUser)
             await notifications.SendPermissionsChangedAsync(user);
+        await unitOfWork.CompleteAsync();
     }
 
     // ═══════════════════════════════════════════════════════════

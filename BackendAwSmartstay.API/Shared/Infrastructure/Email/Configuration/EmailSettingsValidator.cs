@@ -9,7 +9,7 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Email.Configuration;
 ///         <item>Production must use a real transport (<c>BrevoApi</c> with its API key, or <c>Smtp</c> with its
 ///         host): with the log transport no e-mail (verification, password reset...) would ever leave the server,
 ///         so the application refuses to start;</item>
-///         <item>the chosen transport and the sender must be consistent.</item>
+///         <item>the chosen transport, the sender and the outbox settings must be consistent.</item>
 ///     </list>
 /// </summary>
 public class EmailSettingsValidator(IHostEnvironment environment) : IValidateOptions<EmailSettings>
@@ -39,6 +39,8 @@ public class EmailSettingsValidator(IHostEnvironment environment) : IValidateOpt
                 failures.Add("Email:From:Address must be a valid e-mail address (the verified sender of the mail provider).");
         }
 
+        ValidateOutbox(settings, failures);
+
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 
@@ -64,5 +66,29 @@ public class EmailSettingsValidator(IHostEnvironment environment) : IValidateOpt
             failures.Add("Email:Smtp:Username and Email:Smtp:Password must be set together.");
         if (smtp.TimeoutSeconds is < 1 or > 300)
             failures.Add("Email:Smtp:TimeoutSeconds must be between 1 and 300.");
+    }
+
+    private static void ValidateOutbox(EmailSettings settings, List<string> failures)
+    {
+        var outbox = settings.Outbox;
+        if (outbox.PollIntervalSeconds is < 1 or > 3600)
+            failures.Add("Email:Outbox:PollIntervalSeconds must be between 1 and 3600.");
+        if (outbox.BatchSize is < 1 or > 500)
+            failures.Add("Email:Outbox:BatchSize must be between 1 and 500.");
+        if (outbox.MaxAttempts is < 1 or > 50)
+            failures.Add("Email:Outbox:MaxAttempts must be between 1 and 50.");
+        if (outbox.InitialRetryDelaySeconds < 1)
+            failures.Add("Email:Outbox:InitialRetryDelaySeconds must be at least 1.");
+        if (outbox.MaxRetryDelayMinutes < 1)
+            failures.Add("Email:Outbox:MaxRetryDelayMinutes must be at least 1.");
+        // A claimed e-mail must not become due again while it is still being sent.
+        var longestDelivery = settings.EffectiveTransport switch
+        {
+            EmailTransportKind.BrevoApi => settings.Brevo.TotalTimeoutSeconds,
+            EmailTransportKind.Smtp => settings.Smtp.TimeoutSeconds * 4, // connect, authenticate, send, quit
+            _ => 0
+        };
+        if (outbox.LeaseSeconds <= longestDelivery)
+            failures.Add($"Email:Outbox:LeaseSeconds must exceed the longest delivery of the transport ({longestDelivery} s).");
     }
 }

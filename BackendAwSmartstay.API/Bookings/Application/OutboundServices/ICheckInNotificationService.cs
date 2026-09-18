@@ -4,7 +4,7 @@ using BackendAwSmartstay.API.IAM.Interfaces.ACL;
 
 namespace BackendAwSmartstay.API.Bookings.Application.OutboundServices;
 
-/// <summary>E-mails to the hotel staff about digital check-ins (US-08). Called after the commit.</summary>
+/// <summary>E-mails to the hotel staff about digital check-ins (US-08). Enlisted in the outbox inside the transaction of the check-in.</summary>
 public interface ICheckInNotificationService
 {
     /// <summary>Scenario 4: the guest checked in; housekeeping is informed.</summary>

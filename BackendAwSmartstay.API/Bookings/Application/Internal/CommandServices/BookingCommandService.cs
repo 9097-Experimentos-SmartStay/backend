@@ -17,7 +17,7 @@ namespace BackendAwSmartstay.API.Bookings.Application.Internal.CommandServices;
 /// <summary>
 /// Orchestrates booking commands: resolves data from other contexts through their ACL facades, delegates every
 /// rule to the domain (Booking aggregate, RoomAvailabilityService) and commits the unit of work. The e-mails are
-/// sent by the handlers of the booking events once the changes are committed.
+/// enlisted in the outbox by the handlers of the booking events, in the same transaction as the changes.
 /// </summary>
 public class BookingCommandService(
     IBookingRepository bookingRepository,

@@ -27,7 +27,7 @@ public static class WebApplicationBuilderExtensions
         // Encryption of stored secrets (Data Protection, key ring in the database)
         builder.Services.AddSmartStayDataProtection(builder.Configuration);
 
-        // E-mail port (queued, delivered in the background) and client URLs used in the links
+        // E-mail port (transactional outbox, delivered in the background) and client URLs used in the links
         builder.Services.AddEmailServices(builder.Configuration);
 
         // Global error handling: every unhandled exception becomes a ProblemDetails response, and every

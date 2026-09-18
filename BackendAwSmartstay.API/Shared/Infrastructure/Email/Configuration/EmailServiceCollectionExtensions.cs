@@ -2,8 +2,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using BackendAwSmartstay.API.Shared.Application.OutboundServices;
 using BackendAwSmartstay.API.Shared.Infrastructure.Configuration;
-using BackendAwSmartstay.API.Shared.Infrastructure.Email.Delivery;
+using BackendAwSmartstay.API.Shared.Infrastructure.Email.Outbox;
 using BackendAwSmartstay.API.Shared.Infrastructure.Email.Transport;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -13,9 +14,9 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Email.Configuration;
 public static class EmailServiceCollectionExtensions
 {
     /// <summary>
-    ///     Registers the <see cref="IEmailSender"/> port (queued, delivered in the background) and the transport
-    ///     chosen by <c>Email:Transport</c> (<see cref="EmailSettings"/>, validated at startup). Also binds
-    ///     <see cref="ApplicationUrlsSettings"/> used to build the links of the e-mails.
+    ///     Registers the <see cref="IEmailSender"/> port (transactional outbox), the <see cref="IEmailDispatcher"/>
+    ///     with its background worker, and the transport chosen by <c>Email:Transport</c> (<see cref="EmailSettings"/>,
+    ///     validated at startup). Also binds <see cref="ApplicationUrlsSettings"/> used to build the links of the e-mails.
     /// </summary>
     public static IServiceCollection AddEmailServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -28,10 +29,12 @@ public static class EmailServiceCollectionExtensions
             .Bind(configuration.GetSection(EmailSettings.SectionName))
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<EmailSettings>, EmailSettingsValidator>();
+        services.TryAddSingleton(TimeProvider.System);
 
-        services.AddSingleton<EmailDeliveryQueue>();
-        services.AddSingleton<IEmailSender, QueuedEmailSender>();
-        services.AddHostedService<EmailDeliveryWorker>();
+        // Outbox: the e-mail is stored with the business change (same unit of work) and delivered afterwards.
+        services.AddScoped<IEmailSender, OutboxEmailSender>();
+        services.AddScoped<IEmailDispatcher, OutboxEmailDispatcher>();
+        services.AddHostedService<OutboxEmailDispatchWorker>();
 
         services.AddSingleton<LoggingEmailTransport>();
         services.AddSingleton<SmtpEmailTransport>();
@@ -54,8 +57,8 @@ public static class EmailServiceCollectionExtensions
     ///         <item>total timeout, then per-attempt timeout: a hung connection never blocks the outbox;</item>
     ///         <item>up to 2 quick retries (exponential, jitter, honours <c>Retry-After</c>) only where the request
     ///         certainly did not create an e-mail: connection/DNS/TLS failures, 429 and 502/503. A timeout or a 500 is
-    ///         ambiguous (Brevo may have accepted it), so it is not retried here: the delivery worker retries it later
-    ///         with a longer delay.</item>
+    ///         ambiguous (Brevo may have accepted it), so it is not retried here: the outbox retries it later with
+    ///         backoff, which is the durable retry policy anyway.</item>
     ///     </list>
     ///     The standard handler was not used as is because it retries every transient outcome of a POST, which could
     ///     send duplicates, and its circuit breaker never trips at this volume.

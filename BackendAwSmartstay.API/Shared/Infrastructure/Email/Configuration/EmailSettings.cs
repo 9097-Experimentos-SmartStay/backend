@@ -23,6 +23,8 @@ public class EmailSettings
 
     public SenderSettings From { get; set; } = new();
 
+    public OutboxSettings Outbox { get; set; } = new();
+
     /// <summary>The transport in use: the configured one, or the log when none was chosen (outside Production).</summary>
     public EmailTransportKind EffectiveTransport => Transport ?? EmailTransportKind.Log;
 
@@ -66,6 +68,34 @@ public class EmailSettings
         public string? Address { get; set; }
 
         public string Name { get; set; } = "SmartStay";
+    }
+
+    /// <summary>
+    ///     Transactional outbox: every e-mail is stored in <c>outbox_emails</c> with the change that caused it and
+    ///     delivered by a background dispatcher (and by the <c>POST /api/v1/emails/dispatch</c> scheduled job).
+    /// </summary>
+    public class OutboxSettings
+    {
+        /// <summary>How often the background dispatcher looks for due e-mails.</summary>
+        public int PollIntervalSeconds { get; set; } = 10;
+
+        /// <summary>E-mails claimed per round.</summary>
+        public int BatchSize { get; set; } = 20;
+
+        /// <summary>Delivery attempts before an e-mail is given up (status <c>Failed</c>).</summary>
+        public int MaxAttempts { get; set; } = 8;
+
+        /// <summary>Delay before the first retry; it doubles on every failed attempt (with jitter).</summary>
+        public int InitialRetryDelaySeconds { get; set; } = 30;
+
+        /// <summary>Upper bound of the retry delay.</summary>
+        public int MaxRetryDelayMinutes { get; set; } = 60;
+
+        /// <summary>
+        ///     How long a claimed e-mail stays reserved for the instance that claimed it. If that instance dies
+        ///     mid-delivery, the e-mail is due again once the lease expires. Must exceed the transport timeout.
+        /// </summary>
+        public int LeaseSeconds { get; set; } = 120;
     }
 }
 

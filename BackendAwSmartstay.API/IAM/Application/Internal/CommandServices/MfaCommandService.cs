@@ -148,10 +148,10 @@ public class MfaCommandService(
     private async Task ThrowUnlessAcceptedAsync(User user, MfaCodeOutcome outcome, Exception rejection)
     {
         if (outcome == MfaCodeOutcome.Accepted) return;
+        if (outcome == MfaCodeOutcome.LockStarted)
+            await notifications.SendAccountLockedAsync(user, user.LockedUntil!.Value);
         await unitOfWork.CompleteAsync();
         if (outcome != MfaCodeOutcome.LockStarted) throw rejection;
-
-        await notifications.SendAccountLockedAsync(user, user.LockedUntil!.Value);
         throw new AccountTemporarilyLockedException(user.LockedUntil!.Value);
     }
 }

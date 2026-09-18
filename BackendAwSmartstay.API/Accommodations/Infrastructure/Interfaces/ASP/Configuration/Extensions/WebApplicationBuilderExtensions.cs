@@ -31,7 +31,7 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddScoped<IRoomRepository, RoomRepository>();
         builder.Services.AddScoped<IRoomStatusChangeRepository, RoomStatusChangeRepository>();
 
-        // Staff e-mails about the rooms (US-06), sent after the commit by the room event handlers
+        // Staff e-mails about the rooms (US-06), enlisted in the outbox by the room event handlers
         builder.Services.AddScoped<IRoomNotificationService, RoomEmailNotificationService>();
         builder.Services.AddScoped<RoomStaffNotificationHandler>();
         builder.Services.AddScoped<IDomainEventHandler<RoomStatusChangedEvent>>(sp => sp.GetRequiredService<RoomStaffNotificationHandler>());

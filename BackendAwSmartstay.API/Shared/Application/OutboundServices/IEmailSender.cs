@@ -13,12 +13,15 @@ public sealed record EmailMessage(string To, string Subject, string HtmlBody, st
 ///     Outbound port used by the application layer of every bounded context to send e-mails.
 /// </summary>
 /// <remarks>
-///     Call it only after the unit of work has committed: an e-mail must never announce a change that was rolled
-///     back. The adapter accepts the message for delivery and returns without waiting for the mail server, so the
-///     response time of a request does not reveal whether an e-mail was sent (US-04: no account enumeration).
+///     The message is enlisted in the current unit of work (transactional outbox): call it BEFORE the
+///     <c>IUnitOfWork</c> commits the change the e-mail announces (domain event handlers already run inside that
+///     transaction). The e-mail is then stored if and only if the change commits (never for a rolled-back change)
+///     and is delivered in the background afterwards, surviving restarts, with retries. The call never waits for
+///     the mail server, so the response time of a request does not reveal whether an e-mail was sent (US-04: no
+///     account enumeration).
 /// </remarks>
 public interface IEmailSender
 {
-    /// <summary>Accepts <paramref name="message"/> for delivery.</summary>
+    /// <summary>Accepts <paramref name="message"/> for delivery once the current unit of work commits.</summary>
     Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default);
 }

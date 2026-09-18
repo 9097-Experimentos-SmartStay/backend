@@ -17,7 +17,7 @@ namespace BackendAwSmartstay.API.Bookings.Application.Internal.CommandServices;
 ///     Digital check-in (US-08), part of the Bookings context because it is a step of the booking lifecycle: the
 ///     booking becomes CheckedIn in the same transaction that approves the document, occupies the room (through the
 ///     Accommodations ACL) and issues the access code. Housekeeping is notified by the <c>GuestCheckedInEvent</c>
-///     handler after the commit.
+///     handler, in the same transaction (e-mail through the outbox).
 /// </summary>
 public class CheckInService(
     IBookingRepository bookingRepository,
