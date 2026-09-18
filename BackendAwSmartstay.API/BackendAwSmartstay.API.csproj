@@ -18,6 +18,8 @@
         <PackageReference Include="AspNetCore.HealthChecks.MySql" Version="9.0.0" />
         <PackageReference Include="MailKit" Version="4.18.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+        <!-- Resilience pipeline (timeouts, retries) of the typed HttpClient of the Brevo e-mail API -->
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.10.0" />
         <!-- EntityFrameworkCore Database Persistence related packages -->
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.10" />

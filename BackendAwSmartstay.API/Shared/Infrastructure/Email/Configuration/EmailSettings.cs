@@ -1,22 +1,47 @@
 namespace BackendAwSmartstay.API.Shared.Infrastructure.Email.Configuration;
 
 /// <summary>
-///     E-mail delivery settings (section <c>Email</c>, env vars <c>Email__Smtp__*</c> and <c>Email__From__*</c>).
-///     Production uses an SMTP relay (Brevo). Without SMTP settings, non-production environments write the
-///     e-mails to the log instead; Production refuses to start (see <see cref="EmailSettingsValidator"/>).
+///     E-mail delivery settings (section <c>Email</c>, env vars <c>Email__*</c>).
 /// </summary>
+/// <remarks>
+///     The transport is chosen explicitly with <c>Email:Transport</c>: <see cref="EmailTransportKind.BrevoApi"/>
+///     (Brevo transactional HTTP API, used in production), <see cref="EmailTransportKind.Smtp"/> (any SMTP relay,
+///     e.g. a local test server) or <see cref="EmailTransportKind.Log"/> (the e-mail is written to the log; never
+///     allowed in Production). When it is not set, environments other than Production use the log; Production
+///     refuses to start (see <see cref="EmailSettingsValidator"/>).
+/// </remarks>
 public class EmailSettings
 {
     public const string SectionName = "Email";
+
+    /// <summary>Transport that hands the e-mails to a mail system. <c>null</c> = not chosen.</summary>
+    public EmailTransportKind? Transport { get; set; }
+
+    public BrevoSettings Brevo { get; set; } = new();
 
     public SmtpSettings Smtp { get; set; } = new();
 
     public SenderSettings From { get; set; } = new();
 
-    /// <summary>True when an SMTP relay is configured.</summary>
-    public bool IsSmtpConfigured => !string.IsNullOrWhiteSpace(Smtp.Host);
+    /// <summary>The transport in use: the configured one, or the log when none was chosen (outside Production).</summary>
+    public EmailTransportKind EffectiveTransport => Transport ?? EmailTransportKind.Log;
 
-    /// <summary>SMTP relay, e.g. Brevo: <c>smtp-relay.brevo.com</c>, port 587, STARTTLS.</summary>
+    /// <summary>Brevo transactional e-mail API (<c>POST /v3/smtp/email</c>), over HTTPS (port 443).</summary>
+    public class BrevoSettings
+    {
+        /// <summary>API key of Brevo (Settings > SMTP &amp; API > API keys). Secret: never logged.</summary>
+        public string? ApiKey { get; set; }
+
+        public string BaseUrl { get; set; } = "https://api.brevo.com";
+
+        /// <summary>Timeout of one HTTP attempt.</summary>
+        public int AttemptTimeoutSeconds { get; set; } = 10;
+
+        /// <summary>Timeout of one delivery, retries of the connection failures included.</summary>
+        public int TotalTimeoutSeconds { get; set; } = 30;
+    }
+
+    /// <summary>SMTP relay, e.g. a local test server, or Brevo: <c>smtp-relay.brevo.com</c>, port 587, STARTTLS.</summary>
     public class SmtpSettings
     {
         public string? Host { get; set; }
@@ -42,4 +67,17 @@ public class EmailSettings
 
         public string Name { get; set; } = "SmartStay";
     }
+}
+
+/// <summary>Mail system the e-mails are handed to.</summary>
+public enum EmailTransportKind
+{
+    /// <summary>Written to the log (development only).</summary>
+    Log,
+
+    /// <summary>SMTP relay (MailKit).</summary>
+    Smtp,
+
+    /// <summary>Brevo transactional e-mail HTTP API.</summary>
+    BrevoApi
 }

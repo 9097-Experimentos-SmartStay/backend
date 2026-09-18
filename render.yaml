@@ -37,16 +37,10 @@ services:
       - key: Cors__AllowedOrigins
         value: https://smartstay-movildev-web.vercel.app,https://smartstay-movildev-landing.vercel.app
 
-      # --- Email (Brevo SMTP) ---
-      - key: Email__Smtp__Host
-        value: smtp-relay.brevo.com
-      - key: Email__Smtp__Port
-        value: "587"
-      - key: Email__Smtp__EnableSsl
-        value: "true"
-      - key: Email__Smtp__Username
-        value: b9e733001@smtp-brevo.com
-      - key: Email__Smtp__Password
+      # --- Email (API HTTP transaccional de Brevo por 443; el SMTP saliente de Render no es fiable) ---
+      - key: Email__Transport
+        value: BrevoApi
+      - key: Email__Brevo__ApiKey
         sync: false
       - key: Email__From__Address
         value: psulcasanchez@gmail.com
