@@ -14,6 +14,7 @@ using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Configurati
 using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Entities;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using EntityFrameworkCore.CreatedUpdatedDate.Extensions;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
@@ -23,8 +24,11 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configura
 /// This class coordinates the functionality of the Entity Framework Core with the application's data models.
 /// </summary>
 /// <param name="options">The options to be used by a <see cref="DbContext"/>.</param>
-public class AppDbContext(DbContextOptions options) : DbContext(options)
+public class AppDbContext(DbContextOptions options) : DbContext(options), IDataProtectionKeyContext
 {
+    /// <summary>Key ring of ASP.NET Core Data Protection (persisted so it survives container restarts).</summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
+
     #region IAM Context
 
     /// <summary>
