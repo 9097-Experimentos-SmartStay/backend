@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Commands;
 using BackendAwSmartstay.API.Profiles.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Queries;
@@ -19,7 +18,6 @@ namespace BackendAwSmartstay.API.Profiles.Interfaces.REST;
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Staff Profiles Endpoints.")]
 public class StaffController(
     IStaffProfileCommandService staffCommandService,

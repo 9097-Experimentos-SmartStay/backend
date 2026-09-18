@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
 using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Services;
@@ -20,7 +19,6 @@ namespace BackendAwSmartstay.API.IAM.Interfaces.REST;
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available User endpoints")]
 public class UsersController(
     IUserQueryService userQueryService,

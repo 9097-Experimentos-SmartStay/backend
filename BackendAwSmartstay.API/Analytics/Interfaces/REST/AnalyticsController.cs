@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Analytics.Domain.Model.Queries;
 using BackendAwSmartstay.API.Analytics.Domain.Services;
 using BackendAwSmartstay.API.Analytics.Interfaces.REST.Resources;
@@ -25,7 +24,6 @@ namespace BackendAwSmartstay.API.Analytics.Interfaces.REST;
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Analytics Endpoints")]
 public class AnalyticsController(
     IAnalyticsQueryService analyticsQueryService,

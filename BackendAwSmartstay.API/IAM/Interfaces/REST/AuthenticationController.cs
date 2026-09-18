@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
@@ -15,7 +14,6 @@ namespace BackendAwSmartstay.API.IAM.Interfaces.REST;
 [AllowAnonymous]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Authentication endpoints")]
 public class AuthenticationController(IUserCommandService userCommandService) : ControllerBase
 {

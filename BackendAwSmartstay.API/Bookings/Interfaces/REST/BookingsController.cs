@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
@@ -25,7 +24,6 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST;
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Booking Endpoints")]
 public class BookingsController(
     IBookingCommandService bookingCommandService,

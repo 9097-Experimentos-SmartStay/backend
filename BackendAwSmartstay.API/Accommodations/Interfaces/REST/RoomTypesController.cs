@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
@@ -20,7 +19,6 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST;
 [Authorize(Policy = Policies.ReadInventory)]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Room Type Endpoints")]
 public class RoomTypesController(
     IRoomTypeCommandService roomTypeCommandService,

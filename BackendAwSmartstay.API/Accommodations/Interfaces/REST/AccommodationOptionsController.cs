@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
@@ -21,7 +20,6 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST;
 [Authorize(Policy = Policies.ReadInventory)]
 [ApiController]
 [Route("api/v1/accommodations/options")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Accommodation Options (Master Data)")]
 public class AccommodationOptionsController(AppDbContext context) : ControllerBase
 {

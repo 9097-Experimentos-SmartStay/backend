@@ -1,4 +1,3 @@
-using System.Net.Mime;
 using BackendAwSmartstay.API.Payments.Domain.Model.Queries;
 using BackendAwSmartstay.API.Payments.Domain.Services;
 using BackendAwSmartstay.API.Payments.Interfaces.REST.Resources;
@@ -19,7 +18,6 @@ namespace BackendAwSmartstay.API.Payments.Interfaces.REST;
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Payment Endpoints")]
 public class PaymentsController(
     IPaymentCommandService paymentCommandService,
