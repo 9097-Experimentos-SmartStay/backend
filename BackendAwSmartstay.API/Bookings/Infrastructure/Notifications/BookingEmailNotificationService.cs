@@ -41,7 +41,7 @@ public class BookingEmailNotificationService(
             .Greeting(Greeting(booking))
             .Paragraph($"Registramos tu pago de {Money(booking.TotalPrice)}. Tu reserva {booking.Code} en {HotelName(place.Hotel)} está confirmada.")
             .Paragraph($"Habitación {place.RoomNumber}, {Stay(booking)}.")
-            .Paragraph("El día de tu llegada podrás hacer el check-in digital desde la aplicación y recibir el código de acceso a tu habitación.")
+            .Paragraph($"El día de tu llegada, indica el código {booking.Code} en la recepción del hotel.")
             .Action("Ver mi reserva", urls.Value.WebLink("bookings"))
             .To(booking.GuestEmail, $"Reserva {booking.Code} confirmada"));
 
