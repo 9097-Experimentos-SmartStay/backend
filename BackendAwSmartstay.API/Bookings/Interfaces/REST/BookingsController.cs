@@ -1,165 +1,184 @@
-using System.Net.Mime;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
 using BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Bookings.Interfaces.REST.Transform;
-using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace BackendAwSmartstay.API.Bookings.Interfaces.REST;
 
 /// <summary>
-///     RESTful API interface controller responsible for handling operational, guest, and administrative 
-///     requests tracking the complete transactional life cycle of booking aggregate roots within the booking bounded context.
+///     Bookings: guest self-service (US-51) and centralized management by the hotel (US-07).
 /// </summary>
-/// <param name="bookingCommandService">The domain command service used to handle booking state transitions and mutations.</param>
-/// <param name="bookingQueryService">The domain query service used to handle booking state extraction and tracking queries.</param>
+/// <remarks>
+///     Visibility (R4): a guest sees their own bookings (others answer 404); reception, housekeeping, maintenance and
+///     admin see the bookings of their hotel; a chain admin sees all. Every booking starts Pending and is confirmed
+///     only when its payment is registered (<c>POST /bookings/{id}/payments</c>, D1).
+/// </remarks>
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-[Produces(MediaTypeNames.Application.Json)]
-[SwaggerTag("Available Booking Endpoints")]
+[Produces("application/json")]
+[SwaggerTag("Bookings: guest bookings, hotel calendar, changes, cancellation policy and payment hold")]
 public class BookingsController(
     IBookingCommandService bookingCommandService,
     IBookingQueryService bookingQueryService) : ControllerBase
 {
-    /// <summary>
-    ///     Retrieves a unique booking aggregate partition by its technical identity marker.
-    /// </summary>
-    /// <param name="bookingId">The structural domain identity number of the target booking aggregate root.</param>
-    /// <returns>An asynchronous action result containing the matching booking resource representation state, or NotFound.</returns>
+    /// <summary>Gets a booking.</summary>
     [HttpGet("{bookingId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
-    [SwaggerOperation(
-        Summary = "Get booking by its unique identifier",
-        Description = "Retrieves state parameters, scheduling metrics, and transactional properties for a single booking aggregate entry. Restricted to management nodes.",
-        OperationId = "GetBookingById")]
-    [SwaggerResponse(StatusCodes.Status200OK, "The booking aggregate was located and converted successfully.", typeof(BookingResource))]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "Access denied. Guests are barred from auditing broad reservation index segments.")]
-    [SwaggerResponse(StatusCodes.Status404NotFound, "No booking aggregate matched the supplied structural query identifier.")]
+    [Authorize(Policy = Policies.ReadBookings)]
+    [SwaggerOperation(Summary = "Get a booking", OperationId = "GetBookingById")]
+    [ProducesResponseType(typeof(BookingResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetBookingById(int bookingId)
     {
-        var getBookingByIdQuery = new GetBookingByIdQuery(bookingId);
-        var booking = await bookingQueryService.Handle(getBookingByIdQuery);
+        var booking = await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId, User.ToBookingRequester()));
         if (booking is null) return NotFound();
-        var resource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
-        return Ok(resource);
+        return Ok(await ToResourceWithPaymentInstructionsAsync(booking));
     }
 
-    /// <summary>
-    ///     Creates and records a new booking aggregate root partition within the transactional scheduling boundary.
-    /// </summary>
-    /// <param name="resource">The incoming resource payload mapping properties and context metrics required for booking initialization.</param>
-    /// <returns>A created resource location confirmation alongside the structural tracking instance state representation.</returns>
+    /// <summary>Books a room (US-51 guest self-service; US-07 scenario 2 reservation taken by the staff).</summary>
+    /// <remarks>
+    ///     Availability is checked under a lock of the room row, so two simultaneous requests cannot book the same
+    ///     nights. The booking is created <b>Pending</b> with a unique <c>code</c>, the total price and a payment
+    ///     deadline (<c>paymentDueAt</c>, 24 h by default); the guest receives an e-mail with the code, the total and
+    ///     how to pay. Without a payment by the deadline it is cancelled automatically.
+    ///     <list type="bullet">
+    ///         <item>A guest books for themselves: name and e-mail come from their account (<c>guestName</c> may
+    ///         override the name; <c>userId</c>/<c>guestProfileId</c> are ignored).</item>
+    ///         <item>Reception, admin and chain_admin book rooms of their hotel for a guest account (<c>userId</c>) or
+    ///         for a guest without an account (<c>guestName</c> + <c>guestEmail</c>, optional <c>guestPhone</c>).</item>
+    ///     </list>
+    ///     The response includes <c>paymentInstructions</c>: the payment methods of the hotel (US-53).
+    ///     Errors: 400 invalid dates (check-out not after check-in, check-in in the past) or guest data; 403 room of
+    ///     another hotel; 409 the hotel has no payment methods yet (<c>booking.hotel_payment_settings_missing</c>),
+    ///     or the room is no longer free for those nights or is under maintenance.
+    /// </remarks>
     [HttpPost]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
-    [SwaggerOperation(
-        Summary = "Create a new reservation entry",
-        Description = "Registers a new booking partition aggregate. Open to guests for self-service or staff for assisted desks.",
-        OperationId = "CreateBooking")]
-    [SwaggerResponse(StatusCodes.Status201Created, "The booking aggregate root was successfully validated, processed, and tracked.", typeof(BookingResource))]
-    [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource schema layout contains invalid parameters or violates business rule constraints.")]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "The authenticated identity has insufficient privilege levels.")]
+    [Authorize(Policy = Policies.PlaceBookings)]
+    [SwaggerOperation(Summary = "Book a room", OperationId = "CreateBooking")]
+    [ProducesResponseType(typeof(BookingResource), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateBooking([FromBody] CreateBookingResource resource)
     {
-        var createBookingCommand = CreateBookingCommandFromResourceAssembler.ToCommandFromResource(resource);
-        var booking = await bookingCommandService.Handle(createBookingCommand);
-        if (booking is null) return BadRequest();
-        var bookingResource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
-        return CreatedAtAction(nameof(GetBookingById), new { bookingId = booking.Id }, bookingResource);
+        var booking = await bookingCommandService.Handle(
+            CreateBookingCommandFromResourceAssembler.ToCommandFromResource(resource, User.ToBookingRequester()));
+        return CreatedAtAction(nameof(GetBookingById), new { bookingId = booking.Id },
+            await ToResourceWithPaymentInstructionsAsync(booking));
     }
-    
-    /// <summary>
-    ///     Retrieves an enumerable collection mapping all registered booking aggregate resources in the persistence subsystem.
-    /// </summary>
-    /// <returns>An asynchronous action result containing an enumerable collection of booking representations.</returns>
+
+    /// <summary>Lists the bookings visible to the requester, newest first.</summary>
     [HttpGet]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
-    [SwaggerOperation(
-        Summary = "Get all tracked reservations",
-        Description = "Retrieves all booking aggregates converted into view resources. Restricted exclusively to administrative clearance profiles.",
-        OperationId = "GetAllBookings")]
-    [SwaggerResponse(StatusCodes.Status200OK, "The overall booking resource inventory list was successfully fetched.", typeof(IEnumerable<BookingResource>))]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "The requesting identity lacks the administrative clearance parameter to execute ledger enumeration.")]
+    [Authorize(Policy = Policies.ReadBookings)]
+    [SwaggerOperation(Summary = "List bookings", OperationId = "GetAllBookings")]
+    [ProducesResponseType(typeof(IEnumerable<BookingResource>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllBookings()
     {
-        var bookings = await bookingQueryService.Handle(new GetAllBookingsQuery());
-        var bookingResources = bookings.Select(BookingResourceFromEntityAssembler.ToResourceFromEntity);
-        return Ok(bookingResources);
+        var bookings = await bookingQueryService.Handle(new GetBookingsQuery(User.ToBookingRequester()));
+        return Ok(await ToResourcesAsync(bookings));
     }
 
-    /// <summary>
-    ///     Filters and extracts a sub-collection of active booking resources associated with a specific structural room identifier.
-    /// </summary>
-    /// <param name="roomId">The structural tracking domain identity marker of the target room node aggregate.</param>
-    /// <returns>An enumerable resource listing matching reservation representations linked to the specific room asset node.</returns>
+    /// <summary>Lists the bookings of a room (hotel staff of that room's hotel).</summary>
     [HttpGet("room/{roomId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
-    [SwaggerOperation(
-        Summary = "Get booking ledger histories by room node",
-        Description = "Retrieves a subset of booking aggregates filtering criteria by their associated target asset mapping node.",
-        OperationId = "GetBookingsByRoomId")]
-    [SwaggerResponse(StatusCodes.Status200OK, "The filtered booking resource subset was successfully retrieved.", typeof(IEnumerable<BookingResource>))]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "The requesting identity lacks administrative tracking authorization.")]
+    [Authorize(Policy = Policies.ReadRoomBookings)]
+    [SwaggerOperation(Summary = "List the bookings of a room", OperationId = "GetBookingsByRoomId")]
+    [ProducesResponseType(typeof(IEnumerable<BookingResource>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBookingsByRoomId(int roomId)
     {
-        var bookings = await bookingQueryService.Handle(new GetBookingsByRoomIdQuery(roomId));
-        var bookingResources = bookings.Select(BookingResourceFromEntityAssembler.ToResourceFromEntity);
-        return Ok(bookingResources);
-    }
-    
-    /// <summary>
-    ///     Processes operational confirmation routines, mutating the target booking state transition to Confirmed.
-    /// </summary>
-    /// <param name="bookingId">The unique domain identifier pointing to the aggregate instance undergoing verification state changes.</param>
-    /// <returns>The newly updated booking representation state outcome resource reflecting check-in or transactional readiness.</returns>
-    [HttpPost("{bookingId:int}/confirm")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
-    [SwaggerOperation(
-        Summary = "Confirm an active reservation entry status",
-        Description = "Mutates structural booking state properties to locked confirmation codes. Strictly for verified operational personnel.",
-        OperationId = "ConfirmBooking")]
-    [SwaggerResponse(StatusCodes.Status200OK, "The target booking state mutation was verified and committed successfully.", typeof(BookingResource))]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "Access denied. Only cleared operational nodes may trigger inventory authorization confirmations.")]
-    [SwaggerResponse(StatusCodes.Status404NotFound, "The targeted booking index node could not be pulled for status update.")]
-    public async Task<IActionResult> ConfirmBooking(int bookingId)
-    {
-        var confirmBookingCommand = new ConfirmBookingCommand(bookingId);
-        var booking = await bookingCommandService.Handle(confirmBookingCommand);
-        if (booking is null) return NotFound();
-        var bookingResource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
-        return Ok(bookingResource);
+        var bookings = await bookingQueryService.Handle(new GetBookingsByRoomIdQuery(roomId, User.ToBookingRequester()));
+        return Ok(await ToResourcesAsync(bookings));
     }
 
-    /// <summary>
-    ///     Processes cancellation lifecycle routines, mutating the target booking state transition to Canceled and releasing assets.
-    /// </summary>
-    /// <param name="bookingId">The unique domain root aggregate identifier targeted for operational cancellation routines.</param>
-    /// <returns>The final detached state cancellation representation resource data layout.</returns>
+    /// <summary>Booking calendar of a hotel (US-07 scenario 1).</summary>
+    /// <remarks>
+    ///     Active bookings (Pending, Confirmed, CheckedIn) that hold at least one night between <c>from</c> and
+    ///     <c>to</c> (excluded), sorted by check-in, plus one entry per date with the ids of the arrivals, departures and
+    ///     in-house bookings. At most 92 days. Admin and reception: their hotel (<c>hotelId</c> optional); a chain
+    ///     admin: any hotel, or all when <c>hotelId</c> is omitted.
+    /// </remarks>
+    /// <param name="from">First date (yyyy-MM-dd).</param>
+    /// <param name="to">Last date, excluded (yyyy-MM-dd).</param>
+    /// <param name="hotelId">The hotel.</param>
+    [HttpGet("calendar")]
+    [Authorize(Policy = Policies.ManageBookings)]
+    [SwaggerOperation(Summary = "Booking calendar of a hotel", OperationId = "GetBookingCalendar")]
+    [ProducesResponseType(typeof(BookingCalendarResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetCalendar([FromQuery, BindRequired] DateOnly from, [FromQuery, BindRequired] DateOnly to,
+        [FromQuery] int? hotelId)
+    {
+        var window = new DateRange(from.ToDateTime(TimeOnly.MinValue), to.ToDateTime(TimeOnly.MinValue));
+        var calendar = await bookingQueryService.Handle(new GetBookingCalendarQuery(User.ToBookingRequester(), hotelId, window));
+        return Ok(BookingResourceFromEntityAssembler.ToResource(calendar,
+            await bookingQueryService.FetchRoomNumbersAsync(calendar.Bookings)));
+    }
+
+    /// <summary>Changes the dates and/or the room of a booking (US-07 scenario 3).</summary>
+    /// <remarks>
+    ///     Only Pending or Confirmed bookings of the requester's hotel. The new stay is validated like a new booking
+    ///     (under the room row lock; the booking does not conflict with itself). A Pending booking takes the price of
+    ///     the new room; a paid (Confirmed) booking can only change to a stay with the same total. The guest receives
+    ///     an e-mail with the before and after.
+    /// </remarks>
+    [HttpPatch("{bookingId:int}")]
+    [Authorize(Policy = Policies.ManageBookings)]
+    [SwaggerOperation(Summary = "Change a booking", OperationId = "RescheduleBooking")]
+    [ProducesResponseType(typeof(BookingResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RescheduleBooking(int bookingId, [FromBody] RescheduleBookingResource resource)
+    {
+        if (resource.CheckInDate is null && resource.CheckOutDate is null && resource.RoomId is null)
+            throw new InvalidFieldException(nameof(resource.CheckInDate), BookingErrorCodes.ChangeRequiresAField,
+                "Send at least one of checkInDate, checkOutDate or roomId.");
+
+        var booking = await bookingCommandService.Handle(new RescheduleBookingCommand(bookingId, User.ToBookingRequester(),
+            resource.CheckInDate, resource.CheckOutDate, resource.RoomId));
+        return Ok(await ToResourceAsync(booking));
+    }
+
+    /// <summary>Cancels a booking (US-07 scenario 4).</summary>
+    /// <remarks>
+    ///     Cancellation policy: only Pending or Confirmed bookings, and not on or after the check-in day (hotel time).
+    ///     The nights are released at once. A paid booking gets its payment marked Refunded (the money is returned
+    ///     outside the system). The guest receives an e-mail. A guest can only cancel their own bookings; staff those
+    ///     of their hotel.
+    /// </remarks>
     [HttpPost("{bookingId:int}/cancel")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
-    [SwaggerOperation(
-        Summary = "Cancel a registered reservation entry layout",
-        Description = "Triggers systemic cancellation state changes for a single booking target, releasing inventory dependencies.",
-        OperationId = "CancelBooking")]
-    [SwaggerResponse(StatusCodes.Status200OK, "The targeted booking lifecycle index node was successfully transitioned to cancelled status.", typeof(BookingResource))]
-    [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
-    [SwaggerResponse(StatusCodes.Status403Forbidden, "The requesting identity lacks clearance parameters required to alter reservation ledgers.")]
-    [SwaggerResponse(StatusCodes.Status404NotFound, "The targeted booking instance was not active or present within the context persistence tree.")]
+    [Authorize(Policy = Policies.CancelBookings)]
+    [SwaggerOperation(Summary = "Cancel a booking", OperationId = "CancelBooking")]
+    [ProducesResponseType(typeof(BookingResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CancelBooking(int bookingId)
     {
-        var cancelBookingCommand = new CancelBookingCommand(bookingId);
-        var booking = await bookingCommandService.Handle(cancelBookingCommand);
-        if (booking is null) return NotFound();
-        var bookingResource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
-        return Ok(bookingResource);
+        var booking = await bookingCommandService.Handle(new CancelBookingCommand(bookingId, User.ToBookingRequester()));
+        return Ok(await ToResourceAsync(booking));
+    }
+
+    /// <summary>Detail and create responses also say how to pay a Pending booking (the hotel's payment methods).</summary>
+    private async Task<BookingResource> ToResourceWithPaymentInstructionsAsync(Domain.Model.Aggregates.Booking booking) =>
+        BookingResourceFromEntityAssembler.ToResourceFromEntity(booking,
+            await bookingQueryService.FetchRoomNumbersAsync([booking]),
+            await bookingQueryService.FetchPaymentInstructionsAsync(booking));
+
+    private async Task<BookingResource> ToResourceAsync(Domain.Model.Aggregates.Booking booking) =>
+        BookingResourceFromEntityAssembler.ToResourceFromEntity(booking, await bookingQueryService.FetchRoomNumbersAsync([booking]));
+
+    /// <summary>Room numbers of the whole list are resolved in one batch (no query per booking).</summary>
+    private async Task<IEnumerable<BookingResource>> ToResourcesAsync(IEnumerable<Domain.Model.Aggregates.Booking> bookings)
+    {
+        var list = bookings.ToList();
+        var numbers = await bookingQueryService.FetchRoomNumbersAsync(list);
+        return list.Select(booking => BookingResourceFromEntityAssembler.ToResourceFromEntity(booking, numbers));
     }
 }

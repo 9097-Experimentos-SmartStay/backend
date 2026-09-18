@@ -1,27 +1,37 @@
-using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.IAM.Application.OutboundServices;
+using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 
 namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Transform;
 
 /// <summary>
-///     Assembler to convert a User Entity into an AuthenticatedUserResource.
+///     Builds the sign-in/refresh response from an <see cref="AuthenticationResult"/>.
 /// </summary>
 public static class AuthenticatedUserResourceFromEntityAssembler
 {
-    /// <summary>
-    ///     Converts the entity and token to a response resource.
-    /// </summary>
-    /// <param name="user">The user entity.</param>
-    /// <param name="token">The generated token.</param>
-    /// <returns>The authenticated resource with user and token information.</returns>
-    public static AuthenticatedUserResource ToResourceFromEntity(User user, string token)
+    public static AuthenticatedUserResource ToResourceFromResult(AuthenticationResult result)
     {
-        return new AuthenticatedUserResource(
-            user.Id, 
-            user.Username.Value, 
-            token,
-            user.Role.Value,
-            user.HotelId,
-            user.ChainId);
+        var user = result.User;
+        return new AuthenticatedUserResource
+        {
+            Id = user.Id,
+            Username = user.Email.Value,
+            Email = user.Email.Value,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Role = user.Role.Value,
+            HotelId = user.HotelId,
+            ChainId = user.ChainId,
+            EmailVerified = user.EmailVerified,
+            Token = result.AccessToken,
+            ExpiresAt = result.AccessTokenExpiresAt,
+            RefreshToken = result.RefreshToken?.Value,
+            RefreshTokenExpiresAt = result.RefreshToken?.ExpiresAt,
+            MfaRequired = result.MfaChallenge?.Kind == MfaChallengeKind.Verification,
+            MfaEnrollmentRequired = result.MfaChallenge?.Kind == MfaChallengeKind.Enrollment,
+            MfaToken = result.MfaChallenge?.Value,
+            MfaTokenExpiresAt = result.MfaChallenge?.ExpiresAt,
+            RecoveryCodes = result.RecoveryCodes
+        };
     }
 }

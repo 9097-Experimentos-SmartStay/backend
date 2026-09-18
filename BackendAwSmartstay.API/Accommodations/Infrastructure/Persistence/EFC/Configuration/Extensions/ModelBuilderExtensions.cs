@@ -1,5 +1,6 @@
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Entities;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Text.Json;
@@ -14,8 +15,14 @@ namespace BackendAwSmartstay.API.Accommodations.Infrastructure.Persistence.EFC.C
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    /// Applies the entity configurations, relationship mappings, and seed data for the Accommodations context.
+    /// Applies the entity configurations, relationship mappings, and the reference catalogs of the Accommodations
+    /// context.
     /// </summary>
+    /// <remarks>
+    ///     Migrations describe the schema plus the reference data the application needs to work (the hotel category
+    ///     and amenity catalogs offered by the hotel form). Hotels, rooms, room types and accounts are business data:
+    ///     they are created through the application, and the demo dataset by <c>DemoDataSeeder</c> (opt-in).
+    /// </remarks>
     /// <param name="builder">The model builder instance.</param>
     public static void ApplyAccommodationsConfiguration(this ModelBuilder builder)
     {
@@ -27,6 +34,7 @@ public static class ModelBuilderExtensions
             v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
 
         // --- 2. Master Data Configuration (Catalogs) ---
+        // Reference data (not demo data): the options of the hotel form (GET /accommodations/options/*).
 
         // HotelCategory Configuration
         builder.Entity<HotelCategory>().ToTable("hotel_categories");
@@ -85,16 +93,59 @@ public static class ModelBuilderExtensions
             .HasColumnType("json") 
             .IsRequired();
 
+        // US-53: payment methods of the hotel, owned columns of "hotels" (all null = not configured yet).
+        // AccountHolder is required inside the owned type: EF uses it to tell "no settings" from "settings".
+        builder.Entity<Hotel>().Ignore(h => h.AcceptsBookings);
+        builder.Entity<Hotel>().OwnsOne(h => h.PaymentSettings, settings =>
+        {
+            settings.Property(p => p.AccountHolder).HasColumnName("payment_account_holder")
+                .HasMaxLength(HotelPaymentSettings.AccountHolderMaxLength).IsRequired();
+            settings.Property(p => p.YapeNumber).HasColumnName("payment_yape_number")
+                .HasMaxLength(HotelPaymentSettings.MobileNumberLength);
+            settings.Property(p => p.PlinNumber).HasColumnName("payment_plin_number")
+                .HasMaxLength(HotelPaymentSettings.MobileNumberLength);
+            settings.Property(p => p.BankName).HasColumnName("payment_bank_name")
+                .HasMaxLength(HotelPaymentSettings.BankNameMaxLength);
+            settings.Property(p => p.BankAccountNumber).HasColumnName("payment_bank_account_number")
+                .HasMaxLength(HotelPaymentSettings.BankAccountMaxLength);
+            settings.Property(p => p.BankAccountCci).HasColumnName("payment_bank_account_cci")
+                .HasMaxLength(HotelPaymentSettings.CciLength);
+            settings.Ignore(p => p.OffersBankTransfer);
+        });
+
         // Room Entity
         builder.Entity<Room>().ToTable("rooms");
         builder.Entity<Room>().HasKey(r => r.Id);
         builder.Entity<Room>().Property(r => r.Id).IsRequired().ValueGeneratedOnAdd();
         builder.Entity<Room>().Property(r => r.Description).IsRequired().HasMaxLength(1000);
+        // US-53: the room number is unique within its hotel
+        builder.Entity<Room>().Property(r => r.Number).IsRequired().HasMaxLength(RoomNumber.MaxLength);
+        builder.Entity<Room>().HasIndex(r => new { r.HotelId, r.Number }).IsUnique();
         
         // Monetary value configuration (Precision, Scale)
         builder.Entity<Room>().Property(r => r.Price)
             .HasColumnType("decimal(18,2)")
             .IsRequired();
+
+        // Operational status (US-29), stored as its name
+        builder.Entity<Room>().Property(r => r.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+        builder.Entity<Room>().Ignore(r => r.IsOfferedForBooking);
+        builder.Entity<Room>().Ignore(r => r.DomainEvents);
+        builder.Entity<Room>().Property(r => r.StatusChangedAt).IsRequired();
+
+        // Status history (US-06 scenario 3), append-only
+        builder.Entity<RoomStatusChange>().ToTable("room_status_changes");
+        builder.Entity<RoomStatusChange>().HasKey(c => c.Id);
+        builder.Entity<RoomStatusChange>().Property(c => c.Id).ValueGeneratedOnAdd();
+        builder.Entity<RoomStatusChange>().Property(c => c.FromStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<RoomStatusChange>().Property(c => c.ToStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<RoomStatusChange>().Property(c => c.Origin).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<RoomStatusChange>().Property(c => c.ChangedByEmail).HasMaxLength(RoomStatusChange.MaxEmailLength);
+        builder.Entity<RoomStatusChange>().HasIndex(c => new { c.RoomId, c.ChangedAt });
+        builder.Entity<RoomStatusChange>().HasOne<Room>().WithMany().HasForeignKey(c => c.RoomId).OnDelete(DeleteBehavior.Cascade);
 
         // Apply JSON converter to Room Amenities
         builder.Entity<Room>().Property(r => r.Amenities)
@@ -115,72 +166,5 @@ public static class ModelBuilderExtensions
             .WithMany()
             .HasForeignKey(r => r.RoomTypeId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        // --- 5. SEED DATA (Hardcoded Aggregates) ---
-        
-        // Seed Room Types
-        builder.Entity<RoomType>().HasData(
-            new { Id = 1, Name = "Single Standard", Description = "Cozy room for solo travelers." },
-            new { Id = 2, Name = "Double Deluxe", Description = "Spacious room for couples or business." },
-            new { Id = 3, Name = "Presidential Suite", Description = "Luxury suite with best views." }
-        );
-
-        // Seed Hotels
-        builder.Entity<Hotel>().HasData(
-            new {
-                Id = 1,
-                HostId = 1, // Assigned to first staff user
-                Name = "Grand Hotel Bolivar",
-                Address = "Jr. de la Unión 958",
-                City = "Lima",
-                Country = "Peru",
-                Description = "Historic hotel in the center of Lima.",
-                ImageUrl = "https://placehold.co/600x400/3498DB/FFFFFF?text=Bolivar",
-                Type = "Hotel",
-                Amenities = new List<string> { "Wifi", "Restaurante", "Bar" }
-            },
-            new {
-                Id = 2,
-                HostId = 1,
-                Name = "Cusco Andean Lodge",
-                Address = "San Blas 123",
-                City = "Cusco",
-                Country = "Peru",
-                Description = "Experience the mystic energy of the Andes.",
-                ImageUrl = "https://placehold.co/600x400/E67E22/FFFFFF?text=Andean",
-                Type = "Lodge",
-                Amenities = new List<string> { "Desayuno", "Wifi", "Gimnasio" }
-            }
-        );
-
-        // Seed Rooms
-        builder.Entity<Room>().HasData(
-            // Rooms for Hotel 1 (Bolivar)
-            new {
-                Id = 101,
-                HotelId = 1,
-                RoomTypeId = 1,
-                Price = 85.00m,
-                Description = "Room 101 - Standard view.",
-                Amenities = new List<string> { "Wifi", "TV" }
-            },
-            new {
-                Id = 102,
-                HotelId = 1,
-                RoomTypeId = 2,
-                Price = 150.00m,
-                Description = "Room 102 - Plaza view with balcony.",
-                Amenities = new List<string> { "Wifi", "TV", "Minibar" }
-            },
-            // Rooms for Hotel 2 (Cusco)
-            new {
-                Id = 201,
-                HotelId = 2,
-                RoomTypeId = 3,
-                Price = 320.00m,
-                Description = "Suite 201 - Panoramic mountain view.",
-                Amenities = new List<string> { "Jacuzzi", "Wifi", "Desayuno", "Chimenea" }
-            }
-        );
     }
 }

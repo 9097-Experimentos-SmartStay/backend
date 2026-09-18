@@ -13,7 +13,12 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 
-        optionsBuilder.UseMySql("server=localhost;user=root;password=12345678;database=backend-smartstay-db;", serverVersion);
+        // Design-time only (dotnet ef). Uses the same env var as the app; falls back to the local docker compose DB.
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            connectionString = "server=localhost;port=3306;user=smartstay;password=smartstay_dev;database=smartstay;";
+
+        optionsBuilder.UseMySql(connectionString, serverVersion);
 
         return new AppDbContext(optionsBuilder.Options);
     }

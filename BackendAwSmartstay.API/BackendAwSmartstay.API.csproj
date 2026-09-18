@@ -4,6 +4,11 @@
         <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <!-- XML comments feed the OpenAPI document (US-32); undocumented members are not an error. -->
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
+        <!-- Local secrets for `dotnet run` (Development only): dotnet user-secrets set "TokenSettings:Secret" "..." -->
+        <UserSecretsId>smartstay-backend-api-7f3c2a91</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -11,7 +16,7 @@
         <PackageReference Include="Apache.NMS" Version="2.2.0" />
         <PackageReference Include="Apache.NMS.ActiveMQ" Version="2.2.0" />
         <PackageReference Include="AspNetCore.HealthChecks.MySql" Version="9.0.0" />
-        <PackageReference Include="DotNetEnv" Version="3.1.1" />
+        <PackageReference Include="MailKit" Version="4.18.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
         <!-- EntityFrameworkCore Database Persistence related packages -->
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
@@ -26,6 +31,7 @@
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10" />
         <PackageReference Include="Polly" Version="8.7.0" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.17.4" />
         <PackageReference Include="StackExchange.Redis" Version="2.13.17" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
         <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="9.0.6" />
@@ -34,6 +40,8 @@
         <!-- JSON Web Token related packages -->
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />
+        <!-- Data Protection key ring persisted in the database (MFA secrets, identity documents) -->
+        <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="9.0.10" />
         <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.14.0" />
         <!-- Mediator pattern related packages -->
         <PackageReference Include="Cortex.Mediator" Version="2.1.0" />
@@ -56,6 +64,10 @@
 
     <ItemGroup>
       <ProjectReference Include="..\BackendAwSmartstay.Domain\BackendAwSmartstay.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="BackendAwSmartstay.API.Tests" />
     </ItemGroup>
 
 

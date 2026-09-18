@@ -51,7 +51,7 @@ public class StaffProfileRepository(AppDbContext context)
             .AnyAsync(s => s.UserId == userId);
     }
 
-    public new async Task<IEnumerable<StaffProfile>> ListAsync()
+    public override async Task<IEnumerable<StaffProfile>> ListAsync()
     {
         return await Context.StaffProfiles
             .Include(s => s.Assignments)

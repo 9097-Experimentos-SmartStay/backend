@@ -11,7 +11,14 @@ public static class ModelBuilderExtensions
         builder.Entity<Payment>().ToTable("payments");
         builder.Entity<Payment>().HasKey(p => p.Id);
         builder.Entity<Payment>().Property(p => p.Id).IsRequired().ValueGeneratedOnAdd();
-        builder.Entity<Payment>().Property(p => p.TransactionId).IsRequired();
+        builder.Entity<Payment>().Property(p => p.TransactionId).IsRequired().HasMaxLength(100);
+        builder.Entity<Payment>().Property(p => p.Method).HasColumnName("payment_method").HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Entity<Payment>().Property(p => p.Status).HasConversion<int>().IsRequired();
+        builder.Entity<Payment>().Property(p => p.OperationNumber).HasMaxLength(Payment.MaxOperationNumberLength);
+        builder.Entity<Payment>().Property(p => p.Note).HasMaxLength(Payment.MaxNoteLength);
+        builder.Entity<Payment>().Property(p => p.FailureReason).HasMaxLength(200);
+        builder.Entity<Payment>().HasIndex(p => p.BookingId);
+        builder.Entity<Payment>().Ignore(p => p.DomainEvents);
         
         builder.Entity<Payment>().Property(p => p.Amount)
             .HasColumnType("decimal(18,2)")

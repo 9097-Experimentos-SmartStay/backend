@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 
@@ -18,7 +20,7 @@ public class StaffAssignment
     internal StaffAssignment(AssignmentId id, ScopeLevel scope, TargetId targetId, StaffRole role, DateRange period, DateOnly today)
     {
         if (period.EndDate.HasValue && period.EndDate.Value < today)
-            throw new InvalidOperationException("Cannot create an assignment whose contractual period has already expired.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.AssignmentPeriodExpired, "Cannot create an assignment whose contractual period has already expired.");
 
         Id = id;
         Scope = scope;
@@ -37,7 +39,7 @@ public class StaffAssignment
     internal void Suspend()
     {
         if (Status == AssignmentStatus.Terminated)
-            throw new InvalidOperationException("Cannot suspend a terminated assignment.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.AssignmentTerminated, "Cannot suspend a terminated assignment.");
 
         Status = AssignmentStatus.Suspended;
     }
@@ -45,10 +47,10 @@ public class StaffAssignment
     internal void Reactivate(DateOnly today)
     {
         if (Status != AssignmentStatus.Suspended)
-            throw new InvalidOperationException("Only suspended assignments can be reactivated.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.AssignmentNotSuspended, "Only suspended assignments can be reactivated.");
 
         if (Period.EndDate.HasValue && today > Period.EndDate.Value)
-            throw new InvalidOperationException("Cannot reactivate an assignment whose contractual period has already expired.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.AssignmentPeriodExpired, "Cannot reactivate an assignment whose contractual period has already expired.");
 
         Status = Period.StartDate > today 
             ? AssignmentStatus.Scheduled 
@@ -58,10 +60,10 @@ public class StaffAssignment
     internal void Terminate(DateOnly terminationDate)
     {
         if (Status == AssignmentStatus.Terminated)
-            throw new InvalidOperationException("Assignment is already terminated.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.AssignmentAlreadyTerminated, "Assignment is already terminated.");
 
         if (terminationDate < Period.StartDate)
-            throw new ArgumentException("Termination date cannot be earlier than start date.");
+            throw new DomainValidationException(ProfileErrorCodes.TerminationBeforeStart, "Termination date cannot be earlier than start date.");
 
         Period = new DateRange(Period.StartDate, terminationDate);
         Status = AssignmentStatus.Terminated;

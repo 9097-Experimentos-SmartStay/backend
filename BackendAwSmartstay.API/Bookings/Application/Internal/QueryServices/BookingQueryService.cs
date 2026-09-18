@@ -1,45 +1,81 @@
+using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Domain.Repositories;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
+using BackendAwSmartstay.API.Profiles.Interfaces.ACL;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Bookings.Application.Internal.QueryServices;
 
 /// <summary>
-/// Service implementation for handling booking queries.
-/// Retrieves booking data from the repository.
+/// Booking queries. Visibility follows the Booking aggregate (<see cref="Booking.IsVisibleTo"/>): a guest sees their
+/// own bookings, staff those of their hotel and a chain administrator every booking (R4).
 /// </summary>
-public class BookingQueryService(IBookingRepository bookingRepository)
+public class BookingQueryService(
+    IBookingRepository bookingRepository,
+    IGuestProfilesContextFacade guestProfilesContextFacade,
+    IAccommodationsContextFacade accommodationsContextFacade)
     : IBookingQueryService
 {
-    /// <summary>
-    /// Handles the query to retrieve a booking by its identifier.
-    /// </summary>
-    /// <param name="query">The query containing the booking ID.</param>
-    /// <returns>The booking or null if not found.</returns>
+    public Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IEnumerable<Booking> bookings) =>
+        accommodationsContextFacade.FetchRoomNumbersAsync(bookings.Select(booking => booking.RoomId).Distinct().ToList());
+
+    public async Task<HotelPaymentInstructions?> FetchPaymentInstructionsAsync(Booking booking) =>
+        booking.Status == BookingStatus.Pending
+            ? await accommodationsContextFacade.FetchPaymentInstructionsAsync(booking.HotelId)
+            : null;
+
+    /// <summary>Longest period the calendar shows at once.</summary>
+    public const int MaxCalendarDays = 92;
+
     public async Task<Booking?> Handle(GetBookingByIdQuery query)
     {
-        return await bookingRepository.FindByIdAsync(query.BookingId);
+        var booking = await bookingRepository.FindByIdAsync(query.BookingId);
+        if (booking is null || query.Requester is null) return booking;
+
+        return booking.IsVisibleTo(await ResolveGuestProfileAsync(query.Requester)) ? booking : null;
     }
 
-    /// <summary>
-    /// Handles the query to retrieve all bookings.
-    /// </summary>
-    /// <param name="query">The query to list all bookings.</param>
-    /// <returns>A collection of all bookings.</returns>
-    public async Task<IEnumerable<Booking>> Handle(GetAllBookingsQuery query)
+    public async Task<IEnumerable<Booking>> Handle(GetBookingsQuery query)
     {
-        return await bookingRepository.ListAsync();
+        var requester = query.Requester;
+        if (!requester.IsGuest)
+        {
+            if (requester.AllHotels) return await bookingRepository.ListNewestFirstAsync(null);
+            return requester.StaffHotelId is { } hotelId ? await bookingRepository.ListNewestFirstAsync(hotelId) : [];
+        }
+
+        requester = await ResolveGuestProfileAsync(requester);
+        return await bookingRepository.FindByOwnerAsync(requester.UserId, requester.GuestProfileId);
     }
 
-    /// <summary>
-    /// Handles the query to retrieve bookings by room identifier.
-    /// </summary>
-    /// <param name="query">The query containing the room ID.</param>
-    /// <returns>A collection of bookings associated with the specified room.</returns>
     public async Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query)
     {
-        var bookings = await bookingRepository.ListAsync();
-        return bookings.Where(b => b.RoomId == query.RoomId);
+        var bookings = await bookingRepository.FindByRoomIdAsync(query.RoomId);
+        return bookings.Where(booking => booking.IsVisibleTo(query.Requester));
     }
+
+    public async Task<BookingCalendar> Handle(GetBookingCalendarQuery query)
+    {
+        var requester = query.Requester;
+        if (query.Window.Nights > MaxCalendarDays)
+            throw new DomainValidationException(BookingErrorCodes.CalendarRangeTooLong, $"The calendar shows at most {MaxCalendarDays} days at once.");
+
+        var hotelId = query.HotelId ?? (requester.AllHotels ? null : requester.StaffHotelId);
+        if (hotelId is null && !requester.AllHotels)
+            throw new BookingOutsideHotelScopeException();
+        if (hotelId is { } id && !requester.OperatesHotel(id))
+            throw new BookingOutsideHotelScopeException();
+
+        var bookings = await bookingRepository.ListActiveOverlappingAsync(hotelId, query.Window);
+        return BookingCalendar.Build(hotelId, query.Window, bookings);
+    }
+
+    private async Task<BookingRequester> ResolveGuestProfileAsync(BookingRequester requester) =>
+        requester.IsGuest
+            ? requester.WithGuestProfile(await guestProfilesContextFacade.FetchGuestProfileIdByUserIdAsync(requester.UserId))
+            : requester;
 }

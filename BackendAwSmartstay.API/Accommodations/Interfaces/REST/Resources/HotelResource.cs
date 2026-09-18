@@ -12,6 +12,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 /// <param name="BasePrice">The base price of the hotel.</param>
 /// <param name="Type">The type of accommodation.</param>
 /// <param name="Amenities">A list of amenities provided by the hotel.</param>
+/// <param name="AcceptsBookings">True once the hotel has payment methods (US-53): only then can its rooms be booked.</param>
 public record HotelResource(
     int Id,
     int HostId,
@@ -21,5 +22,6 @@ public record HotelResource(
     string Description,
     decimal BasePrice,
     string Type,
-    List<string> Amenities
+    List<string> Amenities,
+    bool AcceptsBookings
 );

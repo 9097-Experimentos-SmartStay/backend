@@ -1,5 +1,6 @@
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 
 namespace BackendAwSmartstay.API.Bookings.Domain.Services;
 
@@ -8,24 +9,27 @@ namespace BackendAwSmartstay.API.Bookings.Domain.Services;
 /// </summary>
 public interface IBookingQueryService
 {
-    /// <summary>
-    /// Handles the query to get a booking by its identifier.
-    /// </summary>
-    /// <param name="query">The query containing the booking ID.</param>
-    /// <returns>The booking or null if not found.</returns>
+    /// <summary>The booking, or null when it does not exist or is not visible to the requester.</summary>
     Task<Booking?> Handle(GetBookingByIdQuery query);
 
-    /// <summary>
-    /// Handles the query to get all bookings.
-    /// </summary>
-    /// <param name="query">The query to retrieve all bookings.</param>
-    /// <returns>A collection of all bookings.</returns>
-    Task<IEnumerable<Booking>> Handle(GetAllBookingsQuery query);
+    /// <summary>The bookings visible to the requester, newest first.</summary>
+    Task<IEnumerable<Booking>> Handle(GetBookingsQuery query);
+
+    /// <summary>The bookings of a room visible to the requester.</summary>
+    Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query);
 
     /// <summary>
-    /// Handles the query to get bookings by room identifier.
+    ///     The number of the room of each booking (one batch lookup in the Accommodations context), so clients never
+    ///     resolve rooms themselves.
     /// </summary>
-    /// <param name="query">The query containing the room ID.</param>
-    /// <returns>A collection of bookings for the specified room.</returns>
-    Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query);
+    Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IEnumerable<Booking> bookings);
+
+    /// <summary>
+    ///     How to pay <paramref name="booking"/>: the payment methods of its hotel while it is Pending (US-51
+    ///     scenario 2); null once it is paid or cancelled, or when the hotel has none.
+    /// </summary>
+    Task<Accommodations.Interfaces.ACL.HotelPaymentInstructions?> FetchPaymentInstructionsAsync(Booking booking);
+
+    /// <summary>US-07 scenario 1: the calendar of a hotel.</summary>
+    Task<BookingCalendar> Handle(GetBookingCalendarQuery query);
 }

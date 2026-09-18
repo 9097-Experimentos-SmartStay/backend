@@ -8,5 +8,14 @@ namespace BackendAwSmartstay.API.Payments.Domain.Repositories;
 /// </summary>
 public interface IPaymentRepository : IBaseRepository<Payment>
 {
+    /// <summary>
+    /// The payment of a booking: the completed one if any, otherwise the most recent attempt.
+    /// </summary>
     Task<Payment?> FindByBookingIdAsync(int bookingId);
+
+    /// <summary>True when the booking already has a completed payment.</summary>
+    Task<bool> ExistsCompletedForBookingAsync(int bookingId);
+
+    /// <summary>The completed payment of the booking, or null.</summary>
+    Task<Payment?> FindCompletedByBookingIdAsync(int bookingId);
 }

@@ -38,5 +38,9 @@ public static class WebApplicationBuilderExtensions
         // ACL Facades
         builder.Services.AddScoped<IGuestProfilesContextFacade, GuestProfilesContextFacade>();
         builder.Services.AddScoped<IStaffProfilesContextFacade, StaffProfilesContextFacade>();
+
+        // Resource-based authorization (a guest acts only on their own profile)
+        builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+            BackendAwSmartstay.API.Profiles.Interfaces.REST.Authorization.GuestAccountAuthorizationHandler>();
     }
 }

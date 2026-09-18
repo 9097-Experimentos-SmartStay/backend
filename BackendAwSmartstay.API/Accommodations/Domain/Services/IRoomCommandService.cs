@@ -23,4 +23,13 @@ public interface IRoomCommandService
     /// <param name="command">The delete command.</param>
     /// <returns>The deleted room or null if not found.</returns>
     Task<Room?> Handle(DeleteRoomCommand command);
+
+    /// <summary>Changes the room status (US-29). Null when the room does not exist.</summary>
+    Task<Room?> Handle(ChangeRoomStatusCommand command);
+
+    /// <summary>US-08: the room of a completed check-in becomes Occupied (must be Available).</summary>
+    Task<Room> Handle(OccupyRoomForCheckInCommand command);
+
+    /// <returns>How many rooms were alerted.</returns>
+    Task<int> Handle(RaiseMaintenanceAlertsCommand command);
 }

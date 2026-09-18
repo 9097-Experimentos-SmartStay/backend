@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 
 namespace BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
@@ -9,11 +11,11 @@ public partial record PhoneNumber
     public PhoneNumber(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Phone number cannot be empty.");
+            throw new DomainValidationException(ProfileErrorCodes.PhoneRequired, "Phone number cannot be empty.");
 
         var trimmed = value.Trim();
         if (!PhoneRegex().IsMatch(trimmed))
-            throw new ArgumentException("Invalid phone number format.");
+            throw new DomainValidationException(ProfileErrorCodes.PhoneInvalid, "Invalid phone number format.");
 
         Value = trimmed;
     }

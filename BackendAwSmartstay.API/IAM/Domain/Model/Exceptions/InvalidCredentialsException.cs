@@ -1,7 +1,10 @@
-﻿namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
-public class InvalidCredentialsException : UserDomainException
+namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+
+/// <summary>The username/password pair does not identify an account (never says which one is wrong).</summary>
+public class InvalidCredentialsException : AuthenticationFailedException
 {
     public InvalidCredentialsException()
-        : base("Invalid credentials") { }
+        : base(IamErrorCodes.InvalidCredentials, "Invalid credentials") { }
 }

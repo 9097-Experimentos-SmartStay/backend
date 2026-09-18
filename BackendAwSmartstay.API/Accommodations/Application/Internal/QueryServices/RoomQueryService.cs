@@ -6,19 +6,21 @@ using BackendAwSmartstay.API.Accommodations.Domain.Services;
 namespace BackendAwSmartstay.API.Accommodations.Application.Internal.QueryServices;
 
 
-public class RoomQueryService(IRoomRepository roomRepository)
+public class RoomQueryService(IRoomRepository roomRepository, IRoomStatusChangeRepository roomStatusChangeRepository)
     : IRoomQueryService
 {
+    public Task<IReadOnlyList<Room>> Handle(GetRoomMapQuery query) => roomRepository.ListByHotelAsync(query.HotelId);
+
+    public Task<IReadOnlyList<Domain.Model.Entities.RoomStatusChange>> Handle(GetRoomStatusHistoryQuery query) =>
+        roomStatusChangeRepository.ListByRoomAsync(query.RoomId, Math.Clamp(query.Limit, 1, 500));
+
     /// <summary>
     /// Provides query handling services for retrieving room information, 
     /// including fetching rooms by ID, type, or listing all available rooms.
     /// </summary>
     public async Task<Room?> Handle(GetRoomByIdQuery query)
-    { /// <summary>
-        /// Retrieves a room based on the provided room identifier.
-        /// </summary>
-        /// <param name="query">Query containing the RoomId to search for.</param>
-        /// <returns>The matching <see cref="Room"/> if found; otherwise null.</returns>
+    {
+        // Retrieves a room based on the provided room identifier.
         return await roomRepository.FindByIdAsync(query.RoomId);  
        
     }
@@ -33,13 +35,12 @@ public class RoomQueryService(IRoomRepository roomRepository)
         return await roomRepository.ListAsync();
     }
 
+    public Task<IEnumerable<Room>> Handle(GetRoomsOfferedForBookingQuery query) =>
+        roomRepository.FindOfferedForBookingAsync(query.HotelId);
+
     public async Task<IEnumerable<Room>> Handle(GetRoomsByTypeQuery query)
-    { 
-        /// <summary>
-         /// Retrieves all rooms that belong to a specific room type.
-        /// </summary>
-        /// <param name="query">Query containing the RoomTypeId used for filtering.</param>
-        /// <returns>A filtered collection of <see cref="Room"/> that match the requested type.</returns>
+    {
+        // Retrieves all rooms that belong to a specific room type.
         var rooms = await roomRepository.ListAsync();
         return rooms.Where(r => r.RoomTypeId == query.RoomTypeId);
     }        

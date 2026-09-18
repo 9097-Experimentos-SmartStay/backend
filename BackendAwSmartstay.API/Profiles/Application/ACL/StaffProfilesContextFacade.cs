@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Commands;
 using BackendAwSmartstay.API.Profiles.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Queries;
@@ -21,7 +23,7 @@ public class StaffProfilesContextFacade(
         string shift)
     {
         if (!Enum.TryParse<HabitualShift>(shift, true, out var shiftEnum))
-            throw new ArgumentException($"Invalid shift value: {shift}");
+            throw new DomainValidationException(ProfileErrorCodes.ShiftInvalid, $"Invalid shift value: {shift}");
 
         var command = new CreateStaffProfileCommand(
             new UserId(userId),

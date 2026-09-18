@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Events;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
@@ -56,7 +58,7 @@ public class GuestProfile
         EnsureActive();
 
         if (UserId.HasValue)
-            throw new InvalidOperationException("Guest profile is already linked to an existing User.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.GuestAlreadyLinked, "Guest profile is already linked to an existing User.");
 
         UserId = userId;
         Email ??= verifiedEmail;
@@ -70,9 +72,9 @@ public class GuestProfile
         EnsureActive();
 
         if (string.IsNullOrWhiteSpace(reason))
-            throw new ArgumentException("A reason must be provided to correct an identification document.");
+            throw new DomainValidationException(ProfileErrorCodes.CorrectionReasonRequired, "A reason must be provided to correct an identification document.");
 
-        var oldDoc = Document ?? throw new InvalidOperationException("No existing document to correct; use SetIdentification.");
+        var oldDoc = Document ?? throw new BusinessRuleViolationException(ProfileErrorCodes.NoDocumentToCorrect, "No existing document to correct; use SetIdentification.");
 
         Document = newDocument;
         UpdatedAt = DateTimeOffset.UtcNow;
@@ -85,7 +87,7 @@ public class GuestProfile
     {
         EnsureActive();
         if (Document != null)
-            throw new InvalidOperationException("Identification is already set. Use CorrectIdentification to change it.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.IdentificationAlreadySet, "Identification is already set. Use CorrectIdentification to change it.");
 
         Document = document;
         UpdatedAt = DateTimeOffset.UtcNow;
@@ -116,6 +118,6 @@ public class GuestProfile
     private void EnsureActive()
     {
         if (Status == ProfileStatus.Inactive)
-            throw new InvalidOperationException("Operation not permitted on an inactive guest profile.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.GuestProfileInactive, "Operation not permitted on an inactive guest profile.");
     }
 }

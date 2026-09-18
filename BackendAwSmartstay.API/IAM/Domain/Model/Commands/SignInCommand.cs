@@ -1,11 +1,7 @@
 namespace BackendAwSmartstay.API.IAM.Domain.Model.Commands;
 
-/**
- * <summary>
- *     The sign in command
- * </summary>
- * <remarks>
- *     This command object includes the username and password to sign in
- * </remarks>
- */
-public record SignInCommand(string Username, string Password);
+/// <summary>Sign in with e-mail and password (US-02).</summary>
+/// <param name="Email">Login e-mail.</param>
+/// <param name="Password">Password.</param>
+/// <param name="RememberMe">Also start a remembered session (refresh token, US-02 scenario 4).</param>
+public record SignInCommand(string Email, string Password, bool RememberMe = false);

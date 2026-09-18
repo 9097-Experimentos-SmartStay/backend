@@ -1,70 +1,69 @@
-using BackendAwSmartstay.API.Bookings.Domain.Repositories; // <--- IMPORTANTE: Acceso a Reservas
+using BackendAwSmartstay.API.Payments.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
+using BackendAwSmartstay.API.Payments.Application.OutboundServices;
 using BackendAwSmartstay.API.Payments.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Payments.Domain.Model.Commands;
 using BackendAwSmartstay.API.Payments.Domain.Repositories;
 using BackendAwSmartstay.API.Payments.Domain.Services;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Payments.Application.Internal.CommandServices;
 
 /// <summary>
-/// Implementation of the payment command service.
-/// Orchestrates the payment process and updates the booking status upon success.
+///     Registers booking payments through the <see cref="IPaymentGateway"/> port and confirms the booking (D1).
 /// </summary>
+/// <remarks>
+///     Payments never touches the Bookings repositories: it reads the booking through its ACL facade and confirms it
+///     through the Bookings application layer <b>in the same transaction</b>, so a payment is never saved without its
+///     booking being confirmed (nor the other way round). The <c>PaymentCompletedEvent</c> is still published after the
+///     commit for any other subscriber.
+/// </remarks>
 public class PaymentCommandService(
     IPaymentRepository paymentRepository,
-    IBookingRepository bookingRepository, // <--- Inject the reserve repository
-    IUnitOfWork unitOfWork) 
+    IBookingsContextFacade bookingsContextFacade,
+    IPaymentGateway paymentGateway,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider,
+    ILogger<PaymentCommandService> logger)
     : IPaymentCommandService
 {
-    /// <summary>
-    /// Processes a payment command, simulating bank validation and updating the associated booking if successful.
-    /// </summary>
-    /// <param name="command">The command containing the payment data.</param>
-    /// <returns>The processed payment or null if processing failed.</returns>
-    public async Task<Payment?> Handle(ProcessPaymentCommand command)
+    public async Task<Payment> Handle(RegisterPaymentCommand command)
     {
-        // 1. Start the payment process (Pending Status)
-        var payment = new Payment(command);
-
-        // 2. Simulation Logic (Fake Gateway)
-        bool isApproved = true;
-
-        // Simulated business rules
-        if (command.Amount <= 0) isApproved = false;
-        if (command.CardNumber.EndsWith("0000")) isApproved = false; // Simulate declined card
-
-        if (isApproved)
+        Payment? payment = null;
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            payment.Complete(); // Change payment status to Completed (1)
+            var booking = await bookingsContextFacade.FetchBookingAsync(command.BookingId)
+                          ?? throw new EntityNotFoundException("Booking", command.BookingId);
+            if (!command.AllHotels && command.StaffHotelId != booking.HotelId)
+                throw new OperationNotAllowedException(PaymentErrorCodes.OutsideHotelScope, "You can only register payments of the bookings of your hotel.");
+            if (await paymentRepository.ExistsCompletedForBookingAsync(booking.BookingId))
+                throw new BusinessRuleViolationException(PaymentErrorCodes.BookingAlreadyPaid, $"Booking {booking.Code} is already paid.");
+            if (!booking.CanBePaid)
+                throw new BusinessRuleViolationException(PaymentErrorCodes.BookingNotPending,
+                    $"Booking {booking.Code} is {booking.Status.ToLowerInvariant()}: only a pending booking can be paid.");
 
-            // --- KEY PLAY: UPDATE RESERVATION ---
-            var booking = await bookingRepository.FindByIdAsync(command.BookingId);
-            if (booking != null)
+            var now = timeProvider.GetUtcNow();
+            payment = Payment.Register(booking.BookingId, booking.TotalPrice, command.Method, command.OperationNumber,
+                command.Note, command.StaffUserId, now);
+
+            var result = await paymentGateway.ChargeAsync(new PaymentCharge(booking.BookingId, booking.Code,
+                payment.Amount, payment.Method, payment.OperationNumber));
+            await paymentRepository.AddAsync(payment);
+
+            if (!result.Approved)
             {
-                booking.Confirm(); // Change reservation status to Confirmed
-                bookingRepository.Update(booking);
-                Console.WriteLine($"Booking #{booking.Id} has been confirmed via Payment.");
+                payment.Fail(result.FailureReason ?? "Rejected by the payment gateway.");
+                await unitOfWork.CompleteAsync();
+                return;
             }
-            else 
-            {
-                // If there is no reservation, we shouldn't charge.
-                throw new Exception("Booking not found provided for payment.");
-            }
-            // -------------------------------------------
-        }
-        else
-        {
-            payment.Fail(); // Change payment status to Failed (2)
-            Console.WriteLine("Payment declined by simulation logic.");
-        }
 
-        // 3. Save EVERYTHING in a single transaction (Unit of Work)
-
-        // This saves the payment and the reservation update at the same time.
-        await paymentRepository.AddAsync(payment);
-        await unitOfWork.CompleteAsync();
-
-        return payment;
+            payment.Complete(result.TransactionReference, now);
+            // Commits the payment and the booking confirmation together (same unit of work and transaction).
+            await bookingsContextFacade.ConfirmBookingAsync(booking.BookingId);
+            logger.LogInformation("Booking {BookingCode} confirmed by payment {Reference} ({Amount}, {Method}).",
+                booking.Code, result.TransactionReference, payment.Amount, payment.Method);
+        });
+        return payment!;
     }
 }

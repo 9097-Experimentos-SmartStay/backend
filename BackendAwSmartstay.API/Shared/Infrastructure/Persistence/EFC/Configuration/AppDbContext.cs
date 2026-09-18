@@ -1,4 +1,6 @@
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.Audit.Infrastructure.Persistence.EFC.Configuration.Extensions;
+using BackendAwSmartstay.API.Marketing.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Entities;
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
@@ -12,6 +14,7 @@ using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Configurati
 using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Entities;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using EntityFrameworkCore.CreatedUpdatedDate.Extensions;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
@@ -21,8 +24,11 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configura
 /// This class coordinates the functionality of the Entity Framework Core with the application's data models.
 /// </summary>
 /// <param name="options">The options to be used by a <see cref="DbContext"/>.</param>
-public class AppDbContext(DbContextOptions options) : DbContext(options)
+public class AppDbContext(DbContextOptions options) : DbContext(options), IDataProtectionKeyContext
 {
+    /// <summary>Key ring of ASP.NET Core Data Protection (persisted so it survives container restarts).</summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
+
     #region IAM Context
 
     /// <summary>
@@ -132,6 +138,12 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
 
         // Apply configuration for Payments Bounded Context
         builder.ApplyPaymentsConfiguration();
+
+        // Apply configuration for Audit Bounded Context
+        builder.ApplyAuditConfiguration();
+
+        // Apply configuration for Marketing Bounded Context
+        builder.ApplyMarketingConfiguration();
 
         // Apply snake_case naming convention for database compatibility (e.g., MySQL)
         builder.UseSnakeCaseNamingConvention();

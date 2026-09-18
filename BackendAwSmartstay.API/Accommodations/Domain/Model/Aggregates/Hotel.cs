@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 
 namespace BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 
@@ -25,10 +26,11 @@ public partial class Hotel
     /// <summary>
     /// Initializes a new instance of the <see cref="Hotel"/> class from a create command.
     /// </summary>
+    /// <param name="hostId">The host, resolved by <see cref="Services.HotelRegistrationPolicy"/>.</param>
     /// <param name="command">The command containing hotel creation data.</param>
-    public Hotel(CreateHotelCommand command) : this()
+    public Hotel(int hostId, CreateHotelCommand command) : this()
     {
-        HostId = command.HostId;
+        HostId = hostId;
         Name = command.Name;
         Address = command.Address;
         City = command.City;
@@ -83,6 +85,25 @@ public partial class Hotel
         Type = type;
         Amenities = amenities;
     }
+
+    /// <summary>
+    ///     US-53: sets (or replaces) how guests pay their bookings. From then on the hotel accepts bookings.
+    /// </summary>
+    /// <param name="settings">Validated payment methods of the hotel.</param>
+    public void ConfigurePaymentSettings(HotelPaymentSettings settings)
+    {
+        PaymentSettings = settings ?? throw new ArgumentNullException(nameof(settings));
+    }
+
+    /// <summary>
+    ///     How guests pay their bookings; null until the administrator sets the payment methods.
+    /// </summary>
+    public HotelPaymentSettings? PaymentSettings { get; private set; }
+
+    /// <summary>
+    ///     A hotel only accepts bookings once guests know how to pay them (at least one payment method).
+    /// </summary>
+    public bool AcceptsBookings => PaymentSettings is not null;
 
     /// <summary>
     /// The unique identifier of the hotel.

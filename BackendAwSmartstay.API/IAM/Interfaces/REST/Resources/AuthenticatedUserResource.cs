@@ -1,18 +1,84 @@
 namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 
 /// <summary>
-///     Resource representing a successfully authenticated user response.
+///     A signed-in user and their tokens (sign-in, refresh and second-factor responses). When a second factor is
+///     pending (US-52), <c>token</c> is null and <c>mfaRequired</c> or <c>mfaEnrollmentRequired</c> is true with an
+///     <c>mfaToken</c> for the second-factor endpoints.
 /// </summary>
-/// <param name="Id">The user's unique identifier.</param>
-/// <param name="Username">The user's username.</param>
-/// <param name="Token">The JWT access token.</param>
-/// <param name="Role">The user's assigned role.</param>
-/// <param name="HotelId">The user's affiliated hotel ID, if any.</param>
-/// <param name="ChainId">The user's affiliated chain ID, if any.</param>
-public record AuthenticatedUserResource(
-    int Id, 
-    string Username, 
-    string Token, 
-    string Role, 
-    int? HotelId, 
-    int? ChainId);
+public record AuthenticatedUserResource
+{
+    /// <summary>The user's unique identifier.</summary>
+    /// <example>1</example>
+    public int Id { get; init; }
+
+    /// <summary>Deprecated: same value as <see cref="Email"/> (kept for existing clients).</summary>
+    /// <example>ana.perez@example.com</example>
+    public string Username { get; init; } = string.Empty;
+
+    /// <summary>The account e-mail (login identifier).</summary>
+    /// <example>ana.perez@example.com</example>
+    public string Email { get; init; } = string.Empty;
+
+    /// <summary>First name (null for accounts created before names were required).</summary>
+    /// <example>Ana</example>
+    public string? FirstName { get; init; }
+
+    /// <summary>Last name (null for accounts created before names were required).</summary>
+    /// <example>Pérez</example>
+    public string? LastName { get; init; }
+
+    /// <summary>Role that selects the dashboard: guest, reception, housekeeping, maintenance, admin or chain_admin.</summary>
+    /// <example>guest</example>
+    public string Role { get; init; } = string.Empty;
+
+    /// <summary>The user's hotel, if any.</summary>
+    /// <example>1</example>
+    public int? HotelId { get; init; }
+
+    /// <summary>The user's chain, if any.</summary>
+    public int? ChainId { get; init; }
+
+    /// <summary>Whether the e-mail was verified. Unverified accounts can sign in (see the contract).</summary>
+    /// <example>true</example>
+    public bool EmailVerified { get; init; }
+
+    /// <summary>Access token (JWT) to send as <c>Authorization: Bearer ...</c>. Null while a second factor is pending.</summary>
+    public string? Token { get; init; }
+
+    /// <summary>Always <c>Bearer</c>.</summary>
+    /// <example>Bearer</example>
+    public string TokenType { get; init; } = "Bearer";
+
+    /// <summary>When the access token expires (UTC). Refresh it before, or sign in again.</summary>
+    public DateTimeOffset? ExpiresAt { get; init; }
+
+    /// <summary>
+    ///     Refresh token of a remembered session (only with <c>rememberMe</c>, and on refresh). Single use: every
+    ///     refresh returns a new one that replaces it.
+    /// </summary>
+    public string? RefreshToken { get; init; }
+
+    /// <summary>When the refresh token expires if it is not used (UTC).</summary>
+    public DateTimeOffset? RefreshTokenExpiresAt { get; init; }
+
+    /// <summary>
+    ///     US-52: the password was correct and the account has an authenticator: send a code (or a recovery code) to
+    ///     <c>POST /authentication/mfa/verify</c> with <see cref="MfaToken"/>.
+    /// </summary>
+    public bool MfaRequired { get; init; }
+
+    /// <summary>
+    ///     US-52 scenario 1: the password was correct but this staff account has no authenticator yet: enroll one with
+    ///     <c>POST /authentication/mfa/enrollment</c> and <c>/enrollment/confirm</c> using <see cref="MfaToken"/>.
+    /// </summary>
+    public bool MfaEnrollmentRequired { get; init; }
+
+    /// <summary>Short-lived token for the second-factor endpoints only (send it as <c>Authorization: Bearer</c>).</summary>
+    public string? MfaToken { get; init; }
+
+    /// <summary>When <see cref="MfaToken"/> expires (10 minutes by default).</summary>
+    public DateTimeOffset? MfaTokenExpiresAt { get; init; }
+
+    /// <summary>One-time recovery codes, only in the response that enables MFA. Shown once: the user must save them.</summary>
+    public IReadOnlyList<string>? RecoveryCodes { get; init; }
+}

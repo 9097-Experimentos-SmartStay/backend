@@ -1,21 +1,35 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
+using BackendAwSmartstay.API.Controllers.Authorization;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using BackendAwSmartstay.API.Models.IoT;
 using BackendAwSmartstay.API.Infrastructure.Telemetry;
 
 namespace BackendAwSmartstay.API.Controllers;
 
+// In-memory IoT emulator. Real route: /api/v1/io-t-emulator/... (kebab-case convention).
+// Authorization (R5): roles per endpoint come from Policies; the room itself is checked with
+// RoomDeviceAuthorizationHandler (guest: room of their Confirmed stay in effect today; admin/maintenance:
+// rooms of their hotel; chain_admin: every room). Unknown rooms answer 404.
+[Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-public class IoTEmulatorController : ControllerBase
+public class IoTEmulatorController(
+    IAccommodationsContextFacade accommodationsContextFacade,
+    IAuthorizationService authorizationService) : ControllerBase
 {
-    // POST /api/v1/iotemulator/rooms/{roomId}/inject-telemetry
-    [HttpPost("rooms/{roomId:int}/inject-telemetry")]
-    public IActionResult InjectTelemetry(int roomId, [FromBody] InjectTelemetryRequest request)
+    // POST /api/v1/io-t-emulator/rooms/{roomId}/inject-telemetry
+    [HttpPost("rooms/{roomId:int:min(1)}/inject-telemetry")]
+    [Authorize(Policy = Policies.InjectTelemetry)]
+    public async Task<IActionResult> InjectTelemetry(int roomId, [FromBody] InjectTelemetryRequest request)
     {
-        if (request == null)
-        {
-            return BadRequest("El cuerpo de la solicitud no puede ser nulo.");
-        }
+        if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
+
+        if (request == null || string.IsNullOrWhiteSpace(request.SimulatedSensorType) || request.ReadingValue == null)
+            throw new DomainValidationException(IoTErrorCodes.TelemetryInvalid,
+                "Send the simulated sensor type and the reading value.");
 
         IoTEmulatorStore.Update(roomId, state =>
         {
@@ -49,14 +63,16 @@ public class IoTEmulatorController : ControllerBase
         return Ok(updatedState);
     }
 
-    // POST /api/v1/iotemulator/rooms/{roomId}/thermostat
-    [HttpPost("rooms/{roomId:int}/thermostat")]
-    public IActionResult SetThermostat(int roomId, [FromBody] SetThermostatRequest request)
+    // POST /api/v1/io-t-emulator/rooms/{roomId}/thermostat
+    [HttpPost("rooms/{roomId:int:min(1)}/thermostat")]
+    [Authorize(Policy = Policies.ControlRoomDevices)]
+    public async Task<IActionResult> SetThermostat(int roomId, [FromBody] SetThermostatRequest request)
     {
-        if (request == null)
-        {
-            return BadRequest("Parámetros del termostato inválidos.");
-        }
+        if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
+
+        if (request == null || string.IsNullOrWhiteSpace(request.FanSpeed) || string.IsNullOrWhiteSpace(request.SimulationMode))
+            throw new DomainValidationException(IoTErrorCodes.ThermostatInvalid,
+                "Send the fan speed and the simulation mode of the thermostat.");
 
         IoTEmulatorStore.Update(roomId, state =>
         {
@@ -70,11 +86,25 @@ public class IoTEmulatorController : ControllerBase
         return Ok(updatedState);
     }
 
-    // GET /api/v1/iotemulator/rooms/{roomId}/actuators-state
-    [HttpGet("rooms/{roomId:int}/actuators-state")]
-    public IActionResult GetActuatorsState(int roomId)
+    // GET /api/v1/io-t-emulator/rooms/{roomId}/actuators-state
+    [HttpGet("rooms/{roomId:int:min(1)}/actuators-state")]
+    [Authorize(Policy = Policies.ReadRoomDevices)]
+    public async Task<IActionResult> GetActuatorsState(int roomId)
     {
+        if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
+
         var state = IoTEmulatorStore.GetOrAdd(roomId);
         return Ok(state);
+    }
+
+    /// <summary>404 when the room does not exist, 403 (native Forbid) when it is outside the requester's reach.</summary>
+    private async Task<IActionResult?> EnsureRoomAccessAsync(int roomId)
+    {
+        var hotelId = await accommodationsContextFacade.FetchHotelIdOfRoomAsync(roomId);
+        if (hotelId is null) return NotFound();
+
+        var authorization = await authorizationService.AuthorizeAsync(
+            User, new DeviceRoom(roomId, hotelId.Value), RoomDeviceAccessRequirement.Instance);
+        return authorization.Succeeded ? null : Forbid();
     }
 }

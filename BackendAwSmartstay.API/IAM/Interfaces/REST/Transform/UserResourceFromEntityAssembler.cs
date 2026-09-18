@@ -17,12 +17,19 @@ public static class UserResourceFromEntityAssembler
     {
         return new UserResource(
             user.Id,
-            user.Username.Value,
+            user.Email.Value,
             user.Role.Value,
             user.Status.ToString(),
             user.HotelId,
             user.ChainId,
             user.CreatedAt,
-            user.UpdatedAt);
+            user.UpdatedAt,
+            user.Email.Value,
+            user.FirstName,
+            user.LastName,
+            user.EmailVerified,
+            user.LockedUntil,
+            user.MfaEnabled,
+            user.RequiresMfaEnrollment);
     }
 }

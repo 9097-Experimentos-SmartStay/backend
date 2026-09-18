@@ -1,4 +1,9 @@
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Audit.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.DemoData.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Marketing.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Media.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Authentication.ScheduledJobs;
 using BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Payments.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Documentation.OpenApi.Configuration.Extensions;
@@ -6,22 +11,24 @@ using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Mediator.Cortex.Configuration.Extensions;
 using BackendAwSmartstay.API.IAM.Infrastructure.Interfaces.ASP.Configuration.Extensions;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using BackendAwSmartstay.API.IAM.Infrastructure.Extensions;
 using BackendAwSmartstay.API.Profiles.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
-using Microsoft.AspNetCore.RateLimiting;
+using BackendAwSmartstay.API.Controllers.Authorization;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
-using BackendAwSmartstay.API.Shared.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers(options =>
-    options.Conventions.Add(new KebabCaseRouteNamingConvention())
-);
+{
+    options.Conventions.Add(new KebabCaseRouteNamingConvention());
+    // Validation errors are keyed by the JSON (camelCase) property names the clients send.
+    options.ModelMetadataDetailsProviders.Add(new SystemTextJsonValidationMetadataProvider());
+});
 
 // Database
 builder.AddDatabaseConfigurationServices();
@@ -41,7 +48,13 @@ builder.AddPaymentsContextServices();
 builder.AddIamContextServices();
 builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
-builder.Services.AddSingleton<ActiveMqProducer>();
+builder.AddAuditContextServices();
+builder.AddMarketingContextServices();
+builder.AddMediaContextServices();
+builder.AddIoTEmulatorServices();
+
+// Opt-in demo dataset (DemoData__Enabled), created after the migrations
+builder.AddDemoDataServices();
 
 // Mediator for Services
 builder.AddCortexMediatorServices();
@@ -52,38 +65,22 @@ builder.Services.AddHealthChecks()
         name: "mysql-db-check", 
         tags: new[] { "database" });
 
-// Redis implementation (Dinámico para Local y Nube)
-var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
+// Optional analytics cache lab: Redis + ActiveMQ fallback (only when configured)
+builder.AddAnalyticsCacheServices();
 
-if (string.IsNullOrWhiteSpace(redisConnectionString))
-{
-    redisConnectionString = "localhost:6379";
-}
+// X-Cron-Key authentication of the external scheduler (scheduled jobs)
+builder.Services.AddScheduledJobsAuthentication(builder.Configuration);
 
-var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
-redisOptions.AbortOnConnectFail = false; // Evita que la app muera si Redis tarda en responder
+// Rate limiting of the anonymous endpoints, per client IP
+builder.Services.AddSmartStayRateLimiting(builder.Configuration);
 
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisOptions));
-
-// Rate Limiting Configuration
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("AuthLimiter", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 10; // Máximo 10 intentos por minuto
-        opt.QueueLimit = 0;   // Rechazo inmediato sin encolar
-    });
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-});
-    
 var app = builder.Build();
 
-// --- Bloque de Inicialización y Migraciones Seguras just for developer ---
+// --- Database initialization: migrations + seed (+ demo data when enabled). Fail fast: never start with a broken schema ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
         var context = services.GetRequiredService<AppDbContext>(); 
@@ -91,32 +88,41 @@ using (var scope = app.Services.CreateScope())
         // Ejecuta las migraciones pendientes en la nube o local de forma automática
         if (context.Database.IsRelational())
         {
+            logger.LogInformation("Applying pending database migrations...");
             await context.Database.MigrateAsync();
         }
         
-        // Seeder integrado aquí adentro de forma segura
         await app.SeedDatabaseAsync();
+        await app.SeedDemoDataAsync();
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Ocurrió un error al aplicar las migraciones o el seeder en el arranque.");
+        logger.LogCritical(ex, "Database migration or seeding failed at startup. The application will stop.");
+        throw;
     }
 }
 
 // Pipeline de Middlewares (HTTP request pipeline)
+// Global exception handler first, so errors from every later middleware become ProblemDetails
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseOpenApiConfiguration();
-// for adding allowFroent
-app.UseCors("AllowFrontend");
+// CORS (origins from Cors__AllowedOrigins)
+app.UseCorsPolicy();
 // user httpRedirection
 app.UseHttpsRedirection();
 
+// Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user).
+// The rate limiter runs after authentication so per-user policies (media uploads) see the signed-in user.
+app.UseAuthentication();
 app.UseRateLimiter();
-
-app.UseRequestAuthorization();
+app.UseAuthorization();
 
 app.MapControllers();
-// maping health checks endpoint
-app.MapHealthChecks("/health");
+app.MapApiDocumentation();
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
+
+/// <summary>Entry point, exposed for integration tests (WebApplicationFactory).</summary>
+public partial class Program;
