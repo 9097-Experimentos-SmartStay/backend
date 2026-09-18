@@ -91,6 +91,9 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Pipeline de Middlewares (HTTP request pipeline)
+// Global exception handler first, so errors from every later middleware become ProblemDetails
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseOpenApiConfiguration();
 // CORS (origins from Cors__AllowedOrigins)
 app.UseCorsPolicy();
