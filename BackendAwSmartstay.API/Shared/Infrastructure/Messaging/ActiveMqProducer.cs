@@ -5,9 +5,10 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Messaging;
 
 
 // Controlador de Broker ActiveMQ para enviar mensajes a colas específicas. Se utiliza para la comunicación entre servicios en un sistema distribuido.
-public class ActiveMqProducer
+// Solo se registra cuando Messaging:ActiveMqBrokerUri está configurado (p. ej. tcp://activemq:61616).
+public class ActiveMqProducer(string brokerUri, ILogger<ActiveMqProducer> logger)
 {
-    private readonly string _brokerUri = "tcp://activemq:61616";
+    private readonly string _brokerUri = brokerUri;
 
     // Envia un mensaje persistente a una cola de ActiveMQ. 
     // name="queueName">Nombre de la cola.
@@ -32,8 +33,6 @@ public class ActiveMqProducer
 
         producer.Send(textMessage);
 
-        Console.WriteLine(
-            $"[ActiveMQ] Message sent to queue: {queueName}"
-        );
+        logger.LogInformation("[ActiveMQ] Message sent to queue: {QueueName}", queueName);
     }
 }

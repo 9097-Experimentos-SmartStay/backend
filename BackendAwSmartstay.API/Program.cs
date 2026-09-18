@@ -14,8 +14,6 @@ using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configurati
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using StackExchange.Redis;
-using BackendAwSmartstay.API.Shared.Infrastructure.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +39,6 @@ builder.AddPaymentsContextServices();
 builder.AddIamContextServices();
 builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
-builder.Services.AddSingleton<ActiveMqProducer>();
 
 // Mediator for Services
 builder.AddCortexMediatorServices();
@@ -52,19 +49,8 @@ builder.Services.AddHealthChecks()
         name: "mysql-db-check", 
         tags: new[] { "database" });
 
-// Redis implementation (Dinámico para Local y Nube)
-var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection");
-
-if (string.IsNullOrWhiteSpace(redisConnectionString))
-{
-    redisConnectionString = "localhost:6379";
-}
-
-var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
-redisOptions.AbortOnConnectFail = false; // Evita que la app muera si Redis tarda en responder
-
-builder.Services.AddSingleton<IConnectionMultiplexer>(
-    ConnectionMultiplexer.Connect(redisOptions));
+// Optional analytics cache lab: Redis + ActiveMQ fallback (only when configured)
+builder.AddAnalyticsCacheServices();
 
 // Rate Limiting Configuration
 builder.Services.AddRateLimiter(options =>
