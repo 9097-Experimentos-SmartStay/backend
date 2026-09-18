@@ -49,13 +49,13 @@ public class BookingEmailNotificationService(
     {
         var why = booking.CancellationReason switch
         {
-            CancellationReason.PaymentNotReceived => "no recibimos el pago antes del plazo indicado",
-            CancellationReason.GuestRequest => "la cancelaste",
-            _ => "el hotel la canceló"
+            CancellationReason.PaymentNotReceived => "se canceló porque no recibimos el pago antes del plazo indicado",
+            CancellationReason.GuestRequest => "se canceló a tu pedido",
+            _ => "fue cancelada por el hotel"
         };
         var email = EmailLayout.Create()
             .Greeting(Greeting(booking))
-            .Paragraph($"Tu reserva {booking.Code} en {HotelName(place.Hotel)} ({Stay(booking)}) se canceló porque {why}. La habitación quedó liberada.");
+            .Paragraph($"Tu reserva {booking.Code} en {HotelName(place.Hotel)} ({Stay(booking)}) {why}. La habitación quedó liberada.");
         if (booking.ConfirmedAt is not null)
             email.Paragraph($"Como la reserva estaba pagada, el hotel te devolverá {Money(booking.TotalPrice)} por el mismo medio de pago. Si tienes dudas, contacta a recepción.");
         return emailSender.SendAsync(email
