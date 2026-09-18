@@ -1,5 +1,6 @@
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Audit.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.DemoData.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Marketing.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Media.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Authentication.ScheduledJobs;
@@ -52,6 +53,9 @@ builder.AddMarketingContextServices();
 builder.AddMediaContextServices();
 builder.AddIoTEmulatorServices();
 
+// Opt-in demo dataset (DemoData__Enabled), created after the migrations
+builder.AddDemoDataServices();
+
 // Mediator for Services
 builder.AddCortexMediatorServices();
 
@@ -72,7 +76,7 @@ builder.Services.AddSmartStayRateLimiting(builder.Configuration);
 
 var app = builder.Build();
 
-// --- Database initialization: migrations + seed. Fail fast: never start with a broken schema ---
+// --- Database initialization: migrations + seed (+ demo data when enabled). Fail fast: never start with a broken schema ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -89,6 +93,7 @@ using (var scope = app.Services.CreateScope())
         }
         
         await app.SeedDatabaseAsync();
+        await app.SeedDemoDataAsync();
     }
     catch (Exception ex)
     {

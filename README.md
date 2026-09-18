@@ -47,3 +47,41 @@ curl http://localhost:10000/health
 Define cada valor como **variable de entorno** del servicio en Render (nunca en el repositorio). Los archivos sensibles, como el certificado CA de Aiven para MySQL, se suben como **Secret Files** (quedan en `/etc/secrets/`) y se referencian desde la variable, por ejemplo `SslMode=VerifyFull;SslCa=/etc/secrets/ca.pem;` en la cadena de conexión. `.env.example` lista todas las variables con su explicación.
 
 Las tareas programadas (`/demo-requests/follow-ups`, `/bookings/expire-pending`, `/rooms/maintenance-alerts`) las invoca un programador externo (por ejemplo, un cron de GitHub Actions) con la cabecera `X-Cron-Key`.
+
+## Datos de demostración
+
+Las migraciones solo crean el esquema y los catálogos de referencia que la aplicación necesita (categorías de hospedaje y amenidades del formulario de hotel). Una base de datos nueva **no** tiene hoteles, habitaciones ni cuentas. Los datos de demostración son opcionales y se cargan al iniciar, después de las migraciones, solo con `DemoData__Enabled=true`:
+
+- Se crean **una sola vez**: si ya existe alguna cuenta u hotel de demostración, no se hace nada (reiniciar no duplica datos). Todo ocurre en una transacción.
+- Pasan por el dominio (agregados, política de contraseñas, disponibilidad), no por SQL.
+- **No se envía ningún correo**: los hechos se registran con su fecha en el pasado y sus eventos de dominio no se publican. Las cuentas quedan con el correo ya verificado; el staff igual debe activar su app de autenticación (MFA) en el primer inicio de sesión.
+- Las fechas son relativas a "hoy" en `America/Lima`, así que el calendario siempre se ve con movimiento.
+
+| Variable | Uso |
+|---|---|
+| `DemoData__Enabled` | `true` para cargar los datos (por defecto `false`). |
+| `DemoData__DefaultPassword` | **Secreto.** Contraseña de todas las cuentas de demostración: mínimo 15 caracteres (política de huéspedes, también válida para el staff), no común ni filtrada. Sin ella la API no arranca si los datos están activados. |
+| `DemoData__EmailBase` | Buzón base (por defecto `psulcasanchez@gmail.com`). Las cuentas usan sus alias de Gmail: `psulcasanchez+admin1@gmail.com`, etc. |
+| `DemoData__Hotel1Payment__AccountHolder`, `__Yape`, `__Plin`, `__BankName`, `__BankAccountNumber`, `__BankAccountCci` | **Datos personales**: medios de pago del hotel 1 (se validan igual que el formulario de la app). Si no se definen, el hotel 1 queda sin medios de pago, no acepta reservas y no se crean las reservas de demostración (queda un aviso en el log). Nunca se inventan números. |
+
+Qué se crea (las cuentas son `<buzón>+<alias>@<dominio>`):
+
+| Alias | Rol | Qué muestra |
+|---|---|---|
+| `admin1` | admin de **Casa Ungurahui Hotel Boutique** (Tarapoto) | Hotel con 8 habitaciones (101–104, 201–204; Simple, Doble, Matrimonial, Suite; S/ 150–380), medios de pago configurados, staff, calendario y mapa de habitaciones. |
+| `recepcion1` | reception del hotel 1 | Mapa de habitaciones (103 ocupada, 202 en limpieza, 204 en mantenimiento hace más de 24 h con alerta de vencida), historial de estados, calendario y reservas del hotel. Registró los pagos. |
+| `limpieza1` | housekeeping del hotel 1 | Puso la 202 en limpieza. |
+| `mantenimiento1` | maintenance del hotel 1 | Puso la 204 en mantenimiento. |
+| `admin2` | admin de **Wayra Sacha Ecolodge** (Lamas) | Ecolodge con 5 habitaciones disponibles (bungalows B1–B2, M1–M2, D1), **sin medios de pago y sin staff**. |
+| `huesped1` | guest (con perfil de huésped) | Estadía en curso en la 103 (pagada en efectivo en recepción) y una reserva cancelada por el huésped después de pagar (pago reembolsado). |
+| `huesped2` | guest (con perfil de huésped) | Una reserva confirmada con pago por Yape registrado por recepción, una pendiente de pago (vence en menos de 24 h) y una vencida sin pago. |
+
+Flujos que se hacen **en vivo** durante la demostración (no se precargan):
+
+- Registro de un huésped nuevo y verificación de su correo (US-01).
+- `admin2` crea su staff (US-03).
+- Recuperación de contraseña (US-04).
+- Activación de MFA del staff en su primer inicio de sesión (US-52).
+- `admin2` configura los medios de pago del ecolodge (US-53).
+
+Para volver a cargar los datos desde cero hay que partir de una base de datos vacía (en local: `docker compose down -v`).
