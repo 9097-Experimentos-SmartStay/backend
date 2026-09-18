@@ -32,14 +32,18 @@ public static class Policies
     public const string ReadRoomBookings = nameof(ReadRoomBookings);
     /// <summary>Create a booking (guests for themselves, desk staff on behalf of a guest).</summary>
     public const string PlaceBookings = nameof(PlaceBookings);
-    /// <summary>Confirm a booking.</summary>
-    public const string ConfirmBookings = nameof(ConfirmBookings);
+    /// <summary>
+    ///     Manage the bookings of the hotel: calendar, changes (US-07). Hotel scope enforced by the Booking aggregate.
+    /// </summary>
+    public const string ManageBookings = nameof(ManageBookings);
     /// <summary>Cancel a booking (guests only their own: enforced by the Booking aggregate).</summary>
     public const string CancelBookings = nameof(CancelBookings);
 
     // ── Payments ─────────────────────────────────────────────────────
-    /// <summary>Process a payment and read the payment of a booking.</summary>
-    public const string ProcessPayments = nameof(ProcessPayments);
+    /// <summary>Read the payment of a booking (guests only of their own bookings).</summary>
+    public const string ReadPayments = nameof(ReadPayments);
+    /// <summary>Register the payment of a booking received by the hotel (US-07 scenario 5, D1).</summary>
+    public const string RegisterPayments = nameof(RegisterPayments);
 
     // ── Analytics ────────────────────────────────────────────────────
     /// <summary>Read the performance dashboard (KPIs).</summary>
@@ -115,10 +119,11 @@ public static class Policies
         [ReadBookings] = AllRoles,
         [ReadRoomBookings] = HotelStaff,
         [PlaceBookings] = GuestOrFrontDesk,
-        [ConfirmBookings] = FrontDesk,
+        [ManageBookings] = FrontDesk,
         [CancelBookings] = GuestOrFrontDesk,
 
-        [ProcessPayments] = GuestOrFrontDesk,
+        [ReadPayments] = GuestOrFrontDesk,
+        [RegisterPayments] = FrontDesk,
 
         [ViewAnalytics] = Administrators,
         [OperateAnalyticsLab] = [UserRoles.ChainAdmin],

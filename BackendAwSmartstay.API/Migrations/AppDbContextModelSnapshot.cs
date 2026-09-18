@@ -456,6 +456,15 @@ namespace BackendAwSmartstay.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("cancelled_at");
+
                     b.Property<DateTime>("CheckInDate")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("check_in_date");
@@ -463,6 +472,24 @@ namespace BackendAwSmartstay.API.Migrations
                     b.Property<DateTime>("CheckOutDate")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("check_out_date");
+
+                    b.Property<DateTimeOffset?>("CheckedInAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("checked_in_at");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("varchar(12)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
 
                     b.Property<string>("GuestEmail")
                         .IsRequired()
@@ -480,9 +507,26 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("varchar(100)")
                         .HasColumnName("guest_name");
 
+                    b.Property<string>("GuestPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("guest_phone");
+
                     b.Property<Guid?>("GuestProfileId")
                         .HasColumnType("char(36)")
                         .HasColumnName("guest_profile_id");
+
+                    b.Property<int>("HotelId")
+                        .HasColumnType("int")
+                        .HasColumnName("hotel_id");
+
+                    b.Property<DateTimeOffset?>("PaymentDueAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("payment_due_at");
+
+                    b.Property<decimal>("PricePerNight")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("price_per_night");
 
                     b.Property<int>("RoomId")
                         .HasColumnType("int")
@@ -495,8 +539,18 @@ namespace BackendAwSmartstay.API.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_bookings");
 
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("i_x_bookings__code");
+
                     b.HasIndex("GuestId")
                         .HasDatabaseName("i_x_bookings_user_id");
+
+                    b.HasIndex("HotelId", "CheckInDate")
+                        .HasDatabaseName("i_x_bookings__hotel_id__check_in_date");
+
+                    b.HasIndex("Status", "PaymentDueAt")
+                        .HasDatabaseName("i_x_bookings__status__payment_due_at");
 
                     b.ToTable("bookings");
                 });
@@ -897,24 +951,38 @@ namespace BackendAwSmartstay.API.Migrations
                         .HasColumnType("int")
                         .HasColumnName("booking_id");
 
-                    b.Property<string>("CardHolderName")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("card_holder_name");
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("failure_reason");
 
-                    b.Property<string>("CardNumberMasked")
+                    b.Property<string>("Method")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("card_number_masked");
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("OperationNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("operation_number");
 
                     b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("payment_date");
 
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("payment_method");
+                    b.Property<int?>("RecordedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("recorded_by_user_id");
+
+                    b.Property<DateTimeOffset?>("RefundedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("refunded_at");
 
                     b.Property<int>("Status")
                         .HasColumnType("int")
@@ -922,11 +990,15 @@ namespace BackendAwSmartstay.API.Migrations
 
                     b.Property<string>("TransactionId")
                         .IsRequired()
-                        .HasColumnType("longtext")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
                         .HasColumnName("transaction_id");
 
                     b.HasKey("Id")
                         .HasName("p_k_payments");
+
+                    b.HasIndex("BookingId")
+                        .HasDatabaseName("i_x_payments__booking_id");
 
                     b.ToTable("payments", (string)null);
                 });

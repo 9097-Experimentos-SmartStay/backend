@@ -1,81 +1,68 @@
-using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
-using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
+using BackendAwSmartstay.API.Payments.Application.OutboundServices;
 using BackendAwSmartstay.API.Payments.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Payments.Domain.Model.Commands;
 using BackendAwSmartstay.API.Payments.Domain.Repositories;
 using BackendAwSmartstay.API.Payments.Domain.Services;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Payments.Application.Internal.CommandServices;
 
 /// <summary>
-/// Implementation of the payment command service.
-/// Orchestrates the payment process and confirms the booking upon success.
+///     Registers booking payments through the <see cref="IPaymentGateway"/> port and confirms the booking (D1).
 /// </summary>
 /// <remarks>
-///     Payments never touches the Bookings or Accommodations repositories: it reads the booking and the room
-///     price through their ACL facades and confirms the booking through the Bookings application layer.
+///     Payments never touches the Bookings repositories: it reads the booking through its ACL facade and confirms it
+///     through the Bookings application layer <b>in the same transaction</b>, so a payment is never saved without its
+///     booking being confirmed (nor the other way round). The <c>PaymentCompletedEvent</c> is still published after the
+///     commit for any other subscriber.
 /// </remarks>
 public class PaymentCommandService(
     IPaymentRepository paymentRepository,
     IBookingsContextFacade bookingsContextFacade,
-    IAccommodationsContextFacade accommodationsContextFacade,
+    IPaymentGateway paymentGateway,
     IUnitOfWork unitOfWork,
-    ILogger<PaymentCommandService> logger) 
+    TimeProvider timeProvider,
+    ILogger<PaymentCommandService> logger)
     : IPaymentCommandService
 {
-    /// <summary>
-    /// Processes a payment command, simulating bank validation and confirming the associated booking if successful.
-    /// </summary>
-    /// <param name="command">The command containing the payment data.</param>
-    /// <returns>The processed payment (Completed or Failed).</returns>
-    /// <exception cref="KeyNotFoundException">The booking does not exist, or a guest does not own it (404).</exception>
-    /// <exception cref="InvalidOperationException">The booking cannot be paid or is already paid (409).</exception>
-    public async Task<Payment?> Handle(ProcessPaymentCommand command)
+    public async Task<Payment> Handle(RegisterPaymentCommand command)
     {
-        // 1. Load the booking through the Bookings ACL (ownership enforced for guests)
-        var booking = await bookingsContextFacade.FetchBookingAsync(command.BookingId, command.GuestUserId)
-                      ?? throw new EntityNotFoundException("Booking", command.BookingId);
-
-        if (!booking.CanBePaid)
-            throw new BusinessRuleViolationException(
-                $"Booking {booking.BookingId} is {booking.Status.ToLowerInvariant()} and cannot be paid.");
-
-        if (await paymentRepository.ExistsCompletedForBookingAsync(booking.BookingId))
-            throw new BusinessRuleViolationException($"Booking {booking.BookingId} is already paid.");
-
-        // 2. The amount is computed by the backend: room price per night × nights
-        var pricePerNight = await accommodationsContextFacade.FetchRoomPricePerNightAsync(booking.RoomId)
-                            ?? throw new BusinessRuleViolationException(
-                                $"Room {booking.RoomId} of booking {booking.BookingId} no longer exists.");
-        var amount = PaymentAmountCalculator.Calculate(pricePerNight, booking.CheckInDate, booking.CheckOutDate);
-
-        var payment = new Payment(command, amount);
-
-        // 3. Simulation Logic (Fake Gateway)
-        var isApproved = amount > 0 && !command.CardNumber.EndsWith("0000"); // "0000" simulates a declined card
-
-        await paymentRepository.AddAsync(payment);
-
-        if (!isApproved)
+        Payment? payment = null;
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            payment.Fail();
-            logger.LogInformation("Payment for booking {BookingId} declined by simulation logic.", booking.BookingId);
-            await unitOfWork.CompleteAsync();
-            return payment;
-        }
+            var booking = await bookingsContextFacade.FetchBookingAsync(command.BookingId)
+                          ?? throw new EntityNotFoundException("Booking", command.BookingId);
+            if (!command.AllHotels && command.StaffHotelId != booking.HotelId)
+                throw new OperationNotAllowedException("You can only register payments of the bookings of your hotel.");
+            if (await paymentRepository.ExistsCompletedForBookingAsync(booking.BookingId))
+                throw new BusinessRuleViolationException($"Booking {booking.Code} is already paid.");
+            if (!booking.CanBePaid)
+                throw new BusinessRuleViolationException(
+                    $"Booking {booking.Code} is {booking.Status.ToLowerInvariant()}: only a pending booking can be paid.");
 
-        payment.Complete();
+            var now = timeProvider.GetUtcNow();
+            payment = Payment.Register(booking.BookingId, booking.TotalPrice, command.Method, command.OperationNumber,
+                command.Note, command.StaffUserId, now);
 
-        // 4. Confirm the booking through the Bookings application layer. It commits the shared unit of work,
-        //    so the payment and the booking confirmation are saved in the same SaveChanges.
-        if (!await bookingsContextFacade.ConfirmBookingAsync(booking.BookingId))
-            throw new EntityNotFoundException("Booking", booking.BookingId);
+            var result = await paymentGateway.ChargeAsync(new PaymentCharge(booking.BookingId, booking.Code,
+                payment.Amount, payment.Method, payment.OperationNumber));
+            await paymentRepository.AddAsync(payment);
 
-        logger.LogInformation("Booking {BookingId} confirmed via payment {TransactionId} ({Amount}).",
-            booking.BookingId, payment.TransactionId, amount);
+            if (!result.Approved)
+            {
+                payment.Fail(result.FailureReason ?? "Rejected by the payment gateway.");
+                await unitOfWork.CompleteAsync();
+                return;
+            }
 
-        return payment;
+            payment.Complete(result.TransactionReference, now);
+            // Commits the payment and the booking confirmation together (same unit of work and transaction).
+            await bookingsContextFacade.ConfirmBookingAsync(booking.BookingId);
+            logger.LogInformation("Booking {BookingCode} confirmed by payment {Reference} ({Amount}, {Method}).",
+                booking.Code, result.TransactionReference, payment.Amount, payment.Method);
+        });
+        return payment!;
     }
 }

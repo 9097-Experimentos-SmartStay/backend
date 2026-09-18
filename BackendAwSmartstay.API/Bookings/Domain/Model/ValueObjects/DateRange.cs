@@ -33,5 +33,12 @@ public sealed record DateRange
     /// <summary>True when <paramref name="day"/> is one of the nights of the stay (check-in day included, check-out day excluded).</summary>
     public bool Includes(DateTime day) => CheckIn <= day.Date && day.Date < CheckOut;
 
+    /// <summary>US-51 scenario 4: a stay cannot start before <paramref name="hotelToday"/> (the hotel's calendar date).</summary>
+    public void EnsureNotInThePast(DateTime hotelToday)
+    {
+        if (CheckIn < hotelToday.Date)
+            throw new DomainValidationException("The check-in date cannot be in the past.");
+    }
+
     public override string ToString() => $"{CheckIn:yyyy-MM-dd}..{CheckOut:yyyy-MM-dd}";
 }

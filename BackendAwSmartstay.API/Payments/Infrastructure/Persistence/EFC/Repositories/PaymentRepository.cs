@@ -12,7 +12,7 @@ public class PaymentRepository(AppDbContext context) : BaseRepository<Payment>(c
     {
         return await Context.Set<Payment>()
             .Where(p => p.BookingId == bookingId)
-            .OrderByDescending(p => p.Status == PaymentStatus.Completed)
+            .OrderByDescending(p => p.Status == PaymentStatus.Completed || p.Status == PaymentStatus.Refunded)
             .ThenByDescending(p => p.Id)
             .FirstOrDefaultAsync();
     }
@@ -22,4 +22,7 @@ public class PaymentRepository(AppDbContext context) : BaseRepository<Payment>(c
         return await Context.Set<Payment>()
             .AnyAsync(p => p.BookingId == bookingId && p.Status == PaymentStatus.Completed);
     }
+
+    public Task<Payment?> FindCompletedByBookingIdAsync(int bookingId) =>
+        Context.Set<Payment>().FirstOrDefaultAsync(p => p.BookingId == bookingId && p.Status == PaymentStatus.Completed);
 }

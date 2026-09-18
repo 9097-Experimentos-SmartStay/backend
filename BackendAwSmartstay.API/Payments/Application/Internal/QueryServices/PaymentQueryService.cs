@@ -22,9 +22,11 @@ public class PaymentQueryService(
     /// <returns>The payment associated with the booking or null if not found (or not visible to the guest).</returns>
     public async Task<Payment?> Handle(GetPaymentByBookingIdQuery query)
     {
-        if (query.GuestUserId.HasValue
-            && await bookingsContextFacade.FetchBookingAsync(query.BookingId, query.GuestUserId) is null)
-            return null;
+        if (query.GuestUserId.HasValue || query.StaffHotelId.HasValue)
+        {
+            var booking = await bookingsContextFacade.FetchBookingAsync(query.BookingId, query.GuestUserId);
+            if (booking is null || (query.StaffHotelId.HasValue && booking.HotelId != query.StaffHotelId)) return null;
+        }
 
         return await paymentRepository.FindByBookingIdAsync(query.BookingId);
     }

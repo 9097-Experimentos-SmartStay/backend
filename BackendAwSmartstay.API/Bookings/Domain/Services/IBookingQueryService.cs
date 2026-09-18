@@ -1,5 +1,6 @@
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 
 namespace BackendAwSmartstay.API.Bookings.Domain.Services;
 
@@ -14,6 +15,9 @@ public interface IBookingQueryService
     /// <summary>The bookings visible to the requester, newest first.</summary>
     Task<IEnumerable<Booking>> Handle(GetBookingsQuery query);
 
-    /// <summary>The bookings of a room.</summary>
+    /// <summary>The bookings of a room visible to the requester.</summary>
     Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query);
+
+    /// <summary>US-07 scenario 1: the calendar of a hotel.</summary>
+    Task<BookingCalendar> Handle(GetBookingCalendarQuery query);
 }

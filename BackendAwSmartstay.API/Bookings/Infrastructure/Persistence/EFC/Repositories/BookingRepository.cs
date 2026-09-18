@@ -9,6 +9,10 @@ namespace BackendAwSmartstay.API.Bookings.Infrastructure.Persistence.EFC.Reposit
 
 public class BookingRepository(AppDbContext context) : BaseRepository<Booking>(context), IBookingRepository
 {
+    // Same statuses as BookingStatusExtensions.IsActive, in a form EF Core translates to SQL.
+    private static readonly BookingStatus[] ActiveStatuses =
+        [BookingStatus.Pending, BookingStatus.Confirmed, BookingStatus.CheckedIn];
+
     public async Task<IEnumerable<Booking>> FindByOwnerAsync(int userId, Guid? guestProfileId)
     {
         var guestId = new GuestId(userId);
@@ -18,13 +22,17 @@ public class BookingRepository(AppDbContext context) : BaseRepository<Booking>(c
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Booking>> ListNewestFirstAsync() =>
-        await Context.Set<Booking>().OrderByDescending(b => b.Id).ToListAsync();
+    public async Task<IEnumerable<Booking>> ListNewestFirstAsync(int? hotelId) =>
+        await Context.Set<Booking>()
+            .Where(b => hotelId == null || b.HotelId == hotelId)
+            .OrderByDescending(b => b.Id)
+            .ToListAsync();
 
     public async Task<IEnumerable<Booking>> FindByRoomIdAsync(int roomId)
     {
         return await Context.Set<Booking>()
             .Where(b => b.RoomId == roomId)
+            .OrderBy(b => b.CheckInDate)
             .ToListAsync();
     }
 
@@ -32,7 +40,7 @@ public class BookingRepository(AppDbContext context) : BaseRepository<Booking>(c
     {
         var booked = await Context.Set<Booking>()
             .Where(b => roomIds.Contains(b.RoomId)
-                        && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed)
+                        && ActiveStatuses.Contains(b.Status)
                         && b.CheckInDate < dates.CheckOut
                         && dates.CheckIn < b.CheckOutDate)
             .Select(b => b.RoomId)
@@ -41,13 +49,28 @@ public class BookingRepository(AppDbContext context) : BaseRepository<Booking>(c
         return booked.ToHashSet();
     }
 
-    public async Task<bool> ExistsActiveBookingOverlappingAsync(int roomId, DateRange dates)
+    public async Task<bool> ExistsActiveBookingOverlappingAsync(int roomId, DateRange dates, int? excludingBookingId = null)
     {
         // Same predicate as DateRange.Overlaps, translated to SQL. Stored dates are calendar dates.
         return await Context.Set<Booking>().AnyAsync(b =>
             b.RoomId == roomId
-            && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed)
+            && (excludingBookingId == null || b.Id != excludingBookingId)
+            && ActiveStatuses.Contains(b.Status)
             && b.CheckInDate < dates.CheckOut
             && dates.CheckIn < b.CheckOutDate);
     }
+
+    public async Task<IReadOnlyList<Booking>> ListActiveOverlappingAsync(int? hotelId, DateRange window) =>
+        await Context.Set<Booking>()
+            .Where(b => (hotelId == null || b.HotelId == hotelId)
+                        && ActiveStatuses.Contains(b.Status)
+                        && b.CheckInDate < window.CheckOut
+                        && window.CheckIn < b.CheckOutDate)
+            .OrderBy(b => b.CheckInDate).ThenBy(b => b.RoomId)
+            .ToListAsync();
+
+    public async Task<IReadOnlyList<Booking>> ListPendingPaymentDueAsync(DateTimeOffset now) =>
+        await Context.Set<Booking>()
+            .Where(b => b.Status == BookingStatus.Pending && b.PaymentDueAt != null && b.PaymentDueAt <= now)
+            .ToListAsync();
 }

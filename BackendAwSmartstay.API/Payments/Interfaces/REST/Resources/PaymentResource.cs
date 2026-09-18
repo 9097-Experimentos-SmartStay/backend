@@ -1,21 +1,26 @@
 namespace BackendAwSmartstay.API.Payments.Interfaces.REST.Resources;
 
-/// <summary>
-/// Represents the data returned to the client about a payment.
-/// </summary>
-/// <param name="Id">The unique identifier of the payment.</param>
-/// <param name="BookingId">The identifier of the booking associated with the payment.</param>
-/// <param name="TransactionId">The transaction identifier from the payment processor.</param>
-/// <param name="Amount">The amount paid.</param>
-/// <param name="Status">The status of the payment.</param>
-/// <param name="CardNumberMasked">The masked credit card number.</param>
-/// <param name="PaymentDate">The date when the payment was processed.</param>
+/// <summary>The payment of a booking.</summary>
+/// <param name="Id">Payment id.</param>
+/// <param name="BookingId">The booking paid.</param>
+/// <param name="TransactionId">Reference of the gateway (manual payments: method + operation number).</param>
+/// <param name="Amount">Amount: the booking total (computed by the backend).</param>
+/// <param name="Status">Completed, Failed or Refunded.</param>
+/// <param name="Method">Yape, Plin, BankTransfer, Cash or CardAtFrontDesk.</param>
+/// <param name="OperationNumber">Operation number (null for cash).</param>
+/// <param name="Note">Note of the staff member.</param>
+/// <param name="RecordedByUserId">Staff member who registered it.</param>
+/// <param name="PaymentDate">When it was registered, "yyyy-MM-dd HH:mm:ss" UTC.</param>
+/// <param name="RefundedAt">When it was marked refunded (cancelled paid booking).</param>
 public record PaymentResource(
     int Id,
     int BookingId,
     string TransactionId,
     decimal Amount,
     string Status,
-    string CardNumberMasked,
-    string PaymentDate
-);
+    string Method,
+    string? OperationNumber,
+    string? Note,
+    int? RecordedByUserId,
+    string PaymentDate,
+    DateTimeOffset? RefundedAt);

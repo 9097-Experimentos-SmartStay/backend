@@ -39,5 +39,9 @@ public class BookingsContextFacade(
         booking.CheckOutDate,
         booking.Nights,
         booking.Status.ToString(),
-        booking.CanBePaid);
+        booking.CanBePaid,
+        booking.HotelId,
+        booking.Code.Value,
+        booking.TotalPrice,
+        booking.GuestEmail);
 }

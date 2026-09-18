@@ -10,10 +10,23 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 /// <param name="Amenities">Amenities.</param>
 /// <param name="Status">Current operational status (Available, Occupied or Cleaning).</param>
 public sealed record RoomOffer(int RoomId, int HotelId, int RoomTypeId, string RoomTypeName, decimal PricePerNight,
-    string Description, IReadOnlyList<string> Amenities, string Status);
+    string Description, IReadOnlyList<string> Amenities, string Status)
+{
+    /// <summary>A room under maintenance is never offered nor booked.</summary>
+    public bool IsOfferedForBooking => Status != "Maintenance";
+}
+
+/// <summary>A hotel as shown in messages of other bounded contexts.</summary>
+/// <param name="HotelId">The hotel.</param>
+/// <param name="Name">Its name.</param>
+/// <param name="Address">Street address, city and country.</param>
+public sealed record HotelSummary(int HotelId, string Name, string Address);
 
 public interface IAccommodationsContextFacade
 {
+    /// <summary>The hotel, or null when it does not exist.</summary>
+    Task<HotelSummary?> FetchHotelAsync(int hotelId);
+
     Task<bool> HotelExistsAsync(int hotelId);
 
     /// <summary>True when the room exists.</summary>
@@ -26,11 +39,11 @@ public interface IAccommodationsContextFacade
     Task<int?> FetchHotelIdOfRoomAsync(int roomId);
 
     /// <summary>
-    ///     Locks the room for the current transaction so no other booking of it can be created concurrently (R1).
-    ///     Returns false when the room does not exist. Call it inside the booking transaction, before checking
-    ///     availability.
+    ///     Locks the room for the current transaction so no other booking of it can be created or moved concurrently
+    ///     (R1) and returns it, or null when the room does not exist. Call it inside the booking transaction, before
+    ///     checking availability.
     /// </summary>
-    Task<bool> LockRoomForBookingAsync(int roomId);
+    Task<RoomOffer?> LockRoomForBookingAsync(int roomId);
 
     /// <summary>Rooms that can be offered for booking (not under maintenance), of one hotel or of every hotel.</summary>
     Task<IReadOnlyList<RoomOffer>> FetchRoomsOfferedForBookingAsync(int? hotelId);

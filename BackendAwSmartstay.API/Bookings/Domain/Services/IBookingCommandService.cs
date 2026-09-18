@@ -4,7 +4,7 @@ using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 namespace BackendAwSmartstay.API.Bookings.Domain.Services;
 
 /// <summary>
-/// Defines the contract for services that handle booking state changes (Create, Confirm, Cancel).
+/// Booking use cases: place, confirm (payment), cancel, reschedule, expire unpaid, check in.
 /// Missing bookings raise <c>BookingNotFoundException</c>; rule violations raise domain exceptions.
 /// </summary>
 public interface IBookingCommandService
@@ -14,4 +14,9 @@ public interface IBookingCommandService
     Task<Booking> Handle(ConfirmBookingCommand command);
 
     Task<Booking> Handle(CancelBookingCommand command);
+
+    Task<Booking> Handle(RescheduleBookingCommand command);
+
+    /// <returns>How many bookings expired.</returns>
+    Task<int> Handle(ExpireUnpaidBookingsCommand command);
 }

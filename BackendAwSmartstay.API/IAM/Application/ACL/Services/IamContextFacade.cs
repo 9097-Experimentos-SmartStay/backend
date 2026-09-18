@@ -1,4 +1,9 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
+using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
+using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
+using BackendAwSmartstay.API.IAM.Domain.Repositories;
 using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.ACL;
@@ -11,8 +16,26 @@ namespace BackendAwSmartstay.API.IAM.Application.ACL.Services;
 /// </summary>
 public class IamContextFacade(
     IUserCommandService userCommandService,
-    IUserQueryService userQueryService) : IIamContextFacade
+    IUserQueryService userQueryService,
+    IUserRepository userRepository) : IIamContextFacade
 {
+    public async Task<UserContact?> FetchUserContactAsync(int userId)
+    {
+        var user = await userRepository.FindByIdAsync(userId);
+        return user is null || user.Status == UserStatus.Inactive ? null : ToContact(user);
+    }
+
+    public async Task<IReadOnlyList<UserContact>> ListHotelStaffAsync(int hotelId, IReadOnlyCollection<string> roles)
+    {
+        var users = await userRepository.ListActiveByRolesAsync(roles.Select(role => new Role(role)).ToList());
+        // Chain administrators operate every hotel; the others only the hotel they are assigned to.
+        return users.Where(user => user.HotelId == hotelId || user.Role.Value == UserRoles.ChainAdmin)
+            .Select(ToContact).ToList();
+    }
+
+    private static UserContact ToContact(User user) => new(user.Id, user.Email.Value,
+        string.IsNullOrWhiteSpace(user.FirstName) ? null : $"{user.FirstName} {user.LastName}".Trim(), user.Role.Value);
+
     /// <summary>
     /// Retrieves the unique identifier of a user resource based on their email.
     /// </summary>

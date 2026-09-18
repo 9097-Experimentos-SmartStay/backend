@@ -24,7 +24,20 @@ public static class ModelBuilderExtensions
         builder.Entity<Booking>().Ignore(b => b.Dates);
         builder.Entity<Booking>().Ignore(b => b.Nights);
         builder.Entity<Booking>().Ignore(b => b.CanBePaid);
-        builder.Entity<Booking>().Property(b => b.GuestName).IsRequired().HasMaxLength(100);
+        builder.Entity<Booking>().Ignore(b => b.TotalPrice);
+        builder.Entity<Booking>().Ignore(b => b.DomainEvents);
+        builder.Entity<Booking>().Property(b => b.Code)
+            .HasMaxLength(BookingCode.MaxLength)
+            .HasConversion(code => code.Value, value => new BookingCode(value))
+            .IsRequired();
+        builder.Entity<Booking>().HasIndex(b => b.Code).IsUnique();
+        builder.Entity<Booking>().Property(b => b.HotelId).IsRequired();
+        builder.Entity<Booking>().HasIndex(b => new { b.HotelId, b.CheckInDate });
+        builder.Entity<Booking>().Property(b => b.GuestPhone).HasMaxLength(20);
+        builder.Entity<Booking>().Property(b => b.PricePerNight).HasColumnType("decimal(18,2)").IsRequired();
+        builder.Entity<Booking>().Property(b => b.CancellationReason).HasConversion<string>().HasMaxLength(30);
+        builder.Entity<Booking>().HasIndex(b => new { b.Status, b.PaymentDueAt });
+        builder.Entity<Booking>().Property(b => b.GuestName).IsRequired().HasMaxLength(GuestContact.MaxNameLength);
         builder.Entity<Booking>().Property(b => b.GuestEmail).IsRequired().HasMaxLength(200);
         builder.Entity<Booking>().Property(b => b.CheckInDate).IsRequired();
         builder.Entity<Booking>().Property(b => b.CheckOutDate).IsRequired();

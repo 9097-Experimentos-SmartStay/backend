@@ -41,7 +41,7 @@ public class AnalyticsRepository(AppDbContext context) : IAnalyticsRepository
         {
             // Simple heuristic: (Confirmed Bookings / Total Rooms) * 100
             // This is a snapshot, a real system would calculate room-nights.
-            var activeBookings = await bookingsQuery.CountAsync(b => b.Status == BookingStatus.Confirmed);
+            var activeBookings = await bookingsQuery.CountAsync(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.CheckedIn);
             occupancyRate = ((double)activeBookings / totalRooms) * 100;
         }
 
