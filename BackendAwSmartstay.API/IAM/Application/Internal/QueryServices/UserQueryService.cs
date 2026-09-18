@@ -42,6 +42,8 @@ public class UserQueryService(
         return await userRepository.FindByEmailAsync(new Email(query.Email));
     }
 
+    public Task<User?> Handle(GetCurrentUserQuery query) => userRepository.FindByIdAsync(query.UserId);
+
     public async Task<UserSession> Handle(GetUserSessionQuery query)
     {
         var user = await userRepository.FindByIdAsync(query.UserId);

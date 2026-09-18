@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.IAM.Domain.Model.Commands;
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
@@ -61,6 +62,23 @@ public class UsersController(
         var user = await userCommandService.Handle(command);
         return CreatedAtAction(nameof(GetUserById), new { id = user.Id },
             UserResourceFromEntityAssembler.ToResourceFromEntity(user));
+    }
+
+    /// <summary>The signed-in user, fresh from the account (any role).</summary>
+    /// <remarks>
+    ///     US-03 scenario 2: the role, hotel and chain are read from the account on every call, so a change made by an
+    ///     administrator is visible right away. Clients refresh their session with it on start-up, when the window
+    ///     regains focus and periodically. A deactivated account or a revoked token gets 401 like any other endpoint.
+    /// </remarks>
+    [HttpGet("me")]
+    [SwaggerOperation(Summary = "Get the signed-in user", OperationId = "GetCurrentUser")]
+    [ProducesResponseType(typeof(CurrentUserResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        var user = await userQueryService.Handle(new GetCurrentUserQuery(User.GetUserId()))
+                   ?? throw new UserNotFoundException(User.GetUserId());
+        return Ok(CurrentUserResourceFromEntityAssembler.ToResourceFromEntity(user));
     }
 
     /// <summary>
