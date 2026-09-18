@@ -16,7 +16,7 @@ public class HotelRepository(AppDbContext context) : BaseRepository<Hotel>(conte
     /// Retrieves all hotels including their room data to calculate base prices.
     /// </summary>
     /// <returns>List of hotels with rooms loaded.</returns>
-    public new async Task<IEnumerable<Hotel>> ListAsync()
+    public override async Task<IEnumerable<Hotel>> ListAsync()
     {
         return await Context.Set<Hotel>()
             .Include(h => h.Rooms)
@@ -28,7 +28,7 @@ public class HotelRepository(AppDbContext context) : BaseRepository<Hotel>(conte
     /// </summary>
     /// <param name="id">The hotel ID.</param>
     /// <returns>The hotel with rooms loaded.</returns>
-    public new async Task<Hotel?> FindByIdAsync(int id)
+    public override async Task<Hotel?> FindByIdAsync(int id)
     {
         return await Context.Set<Hotel>()
             .Include(h => h.Rooms)
