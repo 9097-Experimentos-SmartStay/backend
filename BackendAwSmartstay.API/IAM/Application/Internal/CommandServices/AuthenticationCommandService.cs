@@ -118,12 +118,23 @@ public class AuthenticationCommandService(
             throw new InvalidRefreshTokenException();
         }
 
+        var user = await userRepository.FindByIdAsync(presented.UserId);
+
+        // The user's sessions ended after this token was issued (role or hotel change, password, deactivation,
+        // sign-out everywhere...): say why, whether or not the token row was already revoked.
+        if (user is not null && !presented.BelongsToCurrentSessionOf(user))
+        {
+            if (presented.IsActive(now))
+            {
+                await RevokeAsync([presented], RefreshTokenRevocationReason.SessionRevoked, now);
+            }
+            throw new SessionRevokedException(user.GetSession(presented.TokenVersion).RevocationReason);
+        }
+
         if (!presented.IsActive(now)) throw new InvalidRefreshTokenException();
 
-        var user = await userRepository.FindByIdAsync(presented.UserId);
-        if (user is null || user.Status == UserStatus.Inactive || !presented.BelongsToCurrentSessionOf(user))
+        if (user is null || user.Status == UserStatus.Inactive)
         {
-            // The sessions ended (role or hotel change, password, deactivation...): say why, like a revoked token.
             await RevokeAsync([presented], RefreshTokenRevocationReason.SessionRevoked, now);
             throw new SessionRevokedException(user?.GetSession(presented.TokenVersion).RevocationReason);
         }
