@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using BackendAwSmartstay.API.Shared.Infrastructure.Email.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Repositories;
 
@@ -16,6 +17,9 @@ public static class WebApplicationBuilderExtensions
     public static void AddSharedContextServices(this WebApplicationBuilder builder)
     {
         builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // E-mail port (queued, delivered in the background) and client URLs used in the links
+        builder.Services.AddEmailServices(builder.Configuration);
 
         // Global error handling: every unhandled exception becomes a ProblemDetails response
         builder.Services.AddProblemDetails(options =>

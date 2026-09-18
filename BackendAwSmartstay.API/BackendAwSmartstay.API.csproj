@@ -12,6 +12,7 @@
         <PackageReference Include="Apache.NMS.ActiveMQ" Version="2.2.0" />
         <PackageReference Include="AspNetCore.HealthChecks.MySql" Version="9.0.0" />
         <PackageReference Include="DotNetEnv" Version="3.1.1" />
+        <PackageReference Include="MailKit" Version="4.18.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
         <!-- EntityFrameworkCore Database Persistence related packages -->
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
