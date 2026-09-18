@@ -5,6 +5,7 @@ using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -89,12 +90,12 @@ public class IamJwtBearerEvents(
         // Replace the default empty 401 with a ProblemDetails body (the WWW-Authenticate header is kept).
         context.HandleResponse();
 
+        // Only our own session messages (TokenValidated -> Fail) are shown; library errors are never echoed.
         var detail = context.AuthenticateFailure switch
         {
             null => MissingTokenDetail,
             SecurityTokenExpiredException => ExpiredTokenDetail,
-            SecurityTokenException => InvalidTokenDetail,
-            { Message: var message } when !string.IsNullOrWhiteSpace(message) => message,
+            AuthenticationFailureException { Message: var message } when !string.IsNullOrWhiteSpace(message) => message,
             _ => InvalidTokenDetail
         };
 
