@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Payments.Domain.Model.Commands;
 
 namespace BackendAwSmartstay.API.Payments.Domain.Model.Aggregates;
@@ -23,7 +24,7 @@ public partial class Payment
     public Payment(ProcessPaymentCommand command, decimal amount) : this()
     {
         if (amount < 0)
-            throw new ArgumentOutOfRangeException(nameof(amount), "The payment amount cannot be negative.");
+            throw new DomainValidationException("The payment amount cannot be negative.");
 
         BookingId = command.BookingId;
         Amount = amount;

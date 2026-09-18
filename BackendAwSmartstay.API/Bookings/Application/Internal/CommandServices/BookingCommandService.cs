@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
@@ -27,7 +28,7 @@ public class BookingCommandService(
     public async Task<Booking?> Handle(CreateBookingCommand command)
     {
         if (!await accommodationsContextFacade.RoomExistsAsync(command.RoomId))
-            throw new ArgumentException($"Room {command.RoomId} does not exist.");
+            throw new DomainValidationException($"Room {command.RoomId} does not exist.");
 
         Guid? guestProfileId = command.GuestProfileId;
 

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 namespace BackendAwSmartstay.API.Payments.Domain.Services;
 
 /// <summary>
@@ -18,11 +19,11 @@ public static class PaymentAmountCalculator
     public static decimal Calculate(decimal pricePerNight, DateTime checkInDate, DateTime checkOutDate)
     {
         if (pricePerNight < 0)
-            throw new ArgumentOutOfRangeException(nameof(pricePerNight), "The nightly price cannot be negative.");
+            throw new DomainValidationException("The nightly price cannot be negative.");
 
         var nights = CalculateNights(checkInDate, checkOutDate);
         if (nights < 1)
-            throw new ArgumentOutOfRangeException(nameof(checkOutDate), "A booking must cover at least one night.");
+            throw new DomainValidationException("A booking must cover at least one night.");
 
         return decimal.Round(pricePerNight * nights, 2, MidpointRounding.AwayFromZero);
     }

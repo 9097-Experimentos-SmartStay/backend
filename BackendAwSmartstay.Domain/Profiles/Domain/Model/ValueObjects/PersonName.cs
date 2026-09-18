@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 namespace BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 
 public record PersonName
@@ -8,10 +9,10 @@ public record PersonName
     public PersonName(string firstName, string lastName)
     {
         if (string.IsNullOrWhiteSpace(firstName))
-            throw new ArgumentException("First name cannot be empty.");
+            throw new DomainValidationException("First name cannot be empty.");
 
         if (string.IsNullOrWhiteSpace(lastName))
-            throw new ArgumentException("Last name cannot be empty.");
+            throw new DomainValidationException("Last name cannot be empty.");
 
         FirstName = firstName.Trim();
         LastName = lastName.Trim();

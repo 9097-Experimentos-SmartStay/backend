@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 
 namespace BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
@@ -17,9 +18,9 @@ public class Booking
         DateTime checkOutDate, Guid? guestProfileId = null, int? userId = null) : this()
     {
         if (roomId <= 0)
-            throw new ArgumentException("A booking must reference a valid room.", nameof(roomId));
+            throw new DomainValidationException("A booking must reference a valid room.");
         if (checkOutDate.Date <= checkInDate.Date)
-            throw new ArgumentException("The check-out date must be at least one day after the check-in date.", nameof(checkOutDate));
+            throw new DomainValidationException("The check-out date must be at least one day after the check-in date.");
 
         RoomId = roomId;
         UserId = userId;
@@ -116,7 +117,7 @@ public class Booking
     public void Confirm()
     {
         if (Status is BookingStatus.Cancelled or BookingStatus.Completed)
-            throw new InvalidOperationException($"A {Status.ToString().ToLowerInvariant()} booking cannot be confirmed.");
+            throw new BusinessRuleViolationException($"A {Status.ToString().ToLowerInvariant()} booking cannot be confirmed.");
 
         Status = BookingStatus.Confirmed;
     }
@@ -128,7 +129,7 @@ public class Booking
     public void Cancel()
     {
         if (Status == BookingStatus.Completed)
-            throw new InvalidOperationException("A completed booking cannot be cancelled.");
+            throw new BusinessRuleViolationException("A completed booking cannot be cancelled.");
 
         Status = BookingStatus.Cancelled;
     }

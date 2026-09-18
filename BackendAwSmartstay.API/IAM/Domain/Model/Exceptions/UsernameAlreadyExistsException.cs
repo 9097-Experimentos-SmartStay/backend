@@ -1,6 +1,8 @@
-﻿namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
-public class UsernameAlreadyExistsException : UserDomainException
+namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+
+public class UsernameAlreadyExistsException : BusinessRuleViolationException
 {
     public UsernameAlreadyExistsException(string username) 
         : base($"Username {username} is already taken") { }

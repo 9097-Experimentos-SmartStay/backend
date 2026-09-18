@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
 using BackendAwSmartstay.API.Payments.Domain.Model.Aggregates;
@@ -35,18 +36,18 @@ public class PaymentCommandService(
     {
         // 1. Load the booking through the Bookings ACL (ownership enforced for guests)
         var booking = await bookingsContextFacade.FetchBookingAsync(command.BookingId, command.GuestUserId)
-                      ?? throw new KeyNotFoundException($"Booking {command.BookingId} not found.");
+                      ?? throw new EntityNotFoundException("Booking", command.BookingId);
 
         if (!booking.CanBePaid)
-            throw new InvalidOperationException(
+            throw new BusinessRuleViolationException(
                 $"Booking {booking.BookingId} is {booking.Status.ToLowerInvariant()} and cannot be paid.");
 
         if (await paymentRepository.ExistsCompletedForBookingAsync(booking.BookingId))
-            throw new InvalidOperationException($"Booking {booking.BookingId} is already paid.");
+            throw new BusinessRuleViolationException($"Booking {booking.BookingId} is already paid.");
 
         // 2. The amount is computed by the backend: room price per night × nights
         var pricePerNight = await accommodationsContextFacade.FetchRoomPricePerNightAsync(booking.RoomId)
-                            ?? throw new InvalidOperationException(
+                            ?? throw new BusinessRuleViolationException(
                                 $"Room {booking.RoomId} of booking {booking.BookingId} no longer exists.");
         var amount = PaymentAmountCalculator.Calculate(pricePerNight, booking.CheckInDate, booking.CheckOutDate);
 
@@ -70,7 +71,7 @@ public class PaymentCommandService(
         // 4. Confirm the booking through the Bookings application layer. It commits the shared unit of work,
         //    so the payment and the booking confirmation are saved in the same SaveChanges.
         if (!await bookingsContextFacade.ConfirmBookingAsync(booking.BookingId))
-            throw new KeyNotFoundException($"Booking {booking.BookingId} not found.");
+            throw new EntityNotFoundException("Booking", booking.BookingId);
 
         logger.LogInformation("Booking {BookingId} confirmed via payment {TransactionId} ({Amount}).",
             booking.BookingId, payment.TransactionId, amount);

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Text.Json.Serialization;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
@@ -63,7 +64,7 @@ public class User
     public User UpdatePasswordHash(string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(passwordHash))
-            throw new ArgumentException("Password hash cannot be empty.", nameof(passwordHash));
+            throw new DomainValidationException("Password hash cannot be empty.");
         PasswordHash = passwordHash;
         UpdatedAt = DateTime.UtcNow;
         return this;

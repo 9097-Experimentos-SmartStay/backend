@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
@@ -167,7 +168,7 @@ public class HotelsController(
 
         var actor = HttpContext.RequireAuthenticatedUser();
         if (!HotelAccessPolicy.CanManage(actor.Role.Value, actor.Id, actor.HotelId, hotel))
-            throw new UnauthorizedAccessException($"You are not allowed to manage hotel {hotelId}.");
+            throw new OperationNotAllowedException($"You are not allowed to manage hotel {hotelId}.");
 
         return null;
     }

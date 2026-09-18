@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 
 namespace BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
@@ -18,7 +19,7 @@ public static class HttpContextUserExtensions
     /// </summary>
     public static User RequireAuthenticatedUser(this HttpContext? httpContext) =>
         httpContext.GetAuthenticatedUser()
-        ?? throw new UnauthorizedAccessException("An authenticated user is required for this operation.");
+        ?? throw new OperationNotAllowedException("An authenticated user is required for this operation.");
 
     /// <summary>True when the user's role matches any of the given roles (case-insensitive).</summary>
     public static bool IsInRole(this User user, params string[] roles) =>

@@ -1,4 +1,5 @@
-﻿using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 
 namespace BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 
@@ -24,12 +25,11 @@ public sealed record Role
     public Role(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Role cannot be empty or whitespace.", nameof(value));
+            throw new DomainValidationException("Role cannot be empty or whitespace.");
 
         if (!RoleHierarchy.ContainsKey(value))
-            throw new ArgumentException(
-                $"Invalid role: '{value}'. Allowed roles are: {string.Join(", ", RoleHierarchy.Keys)}.",
-                nameof(value));
+            throw new DomainValidationException(
+                $"Invalid role: '{value}'. Allowed roles are: {string.Join(", ", RoleHierarchy.Keys)}.");
 
         Value = value;
         HierarchyLevel = RoleHierarchy[value];

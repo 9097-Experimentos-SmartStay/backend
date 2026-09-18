@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
@@ -68,7 +69,7 @@ public class RoomsController(
     public async Task<IActionResult> CreateRoom([FromBody] CreateRoomResource resource)
     {
         var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(resource.HotelId))
-                    ?? throw new ArgumentException($"Hotel {resource.HotelId} does not exist.");
+                    ?? throw new DomainValidationException($"Hotel {resource.HotelId} does not exist.");
         EnsureCanManage(hotel);
 
         var createRoomCommand = CreateRoomCommandFromResourceAssembler.ToCommandFromResource(resource);
@@ -185,7 +186,7 @@ public class RoomsController(
         var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(room.HotelId));
         if (hotel is not null) EnsureCanManage(hotel);
         else if (!HttpContext.RequireAuthenticatedUser().IsInRole(UserRoles.ChainAdmin))
-            throw new UnauthorizedAccessException($"You are not allowed to manage room {roomId}.");
+            throw new OperationNotAllowedException($"You are not allowed to manage room {roomId}.");
 
         return null;
     }
@@ -194,6 +195,6 @@ public class RoomsController(
     {
         var actor = HttpContext.RequireAuthenticatedUser();
         if (!HotelAccessPolicy.CanManage(actor.Role.Value, actor.Id, actor.HotelId, hotel))
-            throw new UnauthorizedAccessException($"You are not allowed to manage rooms of hotel {hotel.Id}.");
+            throw new OperationNotAllowedException($"You are not allowed to manage rooms of hotel {hotel.Id}.");
     }
 }

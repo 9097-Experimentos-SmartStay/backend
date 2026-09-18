@@ -1,4 +1,5 @@
-﻿namespace BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+namespace BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 
 /// <summary>
 /// Value Object that encapsulates username validation and normalization rules.
@@ -10,17 +11,16 @@ public sealed record Username
     public Username(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Username cannot be empty or whitespace.", nameof(value));
+            throw new DomainValidationException("Username cannot be empty or whitespace.");
 
         if (value.Length > 100)
-            throw new ArgumentException("Username cannot exceed 100 characters.", nameof(value));
+            throw new DomainValidationException("Username cannot exceed 100 characters.");
 
         var normalized = value.ToLowerInvariant();
 
         if (!System.Text.RegularExpressions.Regex.IsMatch(normalized, @"^[a-z0-9_.@]+$"))
-            throw new ArgumentException(
-                "Username must be lowercase alphanumeric and may contain '.', '_', or '@'.",
-                nameof(value));
+            throw new DomainValidationException(
+                "Username must be lowercase alphanumeric and may contain '.', '_', or '@'.");
 
         Value = normalized;
     }

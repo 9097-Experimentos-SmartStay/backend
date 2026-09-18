@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Net.Mime;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
@@ -105,7 +106,7 @@ public class GuestsController(
     {
         // A guest can only link a profile to their own account
         if (CallerGuestUserId() is { } guestUserId && guestUserId != resource.UserId)
-            throw new UnauthorizedAccessException("Guests can only link a profile to their own user account.");
+            throw new OperationNotAllowedException("Guests can only link a profile to their own user account.");
 
         var command = new LinkGuestToUserCommand(
             new GuestProfileId(id),
