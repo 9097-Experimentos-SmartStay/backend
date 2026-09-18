@@ -10,12 +10,15 @@ using Swashbuckle.AspNetCore.Annotations;
 
 namespace BackendAwSmartstay.API.Bookings.Interfaces.REST;
 
-/// <summary>Digital check-in of a booking (US-08).</summary>
+/// <summary>
+///     Digital check-in of a booking (US-08). <b>Not part of the current backlog</b>: kept in the API (like the IoT
+///     emulator) but no client uses it yet.
+/// </summary>
 [Authorize]
 [ApiController]
 [Route("api/v1/bookings/{bookingId:int}/check-in")]
 [Produces("application/json")]
-[Tags("Check-in")]
+[Tags("Check-in (not part of the current backlog)")]
 public class CheckInController(ICheckInService checkInService) : ControllerBase
 {
     /// <summary>Largest multipart request accepted (the document itself is limited to 5 MB).</summary>
