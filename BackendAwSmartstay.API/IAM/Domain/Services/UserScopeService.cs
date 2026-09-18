@@ -26,7 +26,6 @@ public class UserScopeService : IUserScopeService
 
         // Admin and all staff variants can access users within the same hotel
         if (role == UserRoles.Admin ||
-            role == UserRoles.Staff ||
             role == UserRoles.Reception ||
             role == UserRoles.Housekeeping ||
             role == UserRoles.Maintenance)

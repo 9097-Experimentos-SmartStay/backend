@@ -69,13 +69,13 @@ public static class Policies
 
     private static readonly string[] AllRoles =
     [
-        UserRoles.Guest, UserRoles.Staff, UserRoles.Reception, UserRoles.Housekeeping,
+        UserRoles.Guest, UserRoles.Reception, UserRoles.Housekeeping,
         UserRoles.Maintenance, UserRoles.Admin, UserRoles.ChainAdmin
     ];
 
     private static readonly string[] HotelStaff =
     [
-        UserRoles.Staff, UserRoles.Reception, UserRoles.Housekeeping, UserRoles.Maintenance,
+        UserRoles.Reception, UserRoles.Housekeeping, UserRoles.Maintenance,
         UserRoles.Admin, UserRoles.ChainAdmin
     ];
 

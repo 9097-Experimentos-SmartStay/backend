@@ -24,7 +24,7 @@ public static class IamClaimTypes
     /// <summary>Account e-mail (JWT <c>email</c>).</summary>
     public const string Email = JwtRegisteredClaimNames.Email;
 
-    /// <summary>Role (<c>role</c>): guest, staff, reception, housekeeping, maintenance, admin or chain_admin.</summary>
+    /// <summary>Role (<c>role</c>): guest, reception, housekeeping, maintenance, admin or chain_admin.</summary>
     public const string Role = "role";
 
     /// <summary>Hotel the user is assigned to (<c>hotel_id</c>), only present when assigned.</summary>

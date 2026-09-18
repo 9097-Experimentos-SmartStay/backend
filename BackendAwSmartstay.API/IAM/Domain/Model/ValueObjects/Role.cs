@@ -14,7 +14,6 @@ public sealed record Role
     private static readonly Dictionary<string, int> RoleHierarchy = new(StringComparer.OrdinalIgnoreCase)
     {
         { UserRoles.Guest, 0 },
-        { UserRoles.Staff, 1 },
         { UserRoles.Reception, 1 },
         { UserRoles.Housekeeping, 1 },
         { UserRoles.Maintenance, 1 },
