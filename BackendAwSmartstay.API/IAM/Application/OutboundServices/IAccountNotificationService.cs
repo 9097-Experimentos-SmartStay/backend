@@ -18,4 +18,10 @@ public interface IAccountNotificationService
 
     /// <summary>US-04 scenario 4: the password was changed.</summary>
     Task SendPasswordChangedAsync(User user);
+
+    /// <summary>
+    ///     US-03 scenario 2: an administrator changed the user's role or hotel; their sessions ended and they must
+    ///     sign in again.
+    /// </summary>
+    Task SendPermissionsChangedAsync(User user);
 }

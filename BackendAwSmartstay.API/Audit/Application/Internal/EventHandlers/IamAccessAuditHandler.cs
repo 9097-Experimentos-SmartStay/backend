@@ -26,6 +26,7 @@ public class IamAccessAuditHandler(
     IDomainEventHandler<UserPasswordChangedEvent>,
     IDomainEventHandler<UserCreatedEvent>,
     IDomainEventHandler<UserRoleChangedEvent>,
+    IDomainEventHandler<UserAssignmentChangedEvent>,
     IDomainEventHandler<UserDeactivatedEvent>,
     IDomainEventHandler<UserActivatedEvent>,
     IDomainEventHandler<MfaEnabledEvent>,
@@ -84,6 +85,11 @@ public class IamAccessAuditHandler(
     public Task HandleAsync(UserRoleChangedEvent e, CancellationToken cancellationToken) =>
         RecordByAdministratorAsync(e.OccurredOn, AuditAction.RoleChanged, e.ChangedByUserId, e.UserId, e.Email, e.HotelId,
             AuditDetails.RoleChange(e.PreviousRole, e.NewRole));
+
+    public Task HandleAsync(UserAssignmentChangedEvent e, CancellationToken cancellationToken) =>
+        RecordByAdministratorAsync(e.OccurredOn, AuditAction.AssignmentChanged, e.ChangedByUserId, e.UserId, e.Email,
+            e.HotelId ?? e.PreviousHotelId,
+            AuditDetails.AssignmentChange(e.PreviousHotelId, e.HotelId, e.PreviousChainId, e.ChainId));
 
     public Task HandleAsync(UserDeactivatedEvent e, CancellationToken cancellationToken) =>
         RecordByAdministratorAsync(e.OccurredOn, AuditAction.UserDeactivated, e.DeactivatedByUserId, e.UserId, e.Email, e.HotelId);

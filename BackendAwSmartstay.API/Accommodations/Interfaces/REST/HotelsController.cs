@@ -78,7 +78,7 @@ public class HotelsController(
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Create a new hotel property entry",
-        Description = "Constructs a new hotel aggregate root. Restricted exclusively to administrative and corporate management roles.",
+        Description = "Constructs a new hotel aggregate root. Restricted exclusively to administrative and corporate management roles. When a hotel administrator registers their (single) hotel it becomes their hotelId and their sessions end (401 auth.session_revoked, reason assignment_changed): they sign in again to manage it.",
         OperationId = "CreateHotel")]
     [SwaggerResponse(StatusCodes.Status201Created, "The hotel aggregate root was successfully created and tracked.", typeof(HotelResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource structure contains invalid constraints.")]

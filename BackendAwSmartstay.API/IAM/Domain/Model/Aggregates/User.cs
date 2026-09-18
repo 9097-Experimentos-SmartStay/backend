@@ -86,6 +86,9 @@ public class User : IHasDomainEvents
     public int? HotelId { get; private set; }
     public int? ChainId { get; private set; }
     public int TokenVersion { get; private set; }
+
+    /// <summary>Why the last session generation started (null before any revocation): told to revoked tokens.</summary>
+    public SessionRevocationReason? SessionRevocationReason { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
@@ -159,8 +162,9 @@ public class User : IHasDomainEvents
     }
 
     /// <summary>
-    ///     Changes the role (US-03 scenario 2). It applies on the user's next request: the role is re-read from the
-    ///     aggregate for every token.
+    ///     Changes the role (US-03 scenario 2). The claims of a token are its permissions, so a new role ends every
+    ///     session of the user at once (all access and refresh tokens): their next request gets 401
+    ///     <c>auth.session_revoked</c> (<c>role_changed</c>) and they sign in again with the new permissions.
     /// </summary>
     public User AssignRole(string newRole, int? changedByUserId = null, DateTimeOffset? now = null)
     {
@@ -168,9 +172,30 @@ public class User : IHasDomainEvents
         Role = new Role(newRole);
         UpdatedAt = DateTime.UtcNow;
         if (previous != Role)
+        {
+            StartNewSession(Enums.SessionRevocationReason.RoleChanged);
             _domainEvents.Add(new UserRoleChangedEvent(Id, Email.Value, HotelId, previous.Value, Role.Value,
                 changedByUserId, now ?? DateTimeOffset.UtcNow));
+        }
         return this;
+    }
+
+    /// <summary>
+    ///     Reassigns the user's hotel and chain. Like a role change, a different scope ends every session of the user
+    ///     (their tokens carry the old one).
+    /// </summary>
+    /// <returns>True when the hotel or the chain actually changed.</returns>
+    public bool ChangeAssignment(int? hotelId, int? chainId, int? changedByUserId, DateTimeOffset now)
+    {
+        if (hotelId == HotelId && chainId == ChainId) return false;
+        var previousHotel = HotelId;
+        var previousChain = ChainId;
+        HotelId = hotelId;
+        ChainId = chainId;
+        StartNewSession(Enums.SessionRevocationReason.AssignmentChanged);
+        _domainEvents.Add(new UserAssignmentChangedEvent(Id, Email.Value, previousHotel, HotelId, previousChain, ChainId,
+            changedByUserId, now));
+        return true;
     }
 
     /// <summary>
@@ -181,7 +206,7 @@ public class User : IHasDomainEvents
     {
         if (Status == UserStatus.Inactive) return this;
         Status = UserStatus.Inactive;
-        StartNewSession();
+        StartNewSession(Enums.SessionRevocationReason.Deactivated);
         _domainEvents.Add(new UserDeactivatedEvent(Id, Email.Value, HotelId, deactivatedByUserId, now ?? DateTimeOffset.UtcNow));
         return this;
     }
@@ -195,36 +220,22 @@ public class User : IHasDomainEvents
         return this;
     }
 
-    /// <summary>Revokes every token issued so far (password change, deactivation).</summary>
-    public User IncrementTokenVersion() => StartNewSession();
-
-    public User UpdateHotelId(int? hotelId)
-    {
-        HotelId = hotelId;
-        UpdatedAt = DateTime.UtcNow;
-        return this;
-    }
+    /// <summary>Revokes every token issued so far after a password change.</summary>
+    public User IncrementTokenVersion() => StartNewSession(Enums.SessionRevocationReason.PasswordChanged);
 
     /// <summary>
     ///     D2: a hotel administrator administers a single hotel. Taking charge of the hotel they registered is
-    ///     only possible while they have none (or it is the same hotel).
+    ///     only possible while they have none (or it is the same hotel). The new hotel ends the admin's sessions
+    ///     (their token has no hotel): they sign in again to manage it.
     /// </summary>
-    public User TakeChargeOfHotel(int hotelId)
+    public User TakeChargeOfHotel(int hotelId, DateTimeOffset? now = null)
     {
         if (!Role.Value.Equals(UserRoles.Admin, StringComparison.Ordinal))
             throw new BusinessRuleViolationException(IamErrorCodes.NotHotelAdministrator, "Only a hotel administrator takes charge of a single hotel.");
         if (HotelId is not null && HotelId != hotelId)
             throw new BusinessRuleViolationException(IamErrorCodes.AdminAlreadyHasHotel, "A hotel administrator manages a single hotel and already has one.");
 
-        HotelId = hotelId;
-        UpdatedAt = DateTime.UtcNow;
-        return this;
-    }
-
-    public User UpdateChainId(int? chainId)
-    {
-        ChainId = chainId;
-        UpdatedAt = DateTime.UtcNow;
+        ChangeAssignment(hotelId, ChainId, Id, now ?? DateTimeOffset.UtcNow);
         return this;
     }
 
@@ -234,8 +245,10 @@ public class User : IHasDomainEvents
     /// </summary>
     public UserSession GetSession(int tokenVersion)
     {
-        if (Status == UserStatus.Inactive) return new UserSession(UserSessionStatus.Inactive);
-        if (tokenVersion != TokenVersion) return new UserSession(UserSessionStatus.Revoked);
+        if (Status == UserStatus.Inactive)
+            return new UserSession(UserSessionStatus.Inactive, RevocationReason: Enums.SessionRevocationReason.Deactivated);
+        if (tokenVersion != TokenVersion)
+            return new UserSession(UserSessionStatus.Revoked, RevocationReason: SessionRevocationReason);
         return new UserSession(UserSessionStatus.Valid, Role.Value, HotelId, ChainId);
     }
 
@@ -392,14 +405,14 @@ public class User : IHasDomainEvents
         MfaSecretProtected = null;
         MfaPendingSecretProtected = null;
         MfaLastUsedTimeStep = null;
-        StartNewSession();
+        StartNewSession(Enums.SessionRevocationReason.MfaReset);
         _domainEvents.Add(new MfaResetEvent(Id, Email.Value, HotelId, resetByUserId, now));
     }
 
     /// <summary>Closes every session on every device: all access and refresh tokens stop working.</summary>
     public void SignOutEverywhere(DateTimeOffset now)
     {
-        StartNewSession();
+        StartNewSession(Enums.SessionRevocationReason.SignedOutEverywhere);
         _domainEvents.Add(new UserSignedOutEverywhereEvent(Id, Email.Value, HotelId, now));
     }
 
@@ -447,7 +460,7 @@ public class User : IHasDomainEvents
         FailedSignInAttempts = 0;
         LockedUntil = null;
         VerifyEmail(now);
-        StartNewSession();
+        StartNewSession(Enums.SessionRevocationReason.PasswordReset);
         _domainEvents.Add(new UserPasswordResetEvent(Id, Email.Value, HotelId, now));
     }
 
@@ -455,13 +468,15 @@ public class User : IHasDomainEvents
     public void ChangePassword(string newPasswordHash, DateTimeOffset now)
     {
         UpdatePasswordHash(newPasswordHash);
-        StartNewSession();
+        StartNewSession(Enums.SessionRevocationReason.PasswordChanged);
         _domainEvents.Add(new UserPasswordChangedEvent(Id, Email.Value, HotelId, now));
     }
 
-    private User StartNewSession()
+    /// <summary>Starts a new session generation: every access and refresh token issued before stops working.</summary>
+    private User StartNewSession(SessionRevocationReason reason)
     {
         TokenVersion++;
+        SessionRevocationReason = reason;
         UpdatedAt = DateTime.UtcNow;
         return this;
     }

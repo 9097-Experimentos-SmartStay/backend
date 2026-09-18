@@ -16,6 +16,10 @@ namespace BackendAwSmartstay.API.Audit.Domain.Model.ValueObjects;
 /// <param name="NewRole">Role after a role change.</param>
 /// <param name="LockedUntil">End of a temporary lock (UTC).</param>
 /// <param name="RemainingRecoveryCodes">Recovery codes left after one was used.</param>
+/// <param name="PreviousHotelId">Hotel before an assignment change.</param>
+/// <param name="NewHotelId">Hotel after an assignment change.</param>
+/// <param name="PreviousChainId">Chain before an assignment change.</param>
+/// <param name="NewChainId">Chain after an assignment change.</param>
 public sealed record AuditDetails(
     string? Reason = null,
     string? Method = null,
@@ -23,7 +27,11 @@ public sealed record AuditDetails(
     string? PreviousRole = null,
     string? NewRole = null,
     DateTimeOffset? LockedUntil = null,
-    int? RemainingRecoveryCodes = null)
+    int? RemainingRecoveryCodes = null,
+    int? PreviousHotelId = null,
+    int? NewHotelId = null,
+    int? PreviousChainId = null,
+    int? NewChainId = null)
 {
     public static AuditDetails FailureReason(string reason) => new(Reason: reason);
 
@@ -38,4 +46,7 @@ public sealed record AuditDetails(
 
     public static AuditDetails RoleChange(string previousRole, string newRole) =>
         new(PreviousRole: previousRole, NewRole: newRole);
+
+    public static AuditDetails AssignmentChange(int? previousHotelId, int? newHotelId, int? previousChainId, int? newChainId) =>
+        new(PreviousHotelId: previousHotelId, NewHotelId: newHotelId, PreviousChainId: previousChainId, NewChainId: newChainId);
 }

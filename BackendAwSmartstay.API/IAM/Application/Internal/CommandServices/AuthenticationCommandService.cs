@@ -121,9 +121,14 @@ public class AuthenticationCommandService(
         if (!presented.IsActive(now)) throw new InvalidRefreshTokenException();
 
         var user = await userRepository.FindByIdAsync(presented.UserId);
+        if (user is null || user.Status == UserStatus.Inactive || !presented.BelongsToCurrentSessionOf(user))
+        {
+            // The sessions ended (role or hotel change, password, deactivation...): say why, like a revoked token.
+            await RevokeAsync([presented], RefreshTokenRevocationReason.SessionRevoked, now);
+            throw new SessionRevokedException(user?.GetSession(presented.TokenVersion).RevocationReason);
+        }
         // A staff account without a second factor (e.g. after an MFA reset) must sign in again and enroll (US-52).
-        if (user is null || user.Status == UserStatus.Inactive || !presented.BelongsToCurrentSessionOf(user)
-            || user.RequiresMfaEnrollment)
+        if (user.RequiresMfaEnrollment)
         {
             await RevokeAsync([presented], RefreshTokenRevocationReason.SessionRevoked, now);
             throw new InvalidRefreshTokenException();

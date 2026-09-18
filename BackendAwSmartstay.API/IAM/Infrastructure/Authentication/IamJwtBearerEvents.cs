@@ -18,8 +18,9 @@ namespace BackendAwSmartstay.API.IAM.Infrastructure.Authentication;
 ///     JWT bearer events of the IAM context:
 ///     <list type="bullet">
 ///         <item>after the signature/lifetime checks, asks the IAM application layer whether the session is still
-///         valid (active user, current token version: a password change or a deactivation revokes tokens) and
-///         refreshes the role/scope claims from the User aggregate;</item>
+///         valid (active user, current token version). The token's claims are never rewritten: a change of role or
+///         hotel, a password change or reset, a deactivation, a sign-out everywhere or an MFA reset starts a new
+///         session generation, and older tokens get 401 <c>auth.session_revoked</c> with the reason;</item>
 ///         <item>writes 401/403 responses as RFC 7807 ProblemDetails through the native problem details service,
 ///         with the stable code of the rejection (<see cref="BearerRejection"/>).</item>
 ///     </list>
@@ -42,44 +43,25 @@ public class IamJwtBearerEvents(
             return;
         }
 
+        // The claims of the token (role, hotel, chain) are its permissions and are never rewritten here: any change
+        // of them ends the user's sessions, so only the session generation and the account status are checked.
         var session = await userQueryService.Handle(new GetUserSessionQuery(userId.Value, tokenVersion.Value));
         switch (session.Status)
         {
             case UserSessionStatus.Valid:
-                RefreshAuthorizationClaims((ClaimsIdentity)principal.Identity!, session);
                 return;
             case UserSessionStatus.Inactive:
                 logger.LogInformation("Rejected token of inactive user {UserId}.", userId);
-                context.Fail(new BearerTokenRejectedException(BearerRejection.Deactivated));
-                return;
+                break;
             case UserSessionStatus.UserNotFound:
                 logger.LogWarning("Rejected token of unknown user {UserId}.", userId);
-                context.Fail(new BearerTokenRejectedException(BearerRejection.Revoked));
-                return;
+                break;
             default:
-                logger.LogInformation("Rejected revoked token (version {TokenVersion}) of user {UserId}.", tokenVersion, userId);
-                context.Fail(new BearerTokenRejectedException(BearerRejection.Revoked));
-                return;
+                logger.LogInformation("Rejected revoked token (version {TokenVersion}, {Reason}) of user {UserId}.",
+                    tokenVersion, session.RevocationReason, userId);
+                break;
         }
-    }
-
-    /// <summary>
-    ///     Role and scope are read from the User aggregate on every request, so an administrator's change
-    ///     (role, hotel, chain) applies immediately even to tokens issued before it.
-    /// </summary>
-    private static void RefreshAuthorizationClaims(ClaimsIdentity identity, UserSession session)
-    {
-        Replace(identity, IamClaimTypes.Role, session.Role);
-        Replace(identity, IamClaimTypes.HotelId, session.HotelId?.ToString(CultureInfo.InvariantCulture));
-        Replace(identity, IamClaimTypes.ChainId, session.ChainId?.ToString(CultureInfo.InvariantCulture));
-    }
-
-    private static void Replace(ClaimsIdentity identity, string claimType, string? value)
-    {
-        foreach (var claim in identity.FindAll(claimType).ToList())
-            identity.RemoveClaim(claim);
-        if (!string.IsNullOrEmpty(value))
-            identity.AddClaim(new Claim(claimType, value));
+        context.Fail(new BearerTokenRejectedException(BearerRejection.SessionRevoked(session.RevocationReason)));
     }
 
     public override async Task Challenge(JwtBearerChallengeContext context)
@@ -113,7 +95,7 @@ public class IamJwtBearerEvents(
 
     private async Task WriteProblemAsync(HttpContext httpContext, int status, string title, BearerRejection rejection)
     {
-        await problemDetailsService.WriteAsync(new ProblemDetailsContext
+        var problem = new ProblemDetailsContext
         {
             HttpContext = httpContext,
             ProblemDetails = new ProblemDetails
@@ -123,6 +105,8 @@ public class IamJwtBearerEvents(
                 Detail = rejection.Detail,
                 Extensions = { [ProblemCodes.CodeExtension] = rejection.Code }
             }
-        });
+        };
+        if (rejection.Reason is not null) problem.ProblemDetails.Extensions["reason"] = rejection.Reason;
+        await problemDetailsService.WriteAsync(problem);
     }
 }

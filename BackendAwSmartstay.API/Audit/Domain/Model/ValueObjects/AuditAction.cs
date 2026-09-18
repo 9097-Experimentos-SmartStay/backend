@@ -18,7 +18,8 @@ public enum AuditAction
     MfaFailed,
     MfaRecoveryCodeUsed,
     MfaReset,
-    SignedOutEverywhere
+    SignedOutEverywhere,
+    AssignmentChanged
 }
 
 /// <summary>Whether the recorded action succeeded.</summary>

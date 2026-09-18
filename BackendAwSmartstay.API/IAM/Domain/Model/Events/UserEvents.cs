@@ -50,8 +50,16 @@ public sealed record UserPasswordChangedEvent(int UserId, string Email, int? Hot
 public sealed record UserCreatedEvent(int UserId, string Email, int? HotelId, string Role, int? CreatedByUserId, DateTimeOffset OccurredOn)
     : DomainEvent(OccurredOn);
 
-/// <summary>An administrator changed the role of a user (effective on the user's next request).</summary>
+/// <summary>An administrator changed the role of a user: every session of the user ended (US-03 scenario 2).</summary>
 public sealed record UserRoleChangedEvent(int UserId, string Email, int? HotelId, string PreviousRole, string NewRole, int? ChangedByUserId, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);
+
+/// <summary>
+///     The hotel or chain of a user changed (an administrator reassigned them, or a hotel administrator registered
+///     their hotel): every session of the user ended.
+/// </summary>
+public sealed record UserAssignmentChangedEvent(int UserId, string Email, int? PreviousHotelId, int? HotelId,
+    int? PreviousChainId, int? ChainId, int? ChangedByUserId, DateTimeOffset OccurredOn)
     : DomainEvent(OccurredOn);
 
 /// <summary>An administrator deactivated a user: they lose access, their history is kept.</summary>

@@ -64,14 +64,14 @@ public class UsersController(
             UserResourceFromEntityAssembler.ToResourceFromEntity(user));
     }
 
-    /// <summary>The signed-in user, fresh from the account (any role).</summary>
+    /// <summary>Profile of the signed-in user (like OpenID Connect <c>userinfo</c>), read from the account.</summary>
     /// <remarks>
-    ///     US-03 scenario 2: the role, hotel and chain are read from the account on every call, so a change made by an
-    ///     administrator is visible right away. Clients refresh their session with it on start-up, when the window
-    ///     regains focus and periodically. A deactivated account or a revoked token gets 401 like any other endpoint.
+    ///     For profile screens that need fresh account data (names, e-mail, verification, MFA). It is not a way to sync
+    ///     permissions: a change of role or hotel ends the user's sessions (401 <c>auth.session_revoked</c>) and the
+    ///     new permissions come with the next sign-in. Any role.
     /// </remarks>
     [HttpGet("me")]
-    [SwaggerOperation(Summary = "Get the signed-in user", OperationId = "GetCurrentUser")]
+    [SwaggerOperation(Summary = "Get the profile of the signed-in user", Description = "OIDC userinfo-like profile of the account of the access token: id, email, names, role, hotelId, chainId, emailVerified, mfaEnabled.", OperationId = "GetCurrentUser")]
     [ProducesResponseType(typeof(CurrentUserResource), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetCurrentUser()
@@ -153,6 +153,11 @@ public class UsersController(
     /// <summary>
     ///     Updates an existing user's attributes. All resource fields are optional.
     /// </summary>
+    /// <remarks>
+    ///     A new hotel or chain ends every session of the user (401 <c>auth.session_revoked</c>,
+    ///     <c>reason: "assignment_changed"</c>), sends them the "Tus permisos cambiaron" e-mail and is audited as
+    ///     <c>AssignmentChanged</c>.
+    /// </remarks>
     [HttpPut("{id}")]
     [Authorize(Policy = Policies.ManageUsers)]
     [SwaggerOperation(Summary = "Update an existing user", Description = "Updates user attributes if the actor has scope access and hierarchical superiority.", OperationId = "UpdateUser")]
@@ -174,9 +179,15 @@ public class UsersController(
     /// <summary>
     ///     Assigns a new role to an existing user.
     /// </summary>
+    /// <remarks>
+    ///     US-03 scenario 2: a new role ends every session of the user at once (all access and refresh tokens). Their
+    ///     next request gets 401 <c>auth.session_revoked</c> with <c>reason: "role_changed"</c>, they receive the
+    ///     e-mail "Tus permisos cambiaron, inicia sesión nuevamente" and sign in again with the new permissions.
+    ///     Audited as <c>RoleChanged</c>.
+    /// </remarks>
     [HttpPost("{id}/assign-role")]
     [Authorize(Policy = Policies.ManageUsers)]
-    [SwaggerOperation(Summary = "Assign a new role to a user", Description = "Changes a user's role if the actor has scope access and is allowed to assign the target role.", OperationId = "AssignRole")]
+    [SwaggerOperation(Summary = "Assign a new role to a user", Description = "Changes a user's role if the actor has scope access and is allowed to assign the target role. The user's sessions end immediately (401 auth.session_revoked, reason role_changed) and they are asked by e-mail to sign in again.", OperationId = "AssignRole")]
     [SwaggerResponse(StatusCodes.Status200OK, "Role assigned successfully")]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid request payload or unexpected error")]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]

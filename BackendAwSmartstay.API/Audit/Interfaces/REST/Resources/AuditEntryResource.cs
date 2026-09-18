@@ -8,7 +8,7 @@ namespace BackendAwSmartstay.API.Audit.Interfaces.REST.Resources;
 /// <param name="Action">
 ///     Stable action code: SignInSucceeded, SignInFailed, AccountLocked, SignedOut, PasswordReset, PasswordChanged,
 ///     UserCreated, RoleChanged, UserDeactivated, UserActivated, MfaEnabled, MfaVerified, MfaFailed,
-///     MfaRecoveryCodeUsed, MfaReset or SignedOutEverywhere.
+///     MfaRecoveryCodeUsed, MfaReset, SignedOutEverywhere or AssignmentChanged.
 /// </param>
 /// <param name="Outcome">Success or Failure.</param>
 /// <param name="ActorUserId">Who acted (null for an attempt with an unknown e-mail).</param>
@@ -39,6 +39,10 @@ public record AuditEntryResource(
 /// <param name="NewRole">Role after a role change.</param>
 /// <param name="LockedUntil">End of a temporary lock (UTC).</param>
 /// <param name="RemainingRecoveryCodes">Recovery codes left.</param>
+/// <param name="PreviousHotelId">Hotel before an assignment change.</param>
+/// <param name="NewHotelId">Hotel after an assignment change.</param>
+/// <param name="PreviousChainId">Chain before an assignment change.</param>
+/// <param name="NewChainId">Chain after an assignment change.</param>
 public record AuditDetailsResource(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Reason,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Method,
@@ -46,7 +50,11 @@ public record AuditDetailsResource(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PreviousRole,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? NewRole,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? LockedUntil,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RemainingRecoveryCodes);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RemainingRecoveryCodes,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? PreviousHotelId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? NewHotelId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? PreviousChainId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? NewChainId);
 
 /// <summary>A page of results.</summary>
 /// <param name="Items">The items of this page.</param>

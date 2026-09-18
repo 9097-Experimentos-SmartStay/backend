@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using System.Globalization;
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
 using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
@@ -48,6 +49,26 @@ public class AccountEmailNotificationService(
             .Paragraph("Si no hiciste este cambio, restablece tu contraseña de inmediato y contacta al administrador.")
             .Action("Iniciar sesión", urls.Value.WebLink("login"))
             .To(user.Email.Value, "Tu contraseña de SmartStay se actualizó"));
+
+    public Task SendPermissionsChangedAsync(User user) =>
+        emailSender.SendAsync(EmailLayout.Create()
+            .Greeting(Greeting(user))
+            .Paragraph($"Un administrador actualizó tus permisos en SmartStay. Tu rol ahora es: {RoleLabel(user.Role.Value)}.")
+            .Paragraph("Por seguridad cerramos tus sesiones abiertas. Inicia sesión nuevamente para seguir trabajando con tus nuevos permisos.")
+            .Action("Iniciar sesión", urls.Value.WebLink("login"))
+            .Footnote("Si crees que se trata de un error, contacta al administrador de tu hotel.")
+            .To(user.Email.Value, "Tus permisos cambiaron, inicia sesión nuevamente"));
+
+    private static string RoleLabel(string role) => role switch
+    {
+        UserRoles.Guest => "huésped",
+        UserRoles.Reception => "recepción",
+        UserRoles.Housekeeping => "limpieza",
+        UserRoles.Maintenance => "mantenimiento",
+        UserRoles.Admin => "administrador del hotel",
+        UserRoles.ChainAdmin => "administrador de la cadena",
+        _ => role
+    };
 
     private static string Greeting(User user) =>
         string.IsNullOrWhiteSpace(user.FirstName) ? "Hola:" : $"Hola, {user.FirstName}:";

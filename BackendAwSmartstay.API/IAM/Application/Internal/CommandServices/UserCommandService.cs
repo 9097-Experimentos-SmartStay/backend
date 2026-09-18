@@ -122,25 +122,22 @@ public class UserCommandService(
             target.UpdatePasswordHash(hashed);
         }
 
-        if (command.NewHotelId.HasValue)
-        {
-            if (!userScopeService.CanAccessHotel(actor, command.NewHotelId))
-                throw new UnauthorizedOperationException(IamErrorCodes.HotelOutOfScope,
-                    $"User {actor.Id} cannot assign hotel {command.NewHotelId}.");
+        if (command.NewHotelId.HasValue && !userScopeService.CanAccessHotel(actor, command.NewHotelId))
+            throw new UnauthorizedOperationException(IamErrorCodes.HotelOutOfScope,
+                $"User {actor.Id} cannot assign hotel {command.NewHotelId}.");
 
-            target.UpdateHotelId(command.NewHotelId);
-        }
+        if (command.NewChainId.HasValue && !roleAuthorizationService.CanAssignChainId(actor, command.NewChainId))
+            throw new UnauthorizedOperationException(IamErrorCodes.ChainOutOfScope,
+                $"User {actor.Id} cannot assign chain {command.NewChainId}.");
 
-        if (command.NewChainId.HasValue)
-        {
-            if (!roleAuthorizationService.CanAssignChainId(actor, command.NewChainId))
-                throw new UnauthorizedOperationException(IamErrorCodes.ChainOutOfScope,
-                    $"User {actor.Id} cannot assign chain {command.NewChainId}.");
+        // A new hotel or chain ends the user's sessions: their tokens carry the old scope.
+        var assignmentChanged = target.ChangeAssignment(command.NewHotelId ?? target.HotelId,
+            command.NewChainId ?? target.ChainId, actor.Id, timeProvider.GetUtcNow());
 
-            target.UpdateChainId(command.NewChainId);
-        }
-
-        await unitOfWork.CompleteAsync();
+        if (assignmentChanged)
+            await EndSessionsAsync(target, notifyUser: true);
+        else
+            await unitOfWork.CompleteAsync();
     }
 
     /// <summary>
@@ -168,8 +165,14 @@ public class UserCommandService(
             await EnsureAtLeastOneChainAdminRemainsAsync();
         }
 
+        var previousRole = target.Role;
         target.AssignRole(command.NewRole, actor.Id, timeProvider.GetUtcNow());
-        await unitOfWork.CompleteAsync();
+
+        // US-03 scenario 2: the new role ends every session of the user (they sign in again with it).
+        if (target.Role != previousRole)
+            await EndSessionsAsync(target, notifyUser: true);
+        else
+            await unitOfWork.CompleteAsync();
     }
 
     /// <summary>
@@ -222,8 +225,30 @@ public class UserCommandService(
     public async Task Handle(AssignHotelToAdministratorCommand command)
     {
         var user = await ResolveTargetAsync(command.UserId);
-        user.TakeChargeOfHotel(command.HotelId);
+        var previousHotel = user.HotelId;
+        user.TakeChargeOfHotel(command.HotelId, timeProvider.GetUtcNow());
+
+        // The admin's token has no hotel yet: their sessions end and they sign in again to manage it.
+        if (user.HotelId != previousHotel)
+            await EndSessionsAsync(user, notifyUser: false);
+        else
+            await unitOfWork.CompleteAsync();
+    }
+
+    /// <summary>
+    ///     Commits a change that started a new session generation of <paramref name="user"/>: the remembered
+    ///     sessions are revoked with it (access tokens already fail the version check) and, when an administrator
+    ///     made the change, the user is told by e-mail to sign in again.
+    /// </summary>
+    private async Task EndSessionsAsync(User user, bool notifyUser)
+    {
+        var now = timeProvider.GetUtcNow();
+        foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))
+            session.Revoke(RefreshTokenRevocationReason.SessionRevoked, now);
         await unitOfWork.CompleteAsync();
+
+        if (notifyUser)
+            await notifications.SendPermissionsChangedAsync(user);
     }
 
     // ═══════════════════════════════════════════════════════════

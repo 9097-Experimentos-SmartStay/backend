@@ -17,7 +17,7 @@ public static class IamErrorCodes
     public const string TokenMissing = "auth.token_missing";
     public const string TokenInvalid = "auth.token_invalid";
     public const string TokenExpired = "auth.token_expired";
-    public const string TokenRevoked = "auth.token_revoked";
+    public const string SessionRevoked = "auth.session_revoked";
     public const string Forbidden = "auth.forbidden";
 
     // E-mail links

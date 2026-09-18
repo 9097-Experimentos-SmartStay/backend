@@ -30,6 +30,7 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddScoped<IDomainEventHandler<UserPasswordChangedEvent>>(sp => sp.GetRequiredService<IamAccessAuditHandler>());
         builder.Services.AddScoped<IDomainEventHandler<UserCreatedEvent>>(sp => sp.GetRequiredService<IamAccessAuditHandler>());
         builder.Services.AddScoped<IDomainEventHandler<UserRoleChangedEvent>>(sp => sp.GetRequiredService<IamAccessAuditHandler>());
+        builder.Services.AddScoped<IDomainEventHandler<UserAssignmentChangedEvent>>(sp => sp.GetRequiredService<IamAccessAuditHandler>());
         builder.Services.AddScoped<IDomainEventHandler<UserDeactivatedEvent>>(sp => sp.GetRequiredService<IamAccessAuditHandler>());
         builder.Services.AddScoped<IDomainEventHandler<UserActivatedEvent>>(sp => sp.GetRequiredService<IamAccessAuditHandler>());
         builder.Services.AddScoped<IDomainEventHandler<MfaEnabledEvent>>(sp => sp.GetRequiredService<IamAccessAuditHandler>());

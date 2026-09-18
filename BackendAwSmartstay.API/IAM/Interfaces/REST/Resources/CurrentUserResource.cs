@@ -1,8 +1,8 @@
 namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 
 /// <summary>
-///     The signed-in user as the account is now (<c>GET /users/me</c>): clients refresh their session with it so a
-///     role, hotel or chain changed by an administrator shows up immediately (US-03 scenario 2).
+///     Profile of the signed-in user (<c>GET /users/me</c>, like OpenID Connect <c>userinfo</c>), read from the
+///     account. Permissions are not synced through it: a role or hotel change ends the user's sessions.
 /// </summary>
 /// <param name="Id">The user's unique identifier.</param>
 /// <param name="Email">The account e-mail (login identifier).</param>

@@ -50,6 +50,12 @@ public static class ModelBuilderExtensions
             .IsRequired()
             .HasDefaultValue(0);
 
+        // Why the current session generation started: told to the tokens it revoked (auth.session_revoked).
+        builder.Entity<User>().Property(u => u.SessionRevocationReason)
+            .HasConversion<string>()
+            .HasMaxLength(40)
+            .IsRequired(false);
+
         builder.Entity<User>().Property(u => u.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired()
