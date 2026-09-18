@@ -379,10 +379,13 @@ public class User : IHasDomainEvents
 
     /// <summary>
     ///     US-52 scenario 4: an administrator removes the second factor (lost phone). Every session ends and the
-    ///     user must enroll a new authenticator at the next sign-in.
+    ///     user must enroll a new authenticator at the next sign-in. Like a password reset, the administrator's
+    ///     intervention also lifts a temporary lock (a user who lost the phone has usually locked the account).
     /// </summary>
     public void ResetMfa(int? resetByUserId, DateTimeOffset now)
     {
+        FailedSignInAttempts = 0;
+        LockedUntil = null;
         MfaEnabled = false;
         MfaEnabledAt = null;
         MfaSecretProtected = null;
