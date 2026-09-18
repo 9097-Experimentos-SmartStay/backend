@@ -48,6 +48,8 @@ public interface IUserCommandService
 
     /// <summary>
     ///     Handle assign hotel to administrator command (D2: the hotel an admin registers becomes their hotel).
+    ///     The change was asked by the administrator: every previous session ends and a new one is returned.
     /// </summary>
-    Task Handle(AssignHotelToAdministratorCommand command);
+    /// <returns>The new session with the hotel, or null when the administrator already had that hotel.</returns>
+    Task<AuthenticationResult?> Handle(AssignHotelToAdministratorCommand command);
 }

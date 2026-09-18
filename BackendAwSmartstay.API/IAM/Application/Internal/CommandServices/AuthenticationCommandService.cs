@@ -150,7 +150,7 @@ public class AuthenticationCommandService(
         await refreshTokenRepository.AddAsync(successor);
         await unitOfWork.CompleteAsync();
 
-        var accessToken = tokenService.GenerateToken(user);
+        var accessToken = tokenService.GenerateToken(user, successor.FamilyId);
         return new AuthenticationResult(user, accessToken.Value, accessToken.ExpiresAt,
             new IssuedRefreshToken(successorToken.Value, successor.ExpiresAt));
     }

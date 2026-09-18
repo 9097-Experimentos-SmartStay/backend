@@ -29,8 +29,8 @@ public class HotelCommandService(
     /// Handles the creation of a new hotel.
     /// </summary>
     /// <param name="command">The command containing the hotel creation data.</param>
-    /// <returns>The created hotel or null if creation failed.</returns>
-    public async Task<Hotel?> Handle(CreateHotelCommand command)
+    /// <returns>The created hotel and the new session of a hotel administrator who registered their own hotel.</returns>
+    public async Task<HotelRegistration> Handle(CreateHotelCommand command)
     {
         var registrant = command.Registrant;
         var alreadyHostsAHotel = !registrant.ManagesChain
@@ -39,16 +39,19 @@ public class HotelCommandService(
         EnsureImageIsFromTheMediaLibrary(command.ImageUrl);
 
         var hotel = new Hotel(hostId, command);
+        ReissuedSession? registrantSession = null;
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             await hotelRepository.AddAsync(hotel);
             await unitOfWork.CompleteAsync();
 
-            // D2: the hotel a hotel administrator registers is the one they administer (IAM owns that scope).
+            // D2: the hotel a hotel administrator registers is the one they administer (IAM owns that scope). Their
+            // tokens without the hotel are revoked and IAM issues new ones with it, in this same transaction.
             if (HotelRegistrationPolicy.AssignsHotelToRegistrant(registrant))
-                await iamContextFacade.AssignHotelToAdministratorAsync(registrant.UserId, hotel.Id);
+                registrantSession = await iamContextFacade.AssignHotelToAdministratorAsync(
+                    registrant.UserId, hotel.Id, command.RegistrantSession);
         });
-        return hotel;
+        return new HotelRegistration(hotel, registrantSession);
     }
 
     /// <summary>

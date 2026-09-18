@@ -60,6 +60,12 @@ public class IamContextFacade(
         return result?.Email.Value ?? string.Empty;
     }
 
-    public Task AssignHotelToAdministratorAsync(int userId, int hotelId) =>
-        userCommandService.Handle(new AssignHotelToAdministratorCommand(userId, hotelId));
+    public async Task<ReissuedSession?> AssignHotelToAdministratorAsync(int userId, int hotelId, SessionContext currentSession)
+    {
+        var session = await userCommandService.Handle(
+            new AssignHotelToAdministratorCommand(userId, hotelId, currentSession.RememberedSessionId));
+        return session is { AccessToken: { } token, AccessTokenExpiresAt: { } expiresAt }
+            ? new ReissuedSession(token, expiresAt, session.RefreshToken?.Value, session.RefreshToken?.ExpiresAt)
+            : null;
+    }
 }

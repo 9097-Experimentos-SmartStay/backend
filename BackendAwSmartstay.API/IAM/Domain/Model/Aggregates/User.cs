@@ -226,7 +226,7 @@ public class User : IHasDomainEvents
     /// <summary>
     ///     D2: a hotel administrator administers a single hotel. Taking charge of the hotel they registered is
     ///     only possible while they have none (or it is the same hotel). The new hotel ends the admin's sessions
-    ///     (their token has no hotel): they sign in again to manage it.
+    ///     (their token has no hotel); since they asked for it, the application issues them a new session at once.
     /// </summary>
     public User TakeChargeOfHotel(int hotelId, DateTimeOffset? now = null)
     {

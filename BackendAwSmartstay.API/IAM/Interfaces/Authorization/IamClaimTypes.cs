@@ -40,6 +40,13 @@ public static class IamClaimTypes
     public const string TokenVersion = "token_version";
 
     /// <summary>
+    ///     Remembered session the access token belongs to (JWT <c>sid</c>, the refresh token family), only present
+    ///     when the user signed in with "remember me". Lets the API renew that session when it issues new
+    ///     credentials on the user's behalf (e.g. after they register their hotel).
+    /// </summary>
+    public const string SessionId = JwtRegisteredClaimNames.Sid;
+
+    /// <summary>
     ///     Only in second-factor challenge tokens (<c>mfa_challenge</c>): <c>enrollment</c> or <c>verification</c>.
     /// </summary>
     public const string MfaChallenge = "mfa_challenge";

@@ -25,6 +25,7 @@ public class UserCommandService(
     IRoleAuthorizationService roleAuthorizationService,
     IUserScopeService userScopeService,
     NewPasswordValidator newPasswordValidator,
+    SessionIssuer sessionIssuer,
     IUnitOfWork unitOfWork) : IUserCommandService
 {
     /// <summary>
@@ -222,17 +223,28 @@ public class UserCommandService(
     /// <summary>
     ///     D2: the hotel registered by a hotel administrator becomes the hotel they administer.
     /// </summary>
-    public async Task Handle(AssignHotelToAdministratorCommand command)
+    public async Task<AuthenticationResult?> Handle(AssignHotelToAdministratorCommand command)
     {
         var user = await ResolveTargetAsync(command.UserId);
+        var now = timeProvider.GetUtcNow();
         var previousHotel = user.HotelId;
-        user.TakeChargeOfHotel(command.HotelId, timeProvider.GetUtcNow());
+        // Read before the sessions end: was the session that registered the hotel a remembered one of this user?
+        var remembered = command.RememberedSessionId is { } sessionId
+                         && (await refreshTokenRepository.ListUnrevokedByFamilyAsync(sessionId))
+                         .Any(token => token.UserId == user.Id && token.IsActive(now));
 
-        // The admin's token has no hotel yet: their sessions end and they sign in again to manage it.
-        if (user.HotelId != previousHotel)
-            await EndSessionsAsync(user, notifyUser: false);
-        else
+        user.TakeChargeOfHotel(command.HotelId, now);
+        if (user.HotelId == previousHotel)
+        {
             await unitOfWork.CompleteAsync();
+            return null;
+        }
+
+        // OWASP, privilege change: the tokens without the hotel stop working (new session generation)...
+        await EndSessionsAsync(user, notifyUser: false);
+        // ...and, since the administrator asked for the change, new credentials with the hotel are issued at once
+        // (no second sign-in and MFA just to pick up their own change).
+        return await sessionIssuer.ReissueSessionAsync(user, remembered, now);
     }
 
     /// <summary>

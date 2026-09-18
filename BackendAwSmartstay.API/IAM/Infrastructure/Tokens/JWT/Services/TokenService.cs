@@ -18,7 +18,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
 {
     private readonly TokenSettings _tokenSettings = tokenSettings.Value;
 
-    public IssuedAccessToken GenerateToken(User user)
+    public IssuedAccessToken GenerateToken(User user, Guid? rememberedSessionId = null)
     {
         var claims = new List<Claim>
         {
@@ -34,6 +34,8 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
             claims.Add(new Claim(IamClaimTypes.HotelId, hotelId.ToString(CultureInfo.InvariantCulture)));
         if (user.ChainId is { } chainId)
             claims.Add(new Claim(IamClaimTypes.ChainId, chainId.ToString(CultureInfo.InvariantCulture)));
+        if (rememberedSessionId is { } sessionId)
+            claims.Add(new Claim(IamClaimTypes.SessionId, sessionId.ToString("N")));
 
         var (value, expiresAt) = Sign(claims, _tokenSettings.Audience, _tokenSettings.AccessTokenExpirationMinutes);
         return new IssuedAccessToken(value, expiresAt);

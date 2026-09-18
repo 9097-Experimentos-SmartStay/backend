@@ -78,9 +78,9 @@ public class HotelsController(
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Create a new hotel property entry",
-        Description = "Constructs a new hotel aggregate root. Restricted exclusively to administrative and corporate management roles. When a hotel administrator registers their (single) hotel it becomes their hotelId and their sessions end (401 auth.session_revoked, reason assignment_changed): they sign in again to manage it.",
+        Description = "Registers a hotel (US-53). Admin: only their first hotel, which becomes their hotelId; their previous access and refresh tokens are revoked (401 auth.session_revoked, reason assignment_changed) and the response carries their NEW session (token with hotel_id, plus a refresh token when the current session was remembered): use it right away. Chain admin: any number of hotels, session null. The image must be uploaded with POST /media/hotel-images/signature when uploads are configured.",
         OperationId = "CreateHotel")]
-    [SwaggerResponse(StatusCodes.Status201Created, "The hotel aggregate root was successfully created and tracked.", typeof(HotelResource))]
+    [SwaggerResponse(StatusCodes.Status201Created, "The hotel was registered: { hotel, session }.", typeof(HotelRegistrationResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource structure contains invalid constraints.")]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Access denied. Only Admin or ChainAdmin operators are cleared to execute infrastructure initialization.")]
@@ -88,13 +88,17 @@ public class HotelsController(
     public async Task<IActionResult> CreateHotel([FromBody] CreateHotelResource resource)
     {
         var registrant = new HotelRegistrant(User.GetUserId(), User.IsChainAdmin(), User.GetHotelId());
-        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, registrant);
-        var hotel = await hotelCommandService.Handle(command);
-        
-        if (hotel is null) return BadRequest();
-        
-        var hotelResource = HotelResourceFromEntityAssembler.ToResourceFromEntity(hotel);
-        return CreatedAtAction(nameof(GetHotelById), new { hotelId = hotel.Id }, hotelResource);
+        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, registrant, User.GetSessionContext());
+        var registration = await hotelCommandService.Handle(command);
+
+        var session = registration.RegistrantSession;
+        return CreatedAtAction(nameof(GetHotelById), new { hotelId = registration.Hotel.Id },
+            new HotelRegistrationResource(
+                HotelResourceFromEntityAssembler.ToResourceFromEntity(registration.Hotel),
+                session is null
+                    ? null
+                    : new RenewedSessionResource(session.AccessToken, "Bearer", session.AccessTokenExpiresAt,
+                        session.RefreshToken, session.RefreshTokenExpiresAt)));
     }
     
     /// <summary>

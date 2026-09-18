@@ -24,7 +24,9 @@ public sealed record IssuedMfaChallengeToken(MfaChallengeKind Kind, string Value
 public interface ITokenService
 {
     /// <summary>Generates a short-lived signed access token for the user.</summary>
-    IssuedAccessToken GenerateToken(User user);
+    /// <param name="user">The user (claims: id, e-mail, role, hotel, chain, session generation).</param>
+    /// <param name="rememberedSessionId">The remembered session (refresh token family) it belongs to, if any.</param>
+    IssuedAccessToken GenerateToken(User user, Guid? rememberedSessionId = null);
 
     /// <summary>
     ///     Generates the limited token returned after a correct password when a second factor is pending. It is not
