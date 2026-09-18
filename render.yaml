@@ -16,8 +16,9 @@ services:
       # --- Runtime ---
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
-        value: "true"
+      # IP real del cliente: X-Forwarded-For configurado en código (Cloudflare + rangos privados de Render como
+      # proxies de confianza). NO uses ASPNETCORE_FORWARDEDHEADERS_ENABLED: solo desenvuelve un salto y devuelve la
+      # IP interna del balanceador. Override opcional: ForwardedHeaders__TrustedNetworks__0, __1...
 
       # --- Base de datos (Aiven MySQL, TLS verificado con /etc/secrets/ca.pem) ---
       - key: ConnectionStrings__DefaultConnection

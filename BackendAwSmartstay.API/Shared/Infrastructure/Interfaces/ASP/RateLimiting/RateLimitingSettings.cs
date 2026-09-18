@@ -4,8 +4,8 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiti
 
 /// <summary>
 ///     Limits of the anonymous endpoints, per client IP (section <c>RateLimiting</c>, env vars
-///     <c>RateLimiting__*</c>). Behind a reverse proxy (Render) set <c>ASPNETCORE_FORWARDEDHEADERS_ENABLED=true</c>
-///     so the client IP comes from <c>X-Forwarded-For</c>.
+///     <c>RateLimiting__*</c>). The client IP is the one resolved from <c>X-Forwarded-For</c> by the forwarded headers
+///     middleware (<c>ReverseProxy.ForwardedHeadersExtensions</c>), which runs first.
 /// </summary>
 public class RateLimitingSettings
 {
