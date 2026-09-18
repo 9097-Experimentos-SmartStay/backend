@@ -18,6 +18,6 @@ public record ChangeRoomStatusResource : IValidatableObject
         if (!string.IsNullOrWhiteSpace(Status)
             && (!Enum.TryParse<RoomStatus>(Status, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed) || int.TryParse(Status, out _)))
             yield return new ValidationResult(
-                $"Status must be one of: {string.Join(", ", Enum.GetNames<RoomStatus>())}.", [nameof(Status)]);
+                $"Status must be one of: {string.Join(", ", Enum.GetNames<RoomStatus>())}.", ["status"]);
     }
 }

@@ -40,6 +40,6 @@ public record SignInResource : IValidatableObject
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (string.IsNullOrWhiteSpace(LoginEmail))
-            yield return new ValidationResult("The Email field is required.", [nameof(Email)]);
+            yield return new ValidationResult("The Email field is required.", ["email"]);
     }
 }

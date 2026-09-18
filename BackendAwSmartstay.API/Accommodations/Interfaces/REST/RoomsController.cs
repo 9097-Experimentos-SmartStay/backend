@@ -69,7 +69,7 @@ public class RoomsController(
         var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(resource.HotelId));
         if (hotel is null)
         {
-            ModelState.AddModelError(nameof(resource.HotelId), $"Hotel {resource.HotelId} does not exist.");
+            ModelState.AddModelError("hotelId", $"Hotel {resource.HotelId} does not exist.");
             return ValidationProblem(ModelState);
         }
         if (!await CanManageAsync(hotel)) return Forbid();

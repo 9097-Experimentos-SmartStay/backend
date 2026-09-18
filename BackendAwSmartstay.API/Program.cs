@@ -14,13 +14,17 @@ using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configurati
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 using BackendAwSmartstay.API.Controllers.Authorization;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers(options =>
-    options.Conventions.Add(new KebabCaseRouteNamingConvention())
-);
+{
+    options.Conventions.Add(new KebabCaseRouteNamingConvention());
+    // Validation errors are keyed by the JSON (camelCase) property names the clients send.
+    options.ModelMetadataDetailsProviders.Add(new SystemTextJsonValidationMetadataProvider());
+});
 
 // Database
 builder.AddDatabaseConfigurationServices();
