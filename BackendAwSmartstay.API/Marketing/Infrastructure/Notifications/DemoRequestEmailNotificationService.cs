@@ -1,7 +1,7 @@
 using BackendAwSmartstay.API.Marketing.Application.Internal.Configuration;
 using BackendAwSmartstay.API.Marketing.Application.OutboundServices;
 using BackendAwSmartstay.API.Marketing.Domain.Model.Aggregates;
-using BackendAwSmartstay.API.Marketing.Interfaces.REST.Transform;
+using BackendAwSmartstay.API.Marketing.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Shared.Application.OutboundServices;
 using BackendAwSmartstay.API.Shared.Infrastructure.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Email.Templates;
@@ -31,12 +31,38 @@ public class DemoRequestEmailNotificationService(
             .Paragraph($"Nueva solicitud de demo #{request.Id} recibida el {request.ReceivedAt.UtcDateTime:yyyy-MM-dd HH:mm} (UTC).")
             .Paragraph($"Contacto: {request.FirstName} {request.LastName} · {request.JobTitle} · {request.Email}" +
                        (request.Phone is null ? string.Empty : $" · {request.Phone}"))
-            .Paragraph($"Establecimiento: {request.HotelName} · tipo {DemoRequestCodes.Of(request.AccommodationType)} · " +
-                       $"{DemoRequestCodes.Of(request.RoomsRange)} habitaciones · perfil {DemoRequestCodes.Of(request.Profile)} · " +
-                       $"nos conoció por {DemoRequestCodes.Of(request.ReferralSource)}")
+            .Paragraph($"Establecimiento: {request.HotelName} · {Label(request.AccommodationType)} · " +
+                       $"{Label(request.RoomsRange)} habitaciones · visitó la sección para {Label(request.Profile)} · " +
+                       $"nos conoció por {Label(request.ReferralSource)}")
             .Paragraph(request.Message is null ? "Sin mensaje." : $"Mensaje: {request.Message}")
             .Footnote("Si nadie responde, el visitante recibirá un recordatorio automático.")
             .To(sales.Value.NotificationEmail, $"Nueva solicitud de demo: {request.HotelName}"));
+
+    private static string Label(AccommodationType value) => value switch
+    {
+        AccommodationType.Boutique => "hotel boutique",
+        AccommodationType.Alternative => "alojamiento alternativo",
+        _ => "cadena hotelera"
+    };
+
+    private static string Label(RoomsRange value) => value switch
+    {
+        RoomsRange.From1To10 => "1 a 10",
+        RoomsRange.From11To30 => "11 a 30",
+        RoomsRange.From31To60 => "31 a 60",
+        _ => "más de 60"
+    };
+
+    private static string Label(VisitorProfile value) => value == VisitorProfile.Admin ? "administradores" : "huéspedes";
+
+    private static string Label(ReferralSource value) => value switch
+    {
+        ReferralSource.Search => "un buscador",
+        ReferralSource.Social => "redes sociales",
+        ReferralSource.Referral => "una recomendación",
+        ReferralSource.Event => "un evento",
+        _ => "otro medio"
+    };
 
     public Task SendFollowUpAsync(DemoRequest request) =>
         emailSender.SendAsync(EmailLayout.Create()
