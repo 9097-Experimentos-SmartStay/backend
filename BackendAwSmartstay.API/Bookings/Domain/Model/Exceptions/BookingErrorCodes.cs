@@ -5,6 +5,7 @@ public static class BookingErrorCodes
 {
     public const string RoomUnavailable = "booking.room_unavailable";
     public const string RoomUnderMaintenance = "booking.room_under_maintenance";
+    public const string HotelPaymentSettingsMissing = "booking.hotel_payment_settings_missing";
     public const string OutsideHotelScope = "booking.outside_hotel_scope";
     public const string CheckOutNotAfterCheckIn = "booking.check_out_not_after_check_in";
     public const string CheckInInPast = "booking.check_in_in_past";

@@ -41,7 +41,7 @@ public class BookingsController(
     {
         var booking = await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId, User.ToBookingRequester()));
         if (booking is null) return NotFound();
-        return Ok(await ToResourceAsync(booking));
+        return Ok(await ToResourceWithPaymentInstructionsAsync(booking));
     }
 
     /// <summary>Books a room (US-51 guest self-service; US-07 scenario 2 reservation taken by the staff).</summary>
@@ -56,8 +56,10 @@ public class BookingsController(
     ///         <item>Reception, admin and chain_admin book rooms of their hotel for a guest account (<c>userId</c>) or
     ///         for a guest without an account (<c>guestName</c> + <c>guestEmail</c>, optional <c>guestPhone</c>).</item>
     ///     </list>
+    ///     The response includes <c>paymentInstructions</c>: the payment methods of the hotel (US-53).
     ///     Errors: 400 invalid dates (check-out not after check-in, check-in in the past) or guest data; 403 room of
-    ///     another hotel; 409 the room is no longer free for those nights or is under maintenance.
+    ///     another hotel; 409 the hotel has no payment methods yet (<c>booking.hotel_payment_settings_missing</c>),
+    ///     or the room is no longer free for those nights or is under maintenance.
     /// </remarks>
     [HttpPost]
     [Authorize(Policy = Policies.PlaceBookings)]
@@ -69,7 +71,8 @@ public class BookingsController(
     {
         var booking = await bookingCommandService.Handle(
             CreateBookingCommandFromResourceAssembler.ToCommandFromResource(resource, User.ToBookingRequester()));
-        return CreatedAtAction(nameof(GetBookingById), new { bookingId = booking.Id }, await ToResourceAsync(booking));
+        return CreatedAtAction(nameof(GetBookingById), new { bookingId = booking.Id },
+            await ToResourceWithPaymentInstructionsAsync(booking));
     }
 
     /// <summary>Lists the bookings visible to the requester, newest first.</summary>
@@ -161,6 +164,12 @@ public class BookingsController(
         var booking = await bookingCommandService.Handle(new CancelBookingCommand(bookingId, User.ToBookingRequester()));
         return Ok(await ToResourceAsync(booking));
     }
+
+    /// <summary>Detail and create responses also say how to pay a Pending booking (the hotel's payment methods).</summary>
+    private async Task<BookingResource> ToResourceWithPaymentInstructionsAsync(Domain.Model.Aggregates.Booking booking) =>
+        BookingResourceFromEntityAssembler.ToResourceFromEntity(booking,
+            await bookingQueryService.FetchRoomNumbersAsync([booking]),
+            await bookingQueryService.FetchPaymentInstructionsAsync(booking));
 
     private async Task<BookingResource> ToResourceAsync(Domain.Model.Aggregates.Booking booking) =>
         BookingResourceFromEntityAssembler.ToResourceFromEntity(booking, await bookingQueryService.FetchRoomNumbersAsync([booking]));

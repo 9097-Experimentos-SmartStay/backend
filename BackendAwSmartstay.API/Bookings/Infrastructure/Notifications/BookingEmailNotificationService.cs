@@ -4,7 +4,6 @@ using BackendAwSmartstay.API.Bookings.Application.Internal.Configuration;
 using BackendAwSmartstay.API.Bookings.Application.OutboundServices;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
-using BackendAwSmartstay.API.Payments.Interfaces.ACL;
 using BackendAwSmartstay.API.Shared.Application.OutboundServices;
 using BackendAwSmartstay.API.Shared.Infrastructure.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Email.Templates;
@@ -20,7 +19,7 @@ public class BookingEmailNotificationService(
 {
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-PE");
 
-    public Task SendBookingPlacedAsync(Booking booking, BookingPlace place, PaymentInstructions instructions)
+    public Task SendBookingPlacedAsync(Booking booking, BookingPlace place, HotelPaymentInstructions? instructions)
     {
         var email = EmailLayout.Create()
             .Greeting(Greeting(booking))
@@ -74,15 +73,24 @@ public class BookingEmailNotificationService(
             .Action("Ver mi reserva", urls.Value.WebLink("bookings"))
             .To(booking.GuestEmail, $"Reserva {booking.Code} modificada"));
 
-    private static IEnumerable<string> Methods(PaymentInstructions instructions)
+    private static IEnumerable<string> Methods(HotelPaymentInstructions? instructions)
     {
-        if (instructions.YapeNumber is { } yape) yield return $"Yape: {yape} (a nombre de {instructions.AccountHolder}).";
-        if (instructions.PlinNumber is { } plin) yield return $"Plin: {plin} (a nombre de {instructions.AccountHolder}).";
+        if (instructions is null)
+        {
+            yield return "Contacta a la recepción del hotel para conocer sus medios de pago.";
+            yield break;
+        }
+        if (instructions.YapeNumber is { } yape) yield return $"Yape: {Mobile(yape)} (a nombre de {instructions.AccountHolder}).";
+        if (instructions.PlinNumber is { } plin) yield return $"Plin: {Mobile(plin)} (a nombre de {instructions.AccountHolder}).";
         if (instructions.BankAccountNumber is { } account)
             yield return $"Transferencia bancaria{(instructions.BankName is { } bank ? $" ({bank})" : string.Empty)}: cuenta {account}" +
                          $"{(instructions.BankAccountCci is { } cci ? $", CCI {cci}" : string.Empty)}, a nombre de {instructions.AccountHolder}.";
         yield return "También puedes pagar en efectivo o con tarjeta en la recepción del hotel.";
     }
+
+    /// <summary>A 9-digit mobile number grouped as it is read aloud: 987 654 321.</summary>
+    private static string Mobile(string number) =>
+        number.Length == 9 ? $"{number[..3]} {number[3..6]} {number[6..]}" : number;
 
     private static string Greeting(Booking booking) => $"Hola, {booking.GuestName}:";
 

@@ -24,6 +24,12 @@ public interface IBookingQueryService
     /// </summary>
     Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IEnumerable<Booking> bookings);
 
+    /// <summary>
+    ///     How to pay <paramref name="booking"/>: the payment methods of its hotel while it is Pending (US-51
+    ///     scenario 2); null once it is paid or cancelled, or when the hotel has none.
+    /// </summary>
+    Task<Accommodations.Interfaces.ACL.HotelPaymentInstructions?> FetchPaymentInstructionsAsync(Booking booking);
+
     /// <summary>US-07 scenario 1: the calendar of a hotel.</summary>
     Task<BookingCalendar> Handle(GetBookingCalendarQuery query);
 }

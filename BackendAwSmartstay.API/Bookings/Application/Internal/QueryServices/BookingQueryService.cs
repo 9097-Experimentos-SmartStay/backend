@@ -23,6 +23,11 @@ public class BookingQueryService(
     public Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IEnumerable<Booking> bookings) =>
         accommodationsContextFacade.FetchRoomNumbersAsync(bookings.Select(booking => booking.RoomId).Distinct().ToList());
 
+    public async Task<HotelPaymentInstructions?> FetchPaymentInstructionsAsync(Booking booking) =>
+        booking.Status == BookingStatus.Pending
+            ? await accommodationsContextFacade.FetchPaymentInstructionsAsync(booking.HotelId)
+            : null;
+
     /// <summary>Longest period the calendar shows at once.</summary>
     public const int MaxCalendarDays = 92;
 

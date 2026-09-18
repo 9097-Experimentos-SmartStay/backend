@@ -23,6 +23,10 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 /// <param name="CheckedInAt">When the guest checked in.</param>
 /// <param name="GuestProfileId">The associated guest profile, if any.</param>
 /// <param name="UserId">The guest account that owns the booking, if any.</param>
+/// <param name="PaymentInstructions">
+///     How to pay it (the hotel's payment methods, US-53): only on the booking detail and the create response while
+///     the booking is Pending; null otherwise.
+/// </param>
 public record BookingResource(
     int Id,
     string Code,
@@ -45,4 +49,20 @@ public record BookingResource(
     string? CancellationReason,
     DateTimeOffset? CheckedInAt,
     Guid? GuestProfileId = null,
-    int? UserId = null);
+    int? UserId = null,
+    BookingPaymentInstructionsResource? PaymentInstructions = null);
+
+/// <summary>How the guest pays a Pending booking: the payment methods of its hotel. Null members are not offered.</summary>
+/// <param name="AccountHolder">Name the guest pays to.</param>
+/// <param name="YapeNumber">Yape mobile number (9 digits).</param>
+/// <param name="PlinNumber">Plin mobile number (9 digits).</param>
+/// <param name="BankName">Bank of the transfer account.</param>
+/// <param name="BankAccountNumber">Account number for transfers.</param>
+/// <param name="BankAccountCci">Interbank account code (CCI, 20 digits).</param>
+public record BookingPaymentInstructionsResource(
+    string AccountHolder,
+    string? YapeNumber,
+    string? PlinNumber,
+    string? BankName,
+    string? BankAccountNumber,
+    string? BankAccountCci);

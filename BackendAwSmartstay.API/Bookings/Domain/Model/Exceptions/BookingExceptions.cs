@@ -17,6 +17,20 @@ public class RoomNotAvailableException(int roomId, DateRange dates)
 public class RoomUnderMaintenanceException(int roomId)
     : BusinessRuleViolationException(BookingErrorCodes.RoomUnderMaintenance, $"Room {roomId} is under maintenance and cannot be booked. Search again for available rooms.");
 
+/// <summary>
+///     US-53: a hotel accepts bookings only once guests know how to pay them (its administrator set at least one
+///     payment method). <c>params.hotelId</c> names the hotel.
+/// </summary>
+public class HotelNotAcceptingBookingsException : BusinessRuleViolationException
+{
+    public HotelNotAcceptingBookingsException(int hotelId)
+        : base(BookingErrorCodes.HotelPaymentSettingsMissing,
+            $"Hotel {hotelId} does not accept bookings yet: its administrator has not set up the payment methods.")
+    {
+        Parameters = new Dictionary<string, object?> { ["hotelId"] = hotelId };
+    }
+}
+
 /// <summary>The staff member works for another hotel (R4).</summary>
 public class BookingOutsideHotelScopeException()
     : BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions.OperationNotAllowedException(BookingErrorCodes.OutsideHotelScope, "You can only manage the bookings of your hotel.");

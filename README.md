@@ -11,7 +11,9 @@ La API lee su configuración por capas; cada capa sobrescribe a la anterior:
 3. **User secrets** (solo en `Development`): secretos de tu máquina, fuera del repositorio.
 4. **Variables de entorno**: lo que usan Docker Compose y Render. `__` (doble guion bajo) equivale a `:` (por ejemplo `TokenSettings__Secret` es `TokenSettings:Secret`).
 
-Las opciones se validan al iniciar: si falta un valor obligatorio (por ejemplo `TokenSettings__Secret` o `Payments__Instructions__AccountHolder` en producción), la API no arranca y el log indica qué variable falta.
+Las opciones se validan al iniciar: si falta un valor obligatorio (por ejemplo `TokenSettings__Secret` o `Email__Smtp__Host` en producción), la API no arranca y el log indica qué variable falta.
+
+Los medios de pago de las reservas (Yape, Plin, cuenta bancaria) **no** son variables de entorno: cada administrador los registra para su hotel desde la aplicación (`PUT /api/v1/hotels/{id}/payment-settings`). Un hotel sin medios de pago no acepta reservas.
 
 ### Desarrollo local con `dotnet run`
 

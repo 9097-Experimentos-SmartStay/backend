@@ -47,6 +47,7 @@ public class BookingCommandService(
         {
             var room = await accommodationsContextFacade.LockRoomForBookingAsync(command.RoomId)
                        ?? throw new InvalidFieldException("roomId", BookingErrorCodes.RoomNotFound, $"Room {command.RoomId} does not exist.");
+            Booking.EnsureHotelAcceptsBookings(room);
 
             await roomAvailabilityService.EnsureRoomIsAvailableAsync(room.RoomId, dates);
 

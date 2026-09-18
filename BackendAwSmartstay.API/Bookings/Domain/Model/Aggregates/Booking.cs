@@ -115,6 +115,7 @@ public class Booking : IHasDomainEvents
     ///         <item>Staff book rooms of their hotel for a guest identified by <paramref name="contact"/>, with or
     ///         without an account.</item>
     ///         <item>The check-in cannot be in the past; a room under maintenance cannot be booked.</item>
+    ///         <item>The hotel must accept bookings (it has payment methods, US-53).</item>
     ///     </list>
     /// </summary>
     public static Booking Place(BookingRequester requester, RoomOffer room, DateRange dates, GuestContact contact,
@@ -123,6 +124,7 @@ public class Booking : IHasDomainEvents
         if (!requester.IsGuest && !requester.OperatesHotel(room.HotelId))
             throw new BookingOutsideHotelScopeException();
         dates.EnsureNotInThePast(hotelToday);
+        EnsureHotelAcceptsBookings(room);
         EnsureBookable(room);
         if (paymentHold <= TimeSpan.Zero)
             throw new DomainValidationException(BookingErrorCodes.InternalInvariant, "The payment hold must be positive.");
@@ -308,6 +310,17 @@ public class Booking : IHasDomainEvents
         CancellationReason = reason;
         PaymentDueAt = null;
         _domainEvents.Add(new BookingCancelledEvent(Id, Code.Value, HotelId, reason, wasPaid, now));
+    }
+
+    /// <summary>
+    ///     US-53: without payment methods the guest could not pay, so a hotel does not take bookings until its
+    ///     administrator sets them. Checked first (before availability) so the answer explains the real cause.
+    /// </summary>
+    /// <exception cref="HotelNotAcceptingBookingsException">The hotel has no payment methods.</exception>
+    public static void EnsureHotelAcceptsBookings(RoomOffer room)
+    {
+        if (!room.HotelAcceptsBookings)
+            throw new HotelNotAcceptingBookingsException(room.HotelId);
     }
 
     private static void EnsureBookable(RoomOffer room)

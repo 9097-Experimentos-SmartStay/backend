@@ -1,6 +1,5 @@
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
-using BackendAwSmartstay.API.Payments.Interfaces.ACL;
 
 namespace BackendAwSmartstay.API.Bookings.Application.OutboundServices;
 
@@ -12,8 +11,11 @@ public sealed record BookingPlace(HotelSummary? Hotel, string RoomNumber);
 /// </summary>
 public interface IBookingNotificationService
 {
-    /// <summary>US-51 scenario 2: booking received with its code, total, how to pay and the payment deadline.</summary>
-    Task SendBookingPlacedAsync(Booking booking, BookingPlace place, PaymentInstructions instructions);
+    /// <summary>
+    ///     US-51 scenario 2: booking received with its code, total, how to pay (the hotel's payment methods; null
+    ///     only for a hotel that has none, e.g. a booking made before they were required) and the payment deadline.
+    /// </summary>
+    Task SendBookingPlacedAsync(Booking booking, BookingPlace place, HotelPaymentInstructions? instructions);
 
     /// <summary>The payment was registered: the booking is confirmed.</summary>
     Task SendBookingConfirmedAsync(Booking booking, BookingPlace place);

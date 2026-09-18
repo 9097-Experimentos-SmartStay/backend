@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
@@ -6,6 +7,18 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Transform;
 
 public static class BookingResourceFromEntityAssembler
 {
+    /// <summary>The booking with how to pay it (detail and create responses of a Pending booking).</summary>
+    public static BookingResource ToResourceFromEntity(Booking entity, IReadOnlyDictionary<int, string> roomNumbers,
+        HotelPaymentInstructions? paymentInstructions) =>
+        ToResourceFromEntity(entity, roomNumbers) with
+        {
+            PaymentInstructions = paymentInstructions is null
+                ? null
+                : new BookingPaymentInstructionsResource(paymentInstructions.AccountHolder, paymentInstructions.YapeNumber,
+                    paymentInstructions.PlinNumber, paymentInstructions.BankName, paymentInstructions.BankAccountNumber,
+                    paymentInstructions.BankAccountCci)
+        };
+
     public static BookingResource ToResourceFromEntity(Booking entity, IReadOnlyDictionary<int, string> roomNumbers) => new(
         entity.Id,
         entity.Code.Value,

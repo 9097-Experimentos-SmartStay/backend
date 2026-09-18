@@ -2,7 +2,6 @@ using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Application.OutboundServices;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Events;
 using BackendAwSmartstay.API.Bookings.Domain.Repositories;
-using BackendAwSmartstay.API.Payments.Interfaces.ACL;
 using BackendAwSmartstay.API.Shared.Application.Internal.EventHandlers;
 
 namespace BackendAwSmartstay.API.Bookings.Application.Internal.EventHandlers;
@@ -14,7 +13,6 @@ namespace BackendAwSmartstay.API.Bookings.Application.Internal.EventHandlers;
 public class BookingGuestNotificationHandler(
     IBookingRepository bookingRepository,
     IAccommodationsContextFacade accommodationsContextFacade,
-    IPaymentsContextFacade paymentsContextFacade,
     IBookingNotificationService notifications) :
     IDomainEventHandler<BookingCreatedEvent>,
     IDomainEventHandler<BookingConfirmedEvent>,
@@ -25,8 +23,9 @@ public class BookingGuestNotificationHandler(
     {
         var booking = await bookingRepository.FindByIdAsync(e.BookingId);
         if (booking is null) return;
+        // How to pay: the payment methods of the booking's hotel (US-53), from the Accommodations context.
         await notifications.SendBookingPlacedAsync(booking, await PlaceAsync(booking),
-            paymentsContextFacade.GetPaymentInstructions());
+            await accommodationsContextFacade.FetchPaymentInstructionsAsync(booking.HotelId));
     }
 
     public async Task HandleAsync(BookingConfirmedEvent e, CancellationToken cancellationToken)
