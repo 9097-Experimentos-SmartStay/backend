@@ -29,7 +29,6 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
     /// </summary>
     /// <returns>An asynchronous action result containing an enumerable collection of verified category definitions.</returns>
     [HttpGet("categories")]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get hotel categories catalogue",
         Description = "Retrieves a read-only list of available hotel category state partitions. Open to all actors.",
@@ -48,7 +47,6 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
     /// </summary>
     /// <returns>An asynchronous action result containing an enumerable view layout of available amenity fields.</returns>
     [HttpGet("amenities")]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get available room and hotel amenities",
         Description = "Retrieves a read-only collection of all features and standard amenities recognized by the system.",

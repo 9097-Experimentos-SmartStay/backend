@@ -31,7 +31,6 @@ public class RoomTypesController(
     /// <param name="roomTypeId">The unique domain identifier value representing the targeted room type entity.</param>
     /// <returns>An asynchronous action result containing the matching room type resource state representation.</returns>
     [HttpGet("{roomTypeId:int}")]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get room type by its unique identifier",
         Description = "Retrieves state parameters, names, and specifications for a single room type category.",
@@ -78,7 +77,6 @@ public class RoomTypesController(
     /// </summary>
     /// <returns>A resource collection mapping all room types present in the persistent tier catalog.</returns>
     [HttpGet]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get all registered room types",
         Description = "Retrieves all room type catalog definitions and transforms them into view resources.",

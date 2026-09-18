@@ -6,6 +6,7 @@ using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Transform;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -32,7 +33,6 @@ public class HotelsController(
     /// </remarks>
     /// <returns>An asynchronous action result containing an enumerable collection of hotel representations.</returns>
     [HttpGet]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get all hotels",
         Description = "Retrieves all hotel aggregates mapped to external representations. Open to guests and staff.",
@@ -53,7 +53,6 @@ public class HotelsController(
     /// <param name="hotelId">The structural domain identity number of the hotel target aggregate.</param>
     /// <returns>The matching hotel representation resource context, or NotFound.</returns>
     [HttpGet("{hotelId:int}")]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin)]
     [SwaggerOperation(
         Summary = "Get hotel by its unique identifier",
         Description = "Retrieves structural property details for a single hotel aggregate from its domain identifier.",
@@ -87,7 +86,10 @@ public class HotelsController(
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Access denied. Only Admin or ChainAdmin operators are cleared to execute infrastructure initialization.")]
     public async Task<IActionResult> CreateHotel([FromBody] CreateHotelResource resource)
     {
-        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource);
+        // Admins always host the hotels they create; a chain admin may create it on behalf of another host.
+        var actor = HttpContext.RequireAuthenticatedUser();
+        var hostId = actor.IsInRole(UserRoles.ChainAdmin) && resource.HostId is > 0 ? resource.HostId.Value : actor.Id;
+        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, hostId);
         var hotel = await hotelCommandService.Handle(command);
         
         if (hotel is null) return BadRequest();
@@ -114,6 +116,9 @@ public class HotelsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "The targeted hotel aggregate could not be extracted for state alteration.")]
     public async Task<IActionResult> UpdateHotel(int hotelId, [FromBody] UpdateHotelResource resource)
     {
+        var notAllowed = await EnsureCanManageHotelAsync(hotelId);
+        if (notAllowed is not null) return notAllowed;
+
         var command = UpdateHotelCommandFromResourceAssembler.ToCommandFromResource(hotelId, resource);
         var updatedHotel = await hotelCommandService.Handle(command);
 
@@ -140,6 +145,9 @@ public class HotelsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "The targeted hotel index node was not present in the structural cluster tree.")]
     public async Task<IActionResult> DeleteHotel(int hotelId)
     {
+        var notAllowed = await EnsureCanManageHotelAsync(hotelId);
+        if (notAllowed is not null) return notAllowed;
+
         var command = new DeleteHotelCommand(hotelId);
         var deletedHotel = await hotelCommandService.Handle(command);
 
@@ -147,5 +155,20 @@ public class HotelsController(
 
         var hotelResource = HotelResourceFromEntityAssembler.ToResourceFromEntity(deletedHotel);
         return Ok(hotelResource);
+    }
+
+    /// <summary>
+    ///     Returns 404 when the hotel does not exist and throws (403) when the caller may not manage it.
+    /// </summary>
+    private async Task<IActionResult?> EnsureCanManageHotelAsync(int hotelId)
+    {
+        var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(hotelId));
+        if (hotel is null) return NotFound();
+
+        var actor = HttpContext.RequireAuthenticatedUser();
+        if (!HotelAccessPolicy.CanManage(actor.Role.Value, actor.Id, actor.HotelId, hotel))
+            throw new UnauthorizedAccessException($"You are not allowed to manage hotel {hotelId}.");
+
+        return null;
     }
 }

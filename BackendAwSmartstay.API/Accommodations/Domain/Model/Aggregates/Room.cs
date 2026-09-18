@@ -23,6 +23,9 @@ public partial class Room
     /// <param name="command">The command containing room creation data.</param>
     public Room(CreateRoomCommand command) : this()
     {
+        if (command.Price < 0)
+            throw new ArgumentException("Price cannot be negative.");
+
         RoomTypeId = command.RoomTypeId;
         // NUEVOS CAMPOS
         HotelId = command.HotelId;
