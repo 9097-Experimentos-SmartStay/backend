@@ -24,6 +24,14 @@ public class BookingsContextFacade(
         return true;
     }
 
+    public async Task<bool> HasCurrentConfirmedStayAsync(int guestUserId, int roomId, DateTime day)
+    {
+        var requester = BookingRequester.Guest(guestUserId, string.Empty);
+        // Only the guest's own bookings (account or guest profile) are returned by the query.
+        var bookings = await bookingQueryService.Handle(new GetBookingsQuery(requester));
+        return bookings.Any(booking => booking.IsConfirmedStayIn(roomId, day));
+    }
+
     private static BookingSnapshot ToSnapshot(Booking booking) => new(
         booking.Id,
         booking.RoomId,

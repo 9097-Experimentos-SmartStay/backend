@@ -9,4 +9,7 @@ public interface IAccommodationsContextFacade
 
     /// <summary>The room's price per night, or null when the room does not exist.</summary>
     Task<decimal?> FetchRoomPricePerNightAsync(int roomId);
+
+    /// <summary>The hotel the room belongs to, or null when the room does not exist.</summary>
+    Task<int?> FetchHotelIdOfRoomAsync(int roomId);
 }

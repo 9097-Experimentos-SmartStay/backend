@@ -11,6 +11,7 @@ using BackendAwSmartstay.API.Profiles.Infrastructure.Interfaces.ASP.Configuratio
 using BackendAwSmartstay.API.shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
+using BackendAwSmartstay.API.Controllers.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,6 +39,7 @@ builder.AddPaymentsContextServices();
 builder.AddIamContextServices();
 builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
+builder.AddIoTEmulatorServices();
 
 // Mediator for Services
 builder.AddCortexMediatorServices();

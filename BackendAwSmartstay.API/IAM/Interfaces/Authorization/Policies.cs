@@ -60,11 +60,11 @@ public static class Policies
     public const string AdministerGuestProfiles = nameof(AdministerGuestProfiles);
 
     // ── IoT emulator ─────────────────────────────────────────────────
-    /// <summary>Read the emulated state of a room's devices.</summary>
+    /// <summary>Read the emulated state of a room's devices (room scope checked per resource).</summary>
     public const string ReadRoomDevices = nameof(ReadRoomDevices);
-    /// <summary>Send commands to a room's devices (thermostat).</summary>
+    /// <summary>Send commands to a room's devices (thermostat; room scope checked per resource).</summary>
     public const string ControlRoomDevices = nameof(ControlRoomDevices);
-    /// <summary>Inject simulated sensor telemetry.</summary>
+    /// <summary>Inject simulated sensor telemetry (emulator tool; room scope checked per resource).</summary>
     public const string InjectTelemetry = nameof(InjectTelemetry);
 
     private static readonly string[] AllRoles =
@@ -85,6 +85,9 @@ public static class Policies
 
     private static readonly string[] GuestOrFrontDesk =
         [UserRoles.Guest, UserRoles.Reception, UserRoles.Admin, UserRoles.ChainAdmin];
+
+    private static readonly string[] RoomDeviceOperators =
+        [UserRoles.Guest, UserRoles.Maintenance, UserRoles.Admin, UserRoles.ChainAdmin];
 
     /// <summary>Capability → roles. Keep in sync with the role matrix of the API contract.</summary>
     public static readonly IReadOnlyDictionary<string, string[]> RoleMatrix = new Dictionary<string, string[]>
@@ -111,9 +114,10 @@ public static class Policies
         [LinkGuestProfiles] = [UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin],
         [AdministerGuestProfiles] = Administrators,
 
-        [ReadRoomDevices] = HotelStaff,
-        [ControlRoomDevices] = [UserRoles.Reception, UserRoles.Maintenance, UserRoles.Admin, UserRoles.ChainAdmin],
-        [InjectTelemetry] = [UserRoles.Maintenance, UserRoles.Admin, UserRoles.ChainAdmin],
+        // R5: guests (their current stay), maintenance and admins (their hotel), chain admins (all rooms).
+        [ReadRoomDevices] = RoomDeviceOperators,
+        [ControlRoomDevices] = RoomDeviceOperators,
+        [InjectTelemetry] = Administrators,
     };
 
     /// <summary>

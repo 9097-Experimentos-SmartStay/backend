@@ -31,4 +31,13 @@ public class AccommodationsContextFacade(
         var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId));
         return room?.Price;
     }
+
+    public async Task<int?> FetchHotelIdOfRoomAsync(int roomId)
+    {
+        if (roomId <= 0)
+            return null;
+
+        var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId));
+        return room?.HotelId;
+    }
 }

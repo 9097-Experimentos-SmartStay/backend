@@ -36,4 +36,10 @@ public interface IBookingsContextFacade
     /// </summary>
     /// <exception cref="BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions.EntityNotFoundException">The booking does not exist.</exception>
     Task<bool> ConfirmBookingAsync(int bookingId);
+
+    /// <summary>
+    ///     True when the guest has a Confirmed booking of <paramref name="roomId"/> whose dates include
+    ///     <paramref name="day"/> (R5: a guest controls the devices of the room they are staying in).
+    /// </summary>
+    Task<bool> HasCurrentConfirmedStayAsync(int guestUserId, int roomId, DateTime day);
 }

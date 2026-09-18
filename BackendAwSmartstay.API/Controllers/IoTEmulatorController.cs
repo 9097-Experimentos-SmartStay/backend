@@ -1,4 +1,6 @@
-﻿using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
+using BackendAwSmartstay.API.Controllers.Authorization;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BackendAwSmartstay.API.Models.IoT;
@@ -7,21 +9,23 @@ using BackendAwSmartstay.API.Infrastructure.Telemetry;
 namespace BackendAwSmartstay.API.Controllers;
 
 // In-memory IoT emulator. Real route: /api/v1/io-t-emulator/... (kebab-case convention).
-// Authorization:
-//   - GET actuators-state: any hotel staff (admin, chain_admin, staff, reception, housekeeping, maintenance)
-//   - POST thermostat: admin, chain_admin, reception, maintenance
-//   - POST inject-telemetry (simulated sensor input): admin, chain_admin, maintenance
-// Guests are excluded because rooms are not linked to guests yet (no ownership check possible).
+// Authorization (R5): roles per endpoint come from Policies; the room itself is checked with
+// RoomDeviceAuthorizationHandler (guest: room of their Confirmed stay in effect today; admin/maintenance:
+// rooms of their hotel; chain_admin: every room). Unknown rooms answer 404.
 [Authorize]
 [ApiController]
 [Route("api/v1/[controller]")]
-public class IoTEmulatorController : ControllerBase
+public class IoTEmulatorController(
+    IAccommodationsContextFacade accommodationsContextFacade,
+    IAuthorizationService authorizationService) : ControllerBase
 {
     // POST /api/v1/io-t-emulator/rooms/{roomId}/inject-telemetry
     [HttpPost("rooms/{roomId:int:min(1)}/inject-telemetry")]
     [Authorize(Policy = Policies.InjectTelemetry)]
-    public IActionResult InjectTelemetry(int roomId, [FromBody] InjectTelemetryRequest request)
+    public async Task<IActionResult> InjectTelemetry(int roomId, [FromBody] InjectTelemetryRequest request)
     {
+        if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
+
         if (request == null || string.IsNullOrWhiteSpace(request.SimulatedSensorType) || request.ReadingValue == null)
         {
             return BadRequest("El cuerpo de la solicitud no puede ser nulo.");
@@ -62,8 +66,10 @@ public class IoTEmulatorController : ControllerBase
     // POST /api/v1/io-t-emulator/rooms/{roomId}/thermostat
     [HttpPost("rooms/{roomId:int:min(1)}/thermostat")]
     [Authorize(Policy = Policies.ControlRoomDevices)]
-    public IActionResult SetThermostat(int roomId, [FromBody] SetThermostatRequest request)
+    public async Task<IActionResult> SetThermostat(int roomId, [FromBody] SetThermostatRequest request)
     {
+        if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
+
         if (request == null || string.IsNullOrWhiteSpace(request.FanSpeed) || string.IsNullOrWhiteSpace(request.SimulationMode))
         {
             return BadRequest("Parámetros del termostato inválidos.");
@@ -84,9 +90,22 @@ public class IoTEmulatorController : ControllerBase
     // GET /api/v1/io-t-emulator/rooms/{roomId}/actuators-state
     [HttpGet("rooms/{roomId:int:min(1)}/actuators-state")]
     [Authorize(Policy = Policies.ReadRoomDevices)]
-    public IActionResult GetActuatorsState(int roomId)
+    public async Task<IActionResult> GetActuatorsState(int roomId)
     {
+        if (await EnsureRoomAccessAsync(roomId) is { } denied) return denied;
+
         var state = IoTEmulatorStore.GetOrAdd(roomId);
         return Ok(state);
+    }
+
+    /// <summary>404 when the room does not exist, 403 (native Forbid) when it is outside the requester's reach.</summary>
+    private async Task<IActionResult?> EnsureRoomAccessAsync(int roomId)
+    {
+        var hotelId = await accommodationsContextFacade.FetchHotelIdOfRoomAsync(roomId);
+        if (hotelId is null) return NotFound();
+
+        var authorization = await authorizationService.AuthorizeAsync(
+            User, new DeviceRoom(roomId, hotelId.Value), RoomDeviceAccessRequirement.Instance);
+        return authorization.Succeeded ? null : Forbid();
     }
 }

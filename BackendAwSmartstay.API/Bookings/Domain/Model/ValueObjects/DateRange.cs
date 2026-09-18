@@ -30,5 +30,8 @@ public sealed record DateRange
     /// </summary>
     public bool Overlaps(DateRange other) => CheckIn < other.CheckOut && other.CheckIn < CheckOut;
 
+    /// <summary>True when <paramref name="day"/> is one of the nights of the stay (check-in day included, check-out day excluded).</summary>
+    public bool Includes(DateTime day) => CheckIn <= day.Date && day.Date < CheckOut;
+
     public override string ToString() => $"{CheckIn:yyyy-MM-dd}..{CheckOut:yyyy-MM-dd}";
 }

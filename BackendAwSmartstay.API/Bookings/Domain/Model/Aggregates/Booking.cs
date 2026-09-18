@@ -104,6 +104,13 @@ public class Booking
     /// <summary>Hotel staff see every booking; a guest only their own.</summary>
     public bool IsVisibleTo(BookingRequester requester) => !requester.IsGuest || IsOwnedBy(requester);
 
+    /// <summary>
+    ///     R5 / US-11: this Confirmed booking is the current stay in <paramref name="roomId"/> on
+    ///     <paramref name="day"/>; its guest may control the room's devices.
+    /// </summary>
+    public bool IsConfirmedStayIn(int roomId, DateTime day) =>
+        Status == BookingStatus.Confirmed && RoomId == roomId && Dates.Includes(day);
+
     /// <summary>Confirms the booking. Confirming twice is a no-op.</summary>
     /// <exception cref="InvalidBookingTransitionException">The booking is cancelled or completed.</exception>
     public void Confirm()
