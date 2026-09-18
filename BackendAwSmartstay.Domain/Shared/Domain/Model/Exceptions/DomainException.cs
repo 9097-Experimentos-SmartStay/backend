@@ -144,3 +144,28 @@ public sealed record FieldViolation(
     string Code,
     string Message,
     IReadOnlyDictionary<string, object?>? Parameters = null);
+
+/// <summary>
+///     Several input fields have invalid values at once (e.g. a value object built from a form, which reports every
+///     broken rule instead of the first one). The API reports it like model validation: code
+///     <see cref="ErrorCodes.ValidationFailed"/> and one violation per broken rule.
+/// </summary>
+public class InvalidFieldsException : DomainValidationException
+{
+    /// <param name="violations">The broken rules (at least one).</param>
+    public InvalidFieldsException(IReadOnlyList<FieldViolation> violations)
+        : base(ErrorCodes.ValidationFailed, Describe(violations))
+    {
+        Violations = violations;
+    }
+
+    /// <summary>Every broken rule, in the order the fields were checked.</summary>
+    public IReadOnlyList<FieldViolation> Violations { get; }
+
+    private static string Describe(IReadOnlyList<FieldViolation> violations)
+    {
+        if (violations.Count == 0)
+            throw new ArgumentException("At least one violation is required.", nameof(violations));
+        return string.Join(" ", violations.Select(violation => violation.Message));
+    }
+}

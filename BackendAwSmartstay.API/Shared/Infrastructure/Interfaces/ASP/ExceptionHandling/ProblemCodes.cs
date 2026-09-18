@@ -57,6 +57,14 @@ public static class ProblemCodes
                 problem.Extensions[ViolationsExtension] = new[] { FieldViolationResource.From(invalidField.Violation) };
                 problem.Extensions[CodeExtension] = invalidField.Code;
                 return;
+            case InvalidFieldsException invalidFields:
+                problem.Title = "One or more validation errors occurred.";
+                problem.Extensions["errors"] = invalidFields.Violations
+                    .GroupBy(violation => CamelCase(violation.Field))
+                    .ToDictionary(group => group.Key, group => group.Select(violation => violation.Message).ToArray());
+                problem.Extensions[ViolationsExtension] = invalidFields.Violations.Select(FieldViolationResource.From).ToList();
+                problem.Extensions[CodeExtension] = invalidFields.Code;
+                return;
             case DomainException domain:
                 problem.Extensions[CodeExtension] = domain.Code;
                 if (domain.Parameters.Count > 0) problem.Extensions[ParametersExtension] = domain.Parameters;
