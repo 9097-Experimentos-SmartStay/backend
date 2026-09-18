@@ -40,10 +40,10 @@ public record ResetPasswordResource
     [MaxLength(200)]
     public string? Token { get; init; }
 
-    /// <summary>The new password, 8 to 128 characters.</summary>
-    /// <example>NuevaClave#2026</example>
+    /// <summary>The new password: at least 15 characters for a guest, 8 for staff; at most 128. Common and breached passwords are rejected.</summary>
+    /// <example>una frase larga y facil de recordar</example>
     [Required]
-    [StringLength(128, MinimumLength = 8, ErrorMessage = "The password must have between 8 and 128 characters.")]
+    [MaxLength(256, ErrorMessage = "The password cannot exceed 128 characters.")]
     public string? NewPassword { get; init; }
 }
 

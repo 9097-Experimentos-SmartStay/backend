@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
+using BackendAwSmartstay.API.IAM.Domain.Services;
 using BCryptNet = BCrypt.Net.BCrypt;
 
 namespace BackendAwSmartstay.API.IAM.Infrastructure.Hashing.BCrypt.Services;
@@ -19,7 +20,9 @@ public class HashingService : IHashingService
      */
     public string HashPassword(string password)
     {
-        return BCryptNet.HashPassword(password);
+        // NIST SP 800-63B-4: passwords are normalized (NFKC) before hashing, so the same text typed on different
+        // keyboards or systems verifies.
+        return BCryptNet.HashPassword(PasswordPolicy.Normalize(password));
     }
 
     /**
@@ -32,6 +35,9 @@ public class HashingService : IHashingService
      */
     public bool VerifyPassword(string password, string passwordHash)
     {
-        return BCryptNet.Verify(password, passwordHash);
+        var normalized = PasswordPolicy.Normalize(password);
+        if (BCryptNet.Verify(normalized, passwordHash)) return true;
+        // Hashes made before normalization was introduced hold the text as typed.
+        return normalized != password && BCryptNet.Verify(password, passwordHash);
     }
 }

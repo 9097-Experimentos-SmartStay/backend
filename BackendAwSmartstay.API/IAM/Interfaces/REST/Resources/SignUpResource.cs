@@ -33,10 +33,10 @@ public record SignUpResource : IValidatableObject
     [MaxLength(254)]
     public string? Username { get; init; }
 
-    /// <summary>Password, 8 to 128 characters.</summary>
-    /// <example>Secreta#2026</example>
+    /// <summary>Password: 15 to 128 characters for a guest (8 for staff roles), any characters, no composition rules; common and breached passwords are rejected.</summary>
+    /// <example>mi casa junto al mar 2026</example>
     [Required]
-    [StringLength(128, MinimumLength = 8, ErrorMessage = "The password must have between 8 and 128 characters.")]
+    [MaxLength(256, ErrorMessage = "The password cannot exceed 128 characters.")]
     public string? Password { get; init; }
 
     /// <summary>Optional role. Anything but <c>guest</c> needs the token of a user allowed to assign it.</summary>

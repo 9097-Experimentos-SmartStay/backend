@@ -31,6 +31,7 @@ public class AuthenticationCommandService(
     IAccountNotificationService notifications,
     IDomainEventDispatcher domainEventDispatcher,
     IUnitOfWork unitOfWork,
+    NewPasswordValidator newPasswordValidator,
     IOptions<AccountSecuritySettings> settings,
     TimeProvider timeProvider,
     ILogger<AuthenticationCommandService> logger) : IAuthenticationCommandService
@@ -169,6 +170,8 @@ public class AuthenticationCommandService(
             role = requestedRole;
         }
 
+        await newPasswordValidator.EnsureAcceptableAsync(command.Password, role, email, nameof(command.Password));
+
         var user = User.Register(name, email, hashingService.HashPassword(command.Password), role,
             hotelId: null, chainId: null, createdByUserId: command.ActorUserId, timeProvider.GetUtcNow());
 
@@ -226,6 +229,8 @@ public class AuthenticationCommandService(
         var token = await accountTokenIssuer.ConsumeAsync(command.Token, AccountTokenPurpose.PasswordReset);
         var user = await userRepository.FindByIdAsync(token.UserId)
                    ?? throw new InvalidAccountTokenException(AccountTokenPurpose.PasswordReset);
+        // Nothing is committed when the new password is rejected: the link can be used again with another one.
+        await newPasswordValidator.EnsureAcceptableAsync(command.NewPassword, user.Role, user.Email, nameof(command.NewPassword));
 
         user.ResetPassword(hashingService.HashPassword(command.NewPassword), now);
         foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))

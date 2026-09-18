@@ -35,7 +35,7 @@ public record CreateUserResource : IValidatableObject
     /// <summary>Initial password (8 to 128 characters); the user can change it or reset it later.</summary>
     /// <example>Temporal#2026</example>
     [Required]
-    [StringLength(128, MinimumLength = 8, ErrorMessage = "The password must have between 8 and 128 characters.")]
+    [MaxLength(256, ErrorMessage = "The password cannot exceed 128 characters.")]
     public string Password { get; init; } = string.Empty;
 
     /// <summary>reception, housekeeping or maintenance (admin can assign them); chain_admin can also assign admin.</summary>

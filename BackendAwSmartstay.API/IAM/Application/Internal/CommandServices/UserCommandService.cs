@@ -24,6 +24,7 @@ public class UserCommandService(
     IHashingService hashingService,
     IRoleAuthorizationService roleAuthorizationService,
     IUserScopeService userScopeService,
+    NewPasswordValidator newPasswordValidator,
     IUnitOfWork unitOfWork) : IUserCommandService
 {
     /// <summary>
@@ -38,6 +39,7 @@ public class UserCommandService(
         if (!hashingService.VerifyPassword(command.CurrentPassword, user.PasswordHash))
             throw new InvalidCredentialsException();
 
+        await newPasswordValidator.EnsureAcceptableAsync(command.NewPassword, user.Role, user.Email, nameof(command.NewPassword));
         user.ChangePassword(hashingService.HashPassword(command.NewPassword), timeProvider.GetUtcNow());
         foreach (var session in await refreshTokenRepository.ListUnrevokedByUserAsync(user.Id))
             session.Revoke(RefreshTokenRevocationReason.SessionRevoked, timeProvider.GetUtcNow());
@@ -73,6 +75,7 @@ public class UserCommandService(
             throw new EmailAlreadyRegisteredException(email.Value);
 
         var name = new PersonName(command.FirstName, command.LastName);
+        await newPasswordValidator.EnsureAcceptableAsync(command.Password, role, email, nameof(command.Password));
         var user = User.Register(name, email, hashingService.HashPassword(command.Password), role,
             hotelId, command.ChainId, createdByUserId: actor.Id, timeProvider.GetUtcNow());
 
@@ -114,6 +117,7 @@ public class UserCommandService(
 
         if (command.NewPassword is not null)
         {
+            await newPasswordValidator.EnsureAcceptableAsync(command.NewPassword, target.Role, target.Email, nameof(command.NewPassword));
             var hashed = hashingService.HashPassword(command.NewPassword);
             target.UpdatePasswordHash(hashed);
         }

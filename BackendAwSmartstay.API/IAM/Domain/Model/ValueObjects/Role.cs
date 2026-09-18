@@ -46,6 +46,15 @@ public sealed record Role
     /// </summary>
     public bool CanManageOrEqual(Role other) => HierarchyLevel >= other.HierarchyLevel;
 
+    /// <summary>True for hotel staff roles (reception, housekeeping, maintenance, admin, chain_admin).</summary>
+    public bool IsStaff => Value != UserRoles.Guest;
+
+    /// <summary>
+    ///     Staff accounts must use a second factor (TOTP, US-52). Guests may not (NIST SP 800-63B-4: a single-factor
+    ///     password must be longer, see <c>PasswordPolicy</c>).
+    /// </summary>
+    public bool RequiresMultiFactorAuthentication => IsStaff;
+
     public static implicit operator string(Role role) => role.Value;
     public static implicit operator Role(string value) => new(value);
 

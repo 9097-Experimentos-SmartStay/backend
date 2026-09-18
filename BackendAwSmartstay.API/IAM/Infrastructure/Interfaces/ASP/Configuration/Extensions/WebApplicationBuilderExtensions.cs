@@ -1,6 +1,7 @@
 using BackendAwSmartstay.API.IAM.Application.ACL.Services;
 using BackendAwSmartstay.API.IAM.Application.Internal.Configuration;
 using BackendAwSmartstay.API.IAM.Infrastructure.Notifications;
+using BackendAwSmartstay.API.IAM.Infrastructure.Passwords;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.ExceptionHandling;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
 using BackendAwSmartstay.API.IAM.Infrastructure.Tokens.Opaque;
@@ -47,6 +48,20 @@ public static class WebApplicationBuilderExtensions
             .Bind(builder.Configuration.GetSection(AccountSecuritySettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        // Password policy (NIST SP 800-63B-4) with the breached password lookup (HIBP range API, k-anonymity)
+        builder.Services.AddOptions<PasswordPolicySettings>()
+            .Bind(builder.Configuration.GetSection(PasswordPolicySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        builder.Services.AddHttpClient<IBreachedPasswordChecker, PwnedPasswordsChecker>((services, client) =>
+        {
+            var settings = services.GetRequiredService<IOptions<PasswordPolicySettings>>().Value;
+            client.BaseAddress = new Uri(settings.PwnedPasswordsApiBaseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(settings.PwnedPasswordsTimeoutSeconds);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("SmartStay-API/1.0");
+        });
+        builder.Services.AddScoped<NewPasswordValidator>();
 
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IAccountTokenRepository, AccountTokenRepository>();
