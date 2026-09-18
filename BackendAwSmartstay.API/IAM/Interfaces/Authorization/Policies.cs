@@ -63,6 +63,10 @@ public static class Policies
     /// <summary>Correct identification and activate/deactivate guest profiles.</summary>
     public const string AdministerGuestProfiles = nameof(AdministerGuestProfiles);
 
+    // ── Marketing ────────────────────────────────────────────────────
+    /// <summary>Read the demo requests of the landing (sales team).</summary>
+    public const string ManageDemoRequests = nameof(ManageDemoRequests);
+
     // ── IoT emulator ─────────────────────────────────────────────────
     /// <summary>Read the emulated state of a room's devices (room scope checked per resource).</summary>
     public const string ReadRoomDevices = nameof(ReadRoomDevices);
@@ -119,6 +123,8 @@ public static class Policies
         [SearchGuestProfiles] = FrontDesk,
         [LinkGuestProfiles] = [UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin],
         [AdministerGuestProfiles] = Administrators,
+
+        [ManageDemoRequests] = [UserRoles.ChainAdmin],
 
         // R5: guests (their current stay), maintenance and admins (their hotel), chain admins (all rooms).
         [ReadRoomDevices] = RoomDeviceOperators,
