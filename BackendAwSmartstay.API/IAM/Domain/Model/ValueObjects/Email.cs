@@ -31,6 +31,14 @@ public sealed partial record Email
 
     private Email(string value, bool _) => Value = value;
 
+    /// <summary>True when <paramref name="value"/> is a valid login e-mail (used by request validation).</summary>
+    public static bool IsValid(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var normalized = value.Trim();
+        return normalized.Length <= MaxLength && EmailFormat().IsMatch(normalized);
+    }
+
     /// <summary>
     ///     Rebuilds a stored identifier without re-validating it. Accounts created before e-mail became the login
     ///     identifier may hold a plain username; they must still load (e.g. to be listed or updated).

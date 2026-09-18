@@ -1,16 +1,22 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Events;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
+using BackendAwSmartstay.API.IAM.Domain.Model.Events;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 
 namespace BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 
 /// <summary>
 /// User Aggregate Root.
-/// Represents a registered user within the identity context.
+/// Represents a registered user within the identity context: credentials, role and scope, e-mail verification
+/// (US-01), the temporary lock after repeated failed sign-ins (US-02) and the session generation that revokes
+/// access tokens. Access-related facts are recorded as domain events (US-03 access audit).
 /// </summary>
-public class User
+public class User : IHasDomainEvents
 {
+    private readonly List<IEvent> _domainEvents = [];
+
     public User(string email, string passwordHash, string role,
         UserStatus status = UserStatus.Active,
         int? hotelId = null,
@@ -42,6 +48,33 @@ public class User
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    ///     Registers a new account (US-01 self-registration, or US-03 an administrator creating a staff user).
+    ///     The e-mail starts unverified; a verification link is sent by the application layer.
+    /// </summary>
+    /// <param name="name">First and last name of the owner.</param>
+    /// <param name="email">Login identifier.</param>
+    /// <param name="passwordHash">Hash of the chosen password.</param>
+    /// <param name="role">Assigned role.</param>
+    /// <param name="hotelId">Hotel the account belongs to (staff).</param>
+    /// <param name="chainId">Chain the account belongs to.</param>
+    /// <param name="createdByUserId">Administrator who created it; null for self-registration.</param>
+    /// <param name="now">Current time.</param>
+    public static User Register(PersonName name, Email email, string passwordHash, Role role,
+        int? hotelId, int? chainId, int? createdByUserId, DateTimeOffset now)
+    {
+        var user = new User(email.Value, passwordHash, role.Value, hotelId: hotelId, chainId: chainId);
+        user.FirstName = name.FirstName;
+        user.LastName = name.LastName;
+        user.CreatedAt = now.UtcDateTime;
+        user.UpdatedAt = now.UtcDateTime;
+        user._pendingCreation = (createdByUserId, now);
+        return user;
+    }
+
+    // UserCreatedEvent needs the generated id: it is recorded when the unit of work collects the events.
+    private (int? CreatedBy, DateTimeOffset At)? _pendingCreation;
+
     public int Id { get; private set; }
     /// <summary>The login identifier of the account (US-01/US-02).</summary>
     public Email Email { get; private set; }
@@ -53,6 +86,39 @@ public class User
     public int TokenVersion { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
+
+    /// <summary>First name (null for accounts created before names were required).</summary>
+    public string? FirstName { get; private set; }
+
+    /// <summary>Last name (null for accounts created before names were required).</summary>
+    public string? LastName { get; private set; }
+
+    /// <summary>True once the owner opened the verification link sent to the e-mail (US-01).</summary>
+    public bool EmailVerified { get; private set; }
+
+    public DateTimeOffset? EmailVerifiedAt { get; private set; }
+
+    /// <summary>Consecutive failed sign-ins since the last successful one or the last lock (US-02).</summary>
+    public int FailedSignInAttempts { get; private set; }
+
+    /// <summary>End of the current temporary lock, if any (US-02 scenario 3).</summary>
+    public DateTimeOffset? LockedUntil { get; private set; }
+
+    public IReadOnlyCollection<IEvent> DomainEvents
+    {
+        get
+        {
+            // The creation event is recorded once the account has its database id.
+            if (_pendingCreation is { } creation && Id > 0)
+            {
+                _domainEvents.Insert(0, new UserCreatedEvent(Id, Email.Value, HotelId, Role.Value, creation.CreatedBy, creation.At));
+                _pendingCreation = null;
+            }
+            return _domainEvents.AsReadOnly();
+        }
+    }
+
+    public void ClearDomainEvents() => _domainEvents.Clear();
 
     public User UpdateEmail(string email)
     {
@@ -70,24 +136,40 @@ public class User
         return this;
     }
 
-    public User AssignRole(string newRole)
+    /// <summary>
+    ///     Changes the role (US-03 scenario 2). It applies on the user's next request: the role is re-read from the
+    ///     aggregate for every token.
+    /// </summary>
+    public User AssignRole(string newRole, int? changedByUserId = null, DateTimeOffset? now = null)
     {
+        var previous = Role;
         Role = new Role(newRole);
         UpdatedAt = DateTime.UtcNow;
+        if (previous != Role)
+            _domainEvents.Add(new UserRoleChangedEvent(Id, Email.Value, HotelId, previous.Value, Role.Value,
+                changedByUserId, now ?? DateTimeOffset.UtcNow));
         return this;
     }
 
-    public User Deactivate()
+    /// <summary>
+    ///     Deactivates the account (US-03 scenario 3): the user loses access immediately (every token is revoked)
+    ///     but the account and its history are kept.
+    /// </summary>
+    public User Deactivate(int? deactivatedByUserId = null, DateTimeOffset? now = null)
     {
+        if (Status == UserStatus.Inactive) return this;
         Status = UserStatus.Inactive;
-        UpdatedAt = DateTime.UtcNow;
+        StartNewSession();
+        _domainEvents.Add(new UserDeactivatedEvent(Id, Email.Value, HotelId, deactivatedByUserId, now ?? DateTimeOffset.UtcNow));
         return this;
     }
 
-    public User Activate()
+    public User Activate(int? activatedByUserId = null, DateTimeOffset? now = null)
     {
+        if (Status == UserStatus.Active) return this;
         Status = UserStatus.Active;
         UpdatedAt = DateTime.UtcNow;
+        _domainEvents.Add(new UserActivatedEvent(Id, Email.Value, HotelId, activatedByUserId, now ?? DateTimeOffset.UtcNow));
         return this;
     }
 
@@ -133,6 +215,92 @@ public class User
         if (Status == UserStatus.Inactive) return new UserSession(UserSessionStatus.Inactive);
         if (tokenVersion != TokenVersion) return new UserSession(UserSessionStatus.Revoked);
         return new UserSession(UserSessionStatus.Valid, Role.Value, HotelId, ChainId);
+    }
+
+    // ── Sign-in (US-02) ─────────────────────────────────────────────────────
+
+    /// <summary>True while the temporary lock is in effect.</summary>
+    public bool IsLockedOut(DateTimeOffset now) => LockedUntil is { } until && now < until;
+
+    /// <summary>
+    ///     Records a failed sign-in with a wrong password. Reaching <see cref="SignInLockoutPolicy.MaxConsecutiveFailures"/>
+    ///     consecutive failures locks the account for the policy's duration.
+    /// </summary>
+    /// <returns>True when this failure started a lock (the owner must be notified).</returns>
+    public bool RegisterFailedSignIn(SignInLockoutPolicy policy, DateTimeOffset now)
+    {
+        if (IsLockedOut(now))
+        {
+            RejectSignInWhileLocked(now);
+            return false;
+        }
+
+        FailedSignInAttempts++;
+        _domainEvents.Add(new SignInFailedEvent(Id, Email.Value, HotelId, SignInFailureReason.WrongPassword, now));
+
+        if (FailedSignInAttempts < policy.MaxConsecutiveFailures) return false;
+
+        LockedUntil = now + policy.LockoutDuration;
+        FailedSignInAttempts = 0;
+        _domainEvents.Add(new UserLockedOutEvent(Id, Email.Value, HotelId, LockedUntil.Value, now));
+        return true;
+    }
+
+    /// <summary>Records an attempt rejected because the account is locked (the password is not even checked).</summary>
+    public void RejectSignInWhileLocked(DateTimeOffset now) =>
+        _domainEvents.Add(new SignInFailedEvent(Id, Email.Value, HotelId, SignInFailureReason.AccountLocked, now));
+
+    /// <summary>Records an attempt with the right password on a deactivated account.</summary>
+    public void RejectSignInWhileDeactivated(DateTimeOffset now) =>
+        _domainEvents.Add(new SignInFailedEvent(Id, Email.Value, HotelId, SignInFailureReason.AccountDeactivated, now));
+
+    /// <summary>A successful sign-in resets the consecutive failures and ends an expired lock.</summary>
+    public void RegisterSuccessfulSignIn(DateTimeOffset now)
+    {
+        if (IsLockedOut(now))
+            throw new BusinessRuleViolationException("A locked account cannot sign in.");
+        FailedSignInAttempts = 0;
+        LockedUntil = null;
+        _domainEvents.Add(new UserSignedInEvent(Id, Email.Value, HotelId, now));
+    }
+
+    /// <summary>Records that the user signed out of a remembered session.</summary>
+    public void SignOut(DateTimeOffset now) =>
+        _domainEvents.Add(new UserSignedOutEvent(Id, Email.Value, HotelId, now));
+
+    // ── E-mail verification (US-01) ─────────────────────────────────────────
+
+    /// <summary>Marks the e-mail as verified (idempotent).</summary>
+    public void VerifyEmail(DateTimeOffset now)
+    {
+        if (EmailVerified) return;
+        EmailVerified = true;
+        EmailVerifiedAt = now;
+        UpdatedAt = now.UtcDateTime;
+    }
+
+    // ── Passwords (US-04) ───────────────────────────────────────────────────
+
+    /// <summary>
+    ///     Sets the password chosen through the recovery link (US-04 scenario 4): every session is revoked, the
+    ///     temporary lock is lifted and, since the link reached the inbox, the e-mail counts as verified.
+    /// </summary>
+    public void ResetPassword(string newPasswordHash, DateTimeOffset now)
+    {
+        UpdatePasswordHash(newPasswordHash);
+        FailedSignInAttempts = 0;
+        LockedUntil = null;
+        VerifyEmail(now);
+        StartNewSession();
+        _domainEvents.Add(new UserPasswordResetEvent(Id, Email.Value, HotelId, now));
+    }
+
+    /// <summary>Changes the password knowing the current one: every other session is revoked.</summary>
+    public void ChangePassword(string newPasswordHash, DateTimeOffset now)
+    {
+        UpdatePasswordHash(newPasswordHash);
+        StartNewSession();
+        _domainEvents.Add(new UserPasswordChangedEvent(Id, Email.Value, HotelId, now));
     }
 
     private User StartNewSession()

@@ -64,3 +64,12 @@ public class AuthenticationFailedException : DomainException
 {
     public AuthenticationFailedException(string message) : base(message) { }
 }
+
+/// <summary>
+///     The referenced resource existed but is no longer usable because its lifetime ended
+///     (e.g. an expired password reset link).
+/// </summary>
+public class ResourceExpiredException : DomainException
+{
+    public ResourceExpiredException(string message) : base(message) { }
+}
