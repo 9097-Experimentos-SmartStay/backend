@@ -34,4 +34,7 @@ public class HotelRepository(AppDbContext context) : BaseRepository<Hotel>(conte
             .Include(h => h.Rooms)
             .FirstOrDefaultAsync(h => h.Id == id);
     }
+
+    public async Task<bool> ExistsByHostIdAsync(int hostId) =>
+        await Context.Set<Hotel>().AnyAsync(h => h.HostId == hostId);
 }

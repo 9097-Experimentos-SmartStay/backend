@@ -1,6 +1,7 @@
 using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Authorization;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
@@ -85,11 +86,11 @@ public class HotelsController(
     [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource structure contains invalid constraints.")]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Access denied. Only Admin or ChainAdmin operators are cleared to execute infrastructure initialization.")]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "A hotel administrator already has a hotel (an admin registers only their own hotel).")]
     public async Task<IActionResult> CreateHotel([FromBody] CreateHotelResource resource)
     {
-        // Admins always host the hotels they create; a chain admin may create it on behalf of another host.
-        var hostId = User.IsChainAdmin() && resource.HostId is > 0 ? resource.HostId.Value : User.GetUserId();
-        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, hostId);
+        var registrant = new HotelRegistrant(User.GetUserId(), User.IsChainAdmin(), User.GetHotelId());
+        var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, registrant);
         var hotel = await hotelCommandService.Handle(command);
         
         if (hotel is null) return BadRequest();

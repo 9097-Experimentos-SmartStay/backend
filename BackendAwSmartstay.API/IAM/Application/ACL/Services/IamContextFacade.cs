@@ -51,4 +51,7 @@ public class IamContextFacade(
         var result = await userQueryService.Handle(getUserByIdQuery);
         return result?.Email.Value ?? string.Empty;
     }
+
+    public Task AssignHotelToAdministratorAsync(int userId, int hotelId) =>
+        userCommandService.Handle(new AssignHotelToAdministratorCommand(userId, hotelId));
 }

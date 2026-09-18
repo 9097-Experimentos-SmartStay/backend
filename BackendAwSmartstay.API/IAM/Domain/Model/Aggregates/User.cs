@@ -101,6 +101,22 @@ public class User
         return this;
     }
 
+    /// <summary>
+    ///     D2: a hotel administrator administers a single hotel. Taking charge of the hotel they registered is
+    ///     only possible while they have none (or it is the same hotel).
+    /// </summary>
+    public User TakeChargeOfHotel(int hotelId)
+    {
+        if (!Role.Value.Equals(UserRoles.Admin, StringComparison.Ordinal))
+            throw new BusinessRuleViolationException("Only a hotel administrator takes charge of a single hotel.");
+        if (HotelId is not null && HotelId != hotelId)
+            throw new BusinessRuleViolationException("A hotel administrator manages a single hotel and already has one.");
+
+        HotelId = hotelId;
+        UpdatedAt = DateTime.UtcNow;
+        return this;
+    }
+
     public User UpdateChainId(int? chainId)
     {
         ChainId = chainId;

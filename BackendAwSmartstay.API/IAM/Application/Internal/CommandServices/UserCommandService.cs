@@ -266,6 +266,16 @@ public class UserCommandService(
         await unitOfWork.CompleteAsync();
     }
 
+    /// <summary>
+    ///     D2: the hotel registered by a hotel administrator becomes the hotel they administer.
+    /// </summary>
+    public async Task Handle(AssignHotelToAdministratorCommand command)
+    {
+        var user = await ResolveTargetAsync(command.UserId);
+        user.TakeChargeOfHotel(command.HotelId);
+        await unitOfWork.CompleteAsync();
+    }
+
     // ═══════════════════════════════════════════════════════════
     // Private helpers
     // ═══════════════════════════════════════════════════════════

@@ -2,6 +2,7 @@ using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Repositories;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
+using BackendAwSmartstay.API.IAM.Interfaces.ACL;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
 
 namespace BackendAwSmartstay.API.Accommodations.Application.Internal.CommandServices;
@@ -12,6 +13,7 @@ namespace BackendAwSmartstay.API.Accommodations.Application.Internal.CommandServ
 /// </summary>
 public class HotelCommandService(
     IHotelRepository hotelRepository,
+    IIamContextFacade iamContextFacade,
     IUnitOfWork unitOfWork)
     : IHotelCommandService
 {
@@ -22,9 +24,21 @@ public class HotelCommandService(
     /// <returns>The created hotel or null if creation failed.</returns>
     public async Task<Hotel?> Handle(CreateHotelCommand command)
     {
-        var hotel = new Hotel(command);
-        await hotelRepository.AddAsync(hotel);
-        await unitOfWork.CompleteAsync();
+        var registrant = command.Registrant;
+        var alreadyHostsAHotel = !registrant.ManagesChain
+                                 && await hotelRepository.ExistsByHostIdAsync(registrant.UserId);
+        var hostId = HotelRegistrationPolicy.ResolveHost(registrant, command.RequestedHostId, alreadyHostsAHotel);
+
+        var hotel = new Hotel(hostId, command);
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await hotelRepository.AddAsync(hotel);
+            await unitOfWork.CompleteAsync();
+
+            // D2: the hotel a hotel administrator registers is the one they administer (IAM owns that scope).
+            if (HotelRegistrationPolicy.AssignsHotelToRegistrant(registrant))
+                await iamContextFacade.AssignHotelToAdministratorAsync(registrant.UserId, hotel.Id);
+        });
         return hotel;
     }
 
