@@ -106,8 +106,8 @@ using (var scope = app.Services.CreateScope())
 
 // Pipeline de Middlewares (HTTP request pipeline)
 app.UseOpenApiConfiguration();
-// for adding allowFroent
-app.UseCors("AllowFrontend");
+// CORS (origins from Cors__AllowedOrigins)
+app.UseCorsPolicy();
 // user httpRedirection
 app.UseHttpsRedirection();
 

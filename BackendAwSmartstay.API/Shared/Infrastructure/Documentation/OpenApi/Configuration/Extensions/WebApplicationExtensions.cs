@@ -25,11 +25,17 @@ public static class WebApplicationExtensions
     }
 
     /// <summary>
-    /// Applies the configured CORS policy to allow cross-origin requests.
+    /// Applies the configured CORS policy (origins come from <c>Cors:AllowedOrigins</c>).
     /// </summary>
     /// <param name="app">The web application instance.</param>
     public static void UseCorsPolicy(this WebApplication app)
     {
-        app.UseCors("AllowAllPolicy");
+        var origins = WebApplicationBuilderExtensions.GetAllowedOrigins(app.Configuration);
+        if (origins.Length == 0)
+            app.Logger.LogWarning("CORS: no origins configured (Cors__AllowedOrigins). Cross-origin browser requests will be rejected.");
+        else
+            app.Logger.LogInformation("CORS: allowed origins: {Origins}", string.Join(", ", origins));
+
+        app.UseCors(WebApplicationBuilderExtensions.CorsPolicyName);
     }
 }
