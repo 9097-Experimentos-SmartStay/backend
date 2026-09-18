@@ -4,7 +4,9 @@ using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Transform;
 using Microsoft.AspNetCore.Authorization;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace BackendAwSmartstay.API.IAM.Interfaces.REST;
@@ -34,6 +36,7 @@ public class AuthenticationController(IAuthenticationCommandService authenticati
     ///     <c>rememberMe</c> the response also carries a refresh token (US-02 scenario 4).
     /// </remarks>
     [HttpPost("sign-in")]
+    [EnableRateLimiting(RateLimitPolicies.Credentials)]
     [SwaggerOperation(Summary = "Sign in", OperationId = "SignIn")]
     [ProducesResponseType(typeof(AuthenticatedUserResource), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -82,6 +85,7 @@ public class AuthenticationController(IAuthenticationCommandService authenticati
     ///     A bearer token is optional and only needed to assign a non-guest role.
     /// </remarks>
     [HttpPost("sign-up")]
+    [EnableRateLimiting(RateLimitPolicies.Credentials)]
     [SwaggerOperation(Summary = "Sign up", OperationId = "SignUp")]
     [ProducesResponseType(typeof(SignUpResultResource), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -98,6 +102,7 @@ public class AuthenticationController(IAuthenticationCommandService authenticati
 
     /// <summary>Confirms the e-mail with the token of the verification link (US-01).</summary>
     [HttpPost("verify-email")]
+    [EnableRateLimiting(RateLimitPolicies.Credentials)]
     [SwaggerOperation(Summary = "Verify the e-mail", OperationId = "VerifyEmail")]
     [ProducesResponseType(typeof(MessageResource), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -110,6 +115,7 @@ public class AuthenticationController(IAuthenticationCommandService authenticati
 
     /// <summary>Sends a new verification link. Always 202: the answer never reveals whether the e-mail exists.</summary>
     [HttpPost("verify-email/resend")]
+    [EnableRateLimiting(RateLimitPolicies.Credentials)]
     [SwaggerOperation(Summary = "Resend the verification link", OperationId = "ResendEmailVerification")]
     [ProducesResponseType(typeof(MessageResource), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -125,6 +131,7 @@ public class AuthenticationController(IAuthenticationCommandService authenticati
     ///     and expires after 30 minutes.
     /// </remarks>
     [HttpPost("password-recovery")]
+    [EnableRateLimiting(RateLimitPolicies.Credentials)]
     [SwaggerOperation(Summary = "Request password recovery", OperationId = "RequestPasswordRecovery")]
     [ProducesResponseType(typeof(MessageResource), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -140,6 +147,7 @@ public class AuthenticationController(IAuthenticationCommandService authenticati
     ///     already used link answers 400. On success every session is closed and a confirmation e-mail is sent.
     /// </remarks>
     [HttpPost("password-reset")]
+    [EnableRateLimiting(RateLimitPolicies.Credentials)]
     [SwaggerOperation(Summary = "Reset the password", OperationId = "ResetPassword")]
     [ProducesResponseType(typeof(MessageResource), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]

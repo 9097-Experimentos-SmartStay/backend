@@ -12,7 +12,7 @@ using BackendAwSmartstay.API.shared.Infrastructure.Persistence.EFC.Configuration
 using BackendAwSmartstay.API.Analytics.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 using BackendAwSmartstay.API.Controllers.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,18 +53,9 @@ builder.Services.AddHealthChecks()
 // Optional analytics cache lab: Redis + ActiveMQ fallback (only when configured)
 builder.AddAnalyticsCacheServices();
 
-// Rate Limiting Configuration
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("AuthLimiter", opt =>
-    {
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.PermitLimit = 10; // Máximo 10 intentos por minuto
-        opt.QueueLimit = 0;   // Rechazo inmediato sin encolar
-    });
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-});
-    
+// Rate limiting of the anonymous endpoints, per client IP
+builder.Services.AddSmartStayRateLimiting(builder.Configuration);
+
 var app = builder.Build();
 
 // --- Database initialization: migrations + seed. Fail fast: never start with a broken schema ---
