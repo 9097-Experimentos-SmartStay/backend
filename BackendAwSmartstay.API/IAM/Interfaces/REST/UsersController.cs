@@ -22,8 +22,27 @@ namespace BackendAwSmartstay.API.IAM.Interfaces.REST;
 [SwaggerTag("Available User endpoints")]
 public class UsersController(
     IUserQueryService userQueryService,
-    IUserCommandService userCommandService) : ControllerBase
+    IUserCommandService userCommandService,
+    IMfaCommandService mfaCommandService) : ControllerBase
 {
+    /// <summary>Resets the two-factor authentication of a user (US-52 scenario 4, e.g. a lost phone).</summary>
+    /// <remarks>
+    ///     The authenticator and the recovery codes are removed and every session of the user ends. At the next
+    ///     sign-in the user must enroll a new authenticator. Audited as <c>MfaReset</c>. Same hierarchy and scope
+    ///     rules as the other user management operations (an admin: staff of their hotel).
+    /// </remarks>
+    [HttpPost("{id:int}/mfa/reset")]
+    [Authorize(Policy = Policies.ManageUsers)]
+    [SwaggerOperation(Summary = "Reset the two-factor authentication of a user", OperationId = "ResetUserMfa")]
+    [ProducesResponseType(typeof(MessageResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetMfa(int id)
+    {
+        await mfaCommandService.Handle(new ResetMfaCommand(User.GetUserId(), id));
+        return Ok(new MessageResource("Two-factor authentication was reset. The user must set it up again at the next sign-in."));
+    }
+
     /// <summary>
     ///     Creates a new user via management endpoints.
     /// </summary>

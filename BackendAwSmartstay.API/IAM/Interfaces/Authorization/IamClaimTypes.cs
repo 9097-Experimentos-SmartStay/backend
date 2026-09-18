@@ -38,4 +38,16 @@ public static class IamClaimTypes
 
     /// <summary>Session generation (<c>token_version</c>); a token whose version is not the current one is revoked.</summary>
     public const string TokenVersion = "token_version";
+
+    /// <summary>
+    ///     Only in second-factor challenge tokens (<c>mfa_challenge</c>): <c>enrollment</c> or <c>verification</c>.
+    /// </summary>
+    public const string MfaChallenge = "mfa_challenge";
+
+    /// <summary>Only in second-factor challenge tokens: whether "remember me" was asked at sign-in.</summary>
+    public const string RememberMe = "remember_me";
+
+    /// <summary>Claim values of <see cref="MfaChallenge"/>.</summary>
+    public const string MfaChallengeEnrollment = "enrollment";
+    public const string MfaChallengeVerification = "verification";
 }

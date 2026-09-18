@@ -61,3 +61,36 @@ public sealed record UserDeactivatedEvent(int UserId, string Email, int? HotelId
 /// <summary>An administrator reactivated a user.</summary>
 public sealed record UserActivatedEvent(int UserId, string Email, int? HotelId, int? ActivatedByUserId, DateTimeOffset OccurredOn)
     : DomainEvent(OccurredOn);
+
+/// <summary>How a user proved the second factor.</summary>
+public enum MfaMethod
+{
+    /// <summary>A 6-digit code of the authenticator app.</summary>
+    AuthenticatorCode,
+    /// <summary>A one-time recovery code.</summary>
+    RecoveryCode
+}
+
+/// <summary>A user enrolled an authenticator app: two-factor authentication is on (US-52 scenario 1).</summary>
+public sealed record MfaEnabledEvent(int UserId, string Email, int? HotelId, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);
+
+/// <summary>A user proved the second factor while signing in (US-52 scenarios 2 and 3).</summary>
+public sealed record MfaVerifiedEvent(int UserId, string Email, int? HotelId, MfaMethod Method, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);
+
+/// <summary>A wrong, reused or malformed second-factor code was presented (counts toward the temporary lock).</summary>
+public sealed record MfaVerificationFailedEvent(int UserId, string Email, int? HotelId, MfaMethod Method, string Reason, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);
+
+/// <summary>A one-time recovery code was used (US-52 scenario 3); <paramref name="RemainingCodes"/> are left.</summary>
+public sealed record MfaRecoveryCodeUsedEvent(int UserId, string Email, int? HotelId, int RemainingCodes, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);
+
+/// <summary>An administrator reset the second factor of a user, who must enroll again (US-52 scenario 4).</summary>
+public sealed record MfaResetEvent(int UserId, string Email, int? HotelId, int? ResetByUserId, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);
+
+/// <summary>A user closed every session on every device.</summary>
+public sealed record UserSignedOutEverywhereEvent(int UserId, string Email, int? HotelId, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);

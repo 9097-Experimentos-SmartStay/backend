@@ -28,6 +28,8 @@ public static class UserResourceFromEntityAssembler
             user.FirstName,
             user.LastName,
             user.EmailVerified,
-            user.LockedUntil);
+            user.LockedUntil,
+            user.MfaEnabled,
+            user.RequiresMfaEnrollment);
     }
 }

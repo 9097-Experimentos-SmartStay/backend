@@ -1,7 +1,9 @@
 namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 
 /// <summary>
-///     A signed-in user and their tokens (sign-in and refresh responses).
+///     A signed-in user and their tokens (sign-in, refresh and second-factor responses). When a second factor is
+///     pending (US-52), <c>token</c> is null and <c>mfaRequired</c> or <c>mfaEnrollmentRequired</c> is true with an
+///     <c>mfaToken</c> for the second-factor endpoints.
 /// </summary>
 public record AuthenticatedUserResource
 {
@@ -40,15 +42,15 @@ public record AuthenticatedUserResource
     /// <example>true</example>
     public bool EmailVerified { get; init; }
 
-    /// <summary>Access token (JWT) to send as <c>Authorization: Bearer ...</c>.</summary>
-    public string Token { get; init; } = string.Empty;
+    /// <summary>Access token (JWT) to send as <c>Authorization: Bearer ...</c>. Null while a second factor is pending.</summary>
+    public string? Token { get; init; }
 
     /// <summary>Always <c>Bearer</c>.</summary>
     /// <example>Bearer</example>
     public string TokenType { get; init; } = "Bearer";
 
     /// <summary>When the access token expires (UTC). Refresh it before, or sign in again.</summary>
-    public DateTimeOffset ExpiresAt { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
 
     /// <summary>
     ///     Refresh token of a remembered session (only with <c>rememberMe</c>, and on refresh). Single use: every
@@ -58,4 +60,25 @@ public record AuthenticatedUserResource
 
     /// <summary>When the refresh token expires if it is not used (UTC).</summary>
     public DateTimeOffset? RefreshTokenExpiresAt { get; init; }
+
+    /// <summary>
+    ///     US-52: the password was correct and the account has an authenticator: send a code (or a recovery code) to
+    ///     <c>POST /authentication/mfa/verify</c> with <see cref="MfaToken"/>.
+    /// </summary>
+    public bool MfaRequired { get; init; }
+
+    /// <summary>
+    ///     US-52 scenario 1: the password was correct but this staff account has no authenticator yet: enroll one with
+    ///     <c>POST /authentication/mfa/enrollment</c> and <c>/enrollment/confirm</c> using <see cref="MfaToken"/>.
+    /// </summary>
+    public bool MfaEnrollmentRequired { get; init; }
+
+    /// <summary>Short-lived token for the second-factor endpoints only (send it as <c>Authorization: Bearer</c>).</summary>
+    public string? MfaToken { get; init; }
+
+    /// <summary>When <see cref="MfaToken"/> expires (10 minutes by default).</summary>
+    public DateTimeOffset? MfaTokenExpiresAt { get; init; }
+
+    /// <summary>One-time recovery codes, only in the response that enables MFA. Shown once: the user must save them.</summary>
+    public IReadOnlyList<string>? RecoveryCodes { get; init; }
 }

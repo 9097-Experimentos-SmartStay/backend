@@ -15,7 +15,7 @@ public class ConfigureIamJwtBearerOptions(IOptions<TokenSettings> tokenSettings)
 {
     public void Configure(string? name, JwtBearerOptions options)
     {
-        if (name != JwtBearerDefaults.AuthenticationScheme) return;
+        if (name != JwtBearerDefaults.AuthenticationScheme && name != IamAuthenticationSchemes.MfaChallenge) return;
 
         var settings = tokenSettings.Value;
 
@@ -30,7 +30,8 @@ public class ConfigureIamJwtBearerOptions(IOptions<TokenSettings> tokenSettings)
             ValidateIssuer = true,
             ValidIssuer = settings.Issuer,
             ValidateAudience = true,
-            ValidAudience = settings.Audience,
+            // Access tokens and second-factor challenge tokens have different audiences: neither scheme accepts the other.
+            ValidAudience = name == IamAuthenticationSchemes.MfaChallenge ? settings.MfaChallengeAudience : settings.Audience,
             ValidateLifetime = true,
             RequireExpirationTime = true,
             ClockSkew = TimeSpan.FromSeconds(settings.ClockSkewSeconds),

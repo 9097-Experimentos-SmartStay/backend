@@ -29,4 +29,6 @@ public record UserResource(
     string? FirstName,
     string? LastName,
     bool EmailVerified,
-    DateTimeOffset? LockedUntil);
+    DateTimeOffset? LockedUntil,
+    bool MfaEnabled,
+    bool MfaEnrollmentRequired);

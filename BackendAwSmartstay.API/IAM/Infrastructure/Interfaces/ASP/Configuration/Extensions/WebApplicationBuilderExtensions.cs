@@ -66,6 +66,13 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IAccountTokenRepository, AccountTokenRepository>();
         builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        builder.Services.AddScoped<IMfaRecoveryCodeRepository, MfaRecoveryCodeRepository>();
+        builder.Services.AddScoped<SessionIssuer>();
+        builder.Services.AddScoped<IMfaCommandService, MfaCommandService>();
+        builder.Services.AddOptions<MfaSettings>()
+            .Bind(builder.Configuration.GetSection(MfaSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
         builder.Services.AddScoped<AccountTokenIssuer>();
         builder.Services.AddScoped<IAuthenticationCommandService, AuthenticationCommandService>();
         builder.Services.AddScoped<IUserCommandService, UserCommandService>();
@@ -96,7 +103,9 @@ public static class WebApplicationBuilderExtensions
         services.AddScoped<IamJwtBearerEvents>();
         services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureIamJwtBearerOptions>();
 
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer()
+            .AddJwtBearer(IamAuthenticationSchemes.MfaChallenge);
         return services;
     }
 
@@ -114,7 +123,16 @@ public static class WebApplicationBuilderExtensions
         services.AddAuthorizationBuilder()
             .SetDefaultPolicy(authenticatedUser)
             .SetFallbackPolicy(authenticatedUser)
-            .AddSmartStayPolicies();
+            .AddSmartStayPolicies()
+            // US-52: the second-factor endpoints only accept the matching challenge token.
+            .AddPolicy(Policies.EnrollSecondFactor, policy => policy
+                .AddAuthenticationSchemes(IamAuthenticationSchemes.MfaChallenge)
+                .RequireAuthenticatedUser()
+                .RequireClaim(IamClaimTypes.MfaChallenge, IamClaimTypes.MfaChallengeEnrollment))
+            .AddPolicy(Policies.VerifySecondFactor, policy => policy
+                .AddAuthenticationSchemes(IamAuthenticationSchemes.MfaChallenge)
+                .RequireAuthenticatedUser()
+                .RequireClaim(IamClaimTypes.MfaChallenge, IamClaimTypes.MfaChallengeVerification));
 
         return services;
     }

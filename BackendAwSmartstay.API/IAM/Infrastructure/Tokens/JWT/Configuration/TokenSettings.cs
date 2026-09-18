@@ -31,6 +31,13 @@ public class TokenSettings : IValidatableObject
     [Range(1, 24 * 60)]
     public int AccessTokenExpirationMinutes { get; set; } = 30;
 
+    /// <summary>Lifetime of a second-factor challenge token (time to scan the QR code or type the code, US-52).</summary>
+    [Range(1, 60)]
+    public int MfaChallengeTokenExpirationMinutes { get; set; } = 10;
+
+    /// <summary>Audience of the challenge tokens: different from <see cref="Audience"/>, so they are never access tokens.</summary>
+    public string MfaChallengeAudience => $"{Audience}/mfa-challenge";
+
     /// <summary>Tolerated clock difference between the issuer and the validator.</summary>
     [Range(0, 300)]
     public int ClockSkewSeconds { get; set; } = 30;

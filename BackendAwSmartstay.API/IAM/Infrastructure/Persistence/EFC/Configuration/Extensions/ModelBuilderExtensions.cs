@@ -67,6 +67,21 @@ public static class ModelBuilderExtensions
         builder.Entity<User>().Property(u => u.EmailVerified).IsRequired().HasDefaultValue(false);
         builder.Entity<User>().Property(u => u.FailedSignInAttempts).IsRequired().HasDefaultValue(0);
         builder.Entity<User>().Ignore(u => u.DomainEvents);
+        builder.Entity<User>().Ignore(u => u.RequiresMfaEnrollment);
+
+        // Second factor (US-52): the TOTP secrets are stored encrypted (Data Protection).
+        builder.Entity<User>().Property(u => u.MfaEnabled).IsRequired().HasDefaultValue(false);
+        builder.Entity<User>().Property(u => u.MfaSecretProtected).HasMaxLength(1024);
+        builder.Entity<User>().Property(u => u.MfaPendingSecretProtected).HasMaxLength(1024);
+
+        // One-time recovery codes: only the bcrypt hash is stored.
+        builder.Entity<MfaRecoveryCode>().ToTable("mfa_recovery_codes");
+        builder.Entity<MfaRecoveryCode>().HasKey(c => c.Id);
+        builder.Entity<MfaRecoveryCode>().Property(c => c.Id).ValueGeneratedOnAdd();
+        builder.Entity<MfaRecoveryCode>().Property(c => c.CodeHash).HasMaxLength(100).IsRequired();
+        builder.Entity<MfaRecoveryCode>().Ignore(c => c.IsUsed);
+        builder.Entity<MfaRecoveryCode>().HasIndex(c => c.UserId);
+        builder.Entity<MfaRecoveryCode>().HasOne<User>().WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
 
         // Single-use links (e-mail verification, password reset). Only the hash is stored.
         builder.Entity<AccountToken>().ToTable("account_tokens");

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Application.OutboundServices;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 
@@ -25,7 +26,12 @@ public static class AuthenticatedUserResourceFromEntityAssembler
             Token = result.AccessToken,
             ExpiresAt = result.AccessTokenExpiresAt,
             RefreshToken = result.RefreshToken?.Value,
-            RefreshTokenExpiresAt = result.RefreshToken?.ExpiresAt
+            RefreshTokenExpiresAt = result.RefreshToken?.ExpiresAt,
+            MfaRequired = result.MfaChallenge?.Kind == MfaChallengeKind.Verification,
+            MfaEnrollmentRequired = result.MfaChallenge?.Kind == MfaChallengeKind.Enrollment,
+            MfaToken = result.MfaChallenge?.Value,
+            MfaTokenExpiresAt = result.MfaChallenge?.ExpiresAt,
+            RecoveryCodes = result.RecoveryCodes
         };
     }
 }

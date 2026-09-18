@@ -46,6 +46,10 @@ public static class ClaimsPrincipalExtensions
     /// <summary>True when the requester is a chain administrator.</summary>
     public static bool IsChainAdmin(this ClaimsPrincipal principal) => principal.IsInRole(UserRoles.ChainAdmin);
 
+    /// <summary>Whether "remember me" was asked at sign-in (second-factor challenge tokens only).</summary>
+    public static bool RememberMeRequested(this ClaimsPrincipal principal) =>
+        string.Equals(principal.FindFirstValue(IamClaimTypes.RememberMe), "true", StringComparison.OrdinalIgnoreCase);
+
     private static int? ParseInt(string? value) =>
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
 }

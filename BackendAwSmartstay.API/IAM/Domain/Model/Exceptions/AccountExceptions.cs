@@ -36,3 +36,15 @@ public class AccountTokenExpiredException(AccountTokenPurpose purpose)
 /// </summary>
 public class EmailNotVerifiedException()
     : OperationNotAllowedException("Confirm your e-mail before signing in. Open the link we sent you, or request a new one.");
+
+/// <summary>US-52 scenario 2: the second-factor code is wrong. It counts toward the temporary lock.</summary>
+public class InvalidMfaCodeException()
+    : AuthenticationFailedException("The verification code is not valid. Check your authenticator app and try again.");
+
+/// <summary>The code was already used to sign in (replay protection): wait for the next one.</summary>
+public class MfaCodeAlreadyUsedException()
+    : AuthenticationFailedException("This code was already used. Wait for the next code of your authenticator app.");
+
+/// <summary>US-52 scenario 3: the recovery code is unknown or was already used.</summary>
+public class InvalidRecoveryCodeException()
+    : AuthenticationFailedException("The recovery code is not valid or was already used.");

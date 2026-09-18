@@ -27,8 +27,35 @@ public class IamAccessAuditHandler(
     IDomainEventHandler<UserCreatedEvent>,
     IDomainEventHandler<UserRoleChangedEvent>,
     IDomainEventHandler<UserDeactivatedEvent>,
-    IDomainEventHandler<UserActivatedEvent>
+    IDomainEventHandler<UserActivatedEvent>,
+    IDomainEventHandler<MfaEnabledEvent>,
+    IDomainEventHandler<MfaVerifiedEvent>,
+    IDomainEventHandler<MfaVerificationFailedEvent>,
+    IDomainEventHandler<MfaRecoveryCodeUsedEvent>,
+    IDomainEventHandler<MfaResetEvent>,
+    IDomainEventHandler<UserSignedOutEverywhereEvent>
 {
+    public Task HandleAsync(MfaEnabledEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.MfaEnabled, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
+
+    public Task HandleAsync(MfaVerifiedEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.MfaVerified, AuditOutcome.Success, e.UserId, e.Email, e.HotelId,
+            $"Method: {e.Method}");
+
+    public Task HandleAsync(MfaVerificationFailedEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.MfaFailed, AuditOutcome.Failure, e.UserId, e.Email, e.HotelId,
+            $"Method: {e.Method}; Reason: {e.Reason}");
+
+    public Task HandleAsync(MfaRecoveryCodeUsedEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.MfaRecoveryCodeUsed, AuditOutcome.Success, e.UserId, e.Email, e.HotelId,
+            $"Remaining recovery codes: {e.RemainingCodes}");
+
+    public Task HandleAsync(MfaResetEvent e, CancellationToken cancellationToken) =>
+        RecordByAdministratorAsync(e.OccurredOn, AuditAction.MfaReset, e.ResetByUserId, e.UserId, e.Email, e.HotelId);
+
+    public Task HandleAsync(UserSignedOutEverywhereEvent e, CancellationToken cancellationToken) =>
+        RecordSelfAsync(e.OccurredOn, AuditAction.SignedOutEverywhere, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
+
     public Task HandleAsync(UserSignedInEvent e, CancellationToken cancellationToken) =>
         RecordSelfAsync(e.OccurredOn, AuditAction.SignInSucceeded, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
 

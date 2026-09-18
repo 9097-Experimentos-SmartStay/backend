@@ -4,6 +4,7 @@ using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
 using BackendAwSmartstay.API.IAM.Domain.Model.Events;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
+using BackendAwSmartstay.API.IAM.Domain.Services;
 
 namespace BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 
@@ -103,6 +104,26 @@ public class User : IHasDomainEvents
 
     /// <summary>End of the current temporary lock, if any (US-02 scenario 3).</summary>
     public DateTimeOffset? LockedUntil { get; private set; }
+
+    /// <summary>True once the user enrolled an authenticator app (US-52).</summary>
+    public bool MfaEnabled { get; private set; }
+
+    /// <summary>When two-factor authentication was enabled.</summary>
+    public DateTimeOffset? MfaEnabledAt { get; private set; }
+
+    /// <summary>The TOTP secret of the enrolled authenticator, encrypted by the application (never in clear).</summary>
+    public string? MfaSecretProtected { get; private set; }
+
+    /// <summary>The secret of an enrollment in progress (shown in the QR code, not confirmed yet), encrypted.</summary>
+    public string? MfaPendingSecretProtected { get; private set; }
+
+    /// <summary>Last TOTP time step accepted: a code of that step or an earlier one is a replay.</summary>
+    public long? MfaLastUsedTimeStep { get; private set; }
+
+    /// <summary>
+    ///     US-52 scenario 1: a staff account without an authenticator must enroll one before it gets access.
+    /// </summary>
+    public bool RequiresMfaEnrollment => Role.RequiresMultiFactorAuthentication && !MfaEnabled;
 
     public IReadOnlyCollection<IEvent> DomainEvents
     {
@@ -235,8 +256,14 @@ public class User : IHasDomainEvents
             return false;
         }
 
+        return RegisterFailure(new SignInFailedEvent(Id, Email.Value, HotelId, SignInFailureReason.WrongPassword, now), policy, now);
+    }
+
+    /// <summary>Counts a failed credential (password or second factor) toward the temporary lock.</summary>
+    private bool RegisterFailure(IEvent failure, SignInLockoutPolicy policy, DateTimeOffset now)
+    {
         FailedSignInAttempts++;
-        _domainEvents.Add(new SignInFailedEvent(Id, Email.Value, HotelId, SignInFailureReason.WrongPassword, now));
+        _domainEvents.Add(failure);
 
         if (FailedSignInAttempts < policy.MaxConsecutiveFailures) return false;
 
@@ -274,6 +301,124 @@ public class User : IHasDomainEvents
     /// <summary>Records that the user signed out of a remembered session.</summary>
     public void SignOut(DateTimeOffset now) =>
         _domainEvents.Add(new UserSignedOutEvent(Id, Email.Value, HotelId, now));
+
+    // ── Two-factor authentication, TOTP (US-52) ─────────────────────────────
+
+    /// <summary>
+    ///     Starts (or restarts) the enrollment of an authenticator app with a new secret, encrypted by the caller.
+    ///     The secret only becomes the user's second factor once a code generated from it is confirmed.
+    /// </summary>
+    public void StartMfaEnrollment(string protectedSecret)
+    {
+        if (MfaEnabled)
+            throw new BusinessRuleViolationException("Two-factor authentication is already enabled for this account.");
+        if (string.IsNullOrWhiteSpace(protectedSecret))
+            throw new DomainValidationException("The enrollment needs a secret.");
+        MfaPendingSecretProtected = protectedSecret;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Confirms the enrollment with a code of the authenticator app (<paramref name="pendingSecret"/> is the
+    ///     decrypted <see cref="MfaPendingSecretProtected"/>). A wrong code counts toward the temporary lock.
+    /// </summary>
+    public MfaCodeOutcome ConfirmMfaEnrollment(TotpSecret pendingSecret, string code, SignInLockoutPolicy policy, DateTimeOffset now)
+    {
+        EnsureMfaEnrollmentInProgress();
+
+        var step = TotpAlgorithm.MatchingTimeStep(pendingSecret, code, now);
+        if (step is null)
+            return RejectSecondFactor(MfaMethod.AuthenticatorCode, "InvalidCode", policy, now);
+
+        MfaSecretProtected = MfaPendingSecretProtected;
+        MfaPendingSecretProtected = null;
+        MfaEnabled = true;
+        MfaEnabledAt = now;
+        MfaLastUsedTimeStep = step;
+        UpdatedAt = now.UtcDateTime;
+        _domainEvents.Add(new MfaEnabledEvent(Id, Email.Value, HotelId, now));
+        return MfaCodeOutcome.Accepted;
+    }
+
+    /// <summary>
+    ///     Verifies a code of the enrolled authenticator (<paramref name="secret"/> is the decrypted
+    ///     <see cref="MfaSecretProtected"/>). Codes of an already used time step are replays and are rejected.
+    ///     Every rejection counts toward the temporary lock.
+    /// </summary>
+    public MfaCodeOutcome VerifyMfaCode(TotpSecret secret, string code, SignInLockoutPolicy policy, DateTimeOffset now)
+    {
+        EnsureMfaEnabled();
+
+        var step = TotpAlgorithm.MatchingTimeStep(secret, code, now);
+        if (step is null)
+            return RejectSecondFactor(MfaMethod.AuthenticatorCode, "InvalidCode", policy, now);
+        if (MfaLastUsedTimeStep is { } last && step <= last)
+            return RejectSecondFactor(MfaMethod.AuthenticatorCode, "CodeAlreadyUsed", policy, now) == MfaCodeOutcome.LockStarted
+                ? MfaCodeOutcome.LockStarted
+                : MfaCodeOutcome.Replayed;
+
+        MfaLastUsedTimeStep = step;
+        _domainEvents.Add(new MfaVerifiedEvent(Id, Email.Value, HotelId, MfaMethod.AuthenticatorCode, now));
+        return MfaCodeOutcome.Accepted;
+    }
+
+    /// <summary>Records that a one-time recovery code of the user was redeemed.</summary>
+    public void AcceptRecoveryCode(int remainingCodes, DateTimeOffset now)
+    {
+        EnsureMfaEnabled();
+        _domainEvents.Add(new MfaRecoveryCodeUsedEvent(Id, Email.Value, HotelId, remainingCodes, now));
+        _domainEvents.Add(new MfaVerifiedEvent(Id, Email.Value, HotelId, MfaMethod.RecoveryCode, now));
+    }
+
+    /// <summary>A recovery code that is unknown or already used. Counts toward the temporary lock.</summary>
+    public MfaCodeOutcome RejectRecoveryCode(SignInLockoutPolicy policy, DateTimeOffset now)
+    {
+        EnsureMfaEnabled();
+        return RejectSecondFactor(MfaMethod.RecoveryCode, "InvalidRecoveryCode", policy, now);
+    }
+
+    /// <summary>
+    ///     US-52 scenario 4: an administrator removes the second factor (lost phone). Every session ends and the
+    ///     user must enroll a new authenticator at the next sign-in.
+    /// </summary>
+    public void ResetMfa(int? resetByUserId, DateTimeOffset now)
+    {
+        MfaEnabled = false;
+        MfaEnabledAt = null;
+        MfaSecretProtected = null;
+        MfaPendingSecretProtected = null;
+        MfaLastUsedTimeStep = null;
+        StartNewSession();
+        _domainEvents.Add(new MfaResetEvent(Id, Email.Value, HotelId, resetByUserId, now));
+    }
+
+    /// <summary>Closes every session on every device: all access and refresh tokens stop working.</summary>
+    public void SignOutEverywhere(DateTimeOffset now)
+    {
+        StartNewSession();
+        _domainEvents.Add(new UserSignedOutEverywhereEvent(Id, Email.Value, HotelId, now));
+    }
+
+    private MfaCodeOutcome RejectSecondFactor(MfaMethod method, string reason, SignInLockoutPolicy policy, DateTimeOffset now) =>
+        RegisterFailure(new MfaVerificationFailedEvent(Id, Email.Value, HotelId, method, reason, now), policy, now)
+            ? MfaCodeOutcome.LockStarted
+            : MfaCodeOutcome.Rejected;
+
+    /// <summary>An enrollment was started (QR code shown) and MFA is not enabled yet.</summary>
+    public void EnsureMfaEnrollmentInProgress()
+    {
+        if (MfaEnabled)
+            throw new BusinessRuleViolationException("Two-factor authentication is already enabled for this account.");
+        if (MfaPendingSecretProtected is null)
+            throw new BusinessRuleViolationException("Start the two-factor enrollment first to get the QR code.");
+    }
+
+    /// <summary>The account has an enrolled authenticator.</summary>
+    public void EnsureMfaEnabled()
+    {
+        if (!MfaEnabled)
+            throw new BusinessRuleViolationException("Two-factor authentication is not enabled for this account.");
+    }
 
     // ── E-mail verification (US-01) ─────────────────────────────────────────
 

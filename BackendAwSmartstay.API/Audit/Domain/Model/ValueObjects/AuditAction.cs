@@ -12,7 +12,13 @@ public enum AuditAction
     UserCreated,
     RoleChanged,
     UserDeactivated,
-    UserActivated
+    UserActivated,
+    MfaEnabled,
+    MfaVerified,
+    MfaFailed,
+    MfaRecoveryCodeUsed,
+    MfaReset,
+    SignedOutEverywhere
 }
 
 /// <summary>Whether the recorded action succeeded.</summary>

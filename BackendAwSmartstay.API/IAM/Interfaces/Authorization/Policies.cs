@@ -52,6 +52,13 @@ public static class Policies
     public const string ManageUsers = nameof(ManageUsers);
     /// <summary>Read the access audit log (admins: their hotel's accounts; chain admins: all).</summary>
     public const string ViewAuditLog = nameof(ViewAuditLog);
+    /// <summary>
+    ///     US-52: enroll an authenticator app. Not a role capability: it only accepts the second-factor challenge
+    ///     token of kind <c>enrollment</c> (registered in the IAM authorization setup).
+    /// </summary>
+    public const string EnrollSecondFactor = nameof(EnrollSecondFactor);
+    /// <summary>US-52: present the second factor. Only accepts the challenge token of kind <c>verification</c>.</summary>
+    public const string VerifySecondFactor = nameof(VerifySecondFactor);
     /// <summary>Manage staff profiles and their assignments.</summary>
     public const string ManageStaff = nameof(ManageStaff);
     /// <summary>Read, create and update guest profiles (guests only their own profile).</summary>

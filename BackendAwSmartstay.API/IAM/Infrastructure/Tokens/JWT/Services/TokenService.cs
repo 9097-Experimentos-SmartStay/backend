@@ -35,8 +35,31 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
         if (user.ChainId is { } chainId)
             claims.Add(new Claim(IamClaimTypes.ChainId, chainId.ToString(CultureInfo.InvariantCulture)));
 
+        var (value, expiresAt) = Sign(claims, _tokenSettings.Audience, _tokenSettings.AccessTokenExpirationMinutes);
+        return new IssuedAccessToken(value, expiresAt);
+    }
+
+    public IssuedMfaChallengeToken GenerateMfaChallengeToken(User user, MfaChallengeKind kind, bool rememberMe)
+    {
+        var claims = new List<Claim>
+        {
+            new(IamClaimTypes.UserId, user.Id.ToString(CultureInfo.InvariantCulture)),
+            new(IamClaimTypes.Username, user.Email.Value),
+            new(IamClaimTypes.TokenVersion, user.TokenVersion.ToString(CultureInfo.InvariantCulture)),
+            new(IamClaimTypes.MfaChallenge, kind == MfaChallengeKind.Enrollment
+                ? IamClaimTypes.MfaChallengeEnrollment
+                : IamClaimTypes.MfaChallengeVerification),
+            new(IamClaimTypes.RememberMe, rememberMe ? "true" : "false", ClaimValueTypes.Boolean),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+        };
+        var (value, expiresAt) = Sign(claims, _tokenSettings.MfaChallengeAudience, _tokenSettings.MfaChallengeTokenExpirationMinutes);
+        return new IssuedMfaChallengeToken(kind, value, expiresAt);
+    }
+
+    private (string Value, DateTimeOffset ExpiresAt) Sign(List<Claim> claims, string audience, int lifetimeMinutes)
+    {
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        var expires = now.AddMinutes(_tokenSettings.AccessTokenExpirationMinutes);
+        var expires = now.AddMinutes(lifetimeMinutes);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
@@ -44,11 +67,9 @@ public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider ti
             NotBefore = now,
             Expires = expires,
             Issuer = _tokenSettings.Issuer,
-            Audience = _tokenSettings.Audience,
+            Audience = audience,
             SigningCredentials = new SigningCredentials(_tokenSettings.CreateSigningKey(), SecurityAlgorithms.HmacSha256)
         };
-
-        return new IssuedAccessToken(new JsonWebTokenHandler().CreateToken(tokenDescriptor),
-            new DateTimeOffset(expires, TimeSpan.Zero));
+        return (new JsonWebTokenHandler().CreateToken(tokenDescriptor), new DateTimeOffset(expires, TimeSpan.Zero));
     }
 }

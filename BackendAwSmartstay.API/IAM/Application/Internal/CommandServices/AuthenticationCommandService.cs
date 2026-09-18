@@ -32,6 +32,7 @@ public class AuthenticationCommandService(
     IDomainEventDispatcher domainEventDispatcher,
     IUnitOfWork unitOfWork,
     NewPasswordValidator newPasswordValidator,
+    SessionIssuer sessionIssuer,
     IOptions<AccountSecuritySettings> settings,
     TimeProvider timeProvider,
     ILogger<AuthenticationCommandService> logger) : IAuthenticationCommandService
@@ -89,19 +90,15 @@ public class AuthenticationCommandService(
             throw new EmailNotVerifiedException();
         }
 
-        user.RegisterSuccessfulSignIn(now);
-        IssuedRefreshToken? refreshToken = null;
-        if (command.RememberMe)
+        // US-52: the password is only the first factor of a staff account (and of any account with MFA enabled).
+        // Nothing is granted yet and the failure counter is not reset: only the second factor completes the sign-in.
+        if (user.MfaEnabled || user.RequiresMfaEnrollment)
         {
-            var token = secureTokenGenerator.Generate();
-            var session = RefreshToken.StartSession(user, token.Hash, now, Settings.RefreshTokenLifetime);
-            await refreshTokenRepository.AddAsync(session);
-            refreshToken = new IssuedRefreshToken(token.Value, session.ExpiresAt);
+            var kind = user.MfaEnabled ? MfaChallengeKind.Verification : MfaChallengeKind.Enrollment;
+            return AuthenticationResult.SecondFactorPending(user, tokenService.GenerateMfaChallengeToken(user, kind, command.RememberMe));
         }
 
-        await unitOfWork.CompleteAsync();
-        var accessToken = tokenService.GenerateToken(user);
-        return new AuthenticationResult(user, accessToken.Value, accessToken.ExpiresAt, refreshToken);
+        return await sessionIssuer.StartSessionAsync(user, command.RememberMe, now);
     }
 
     // ── Remembered sessions (US-02 scenario 4) ──────────────────────────────
@@ -124,7 +121,9 @@ public class AuthenticationCommandService(
         if (!presented.IsActive(now)) throw new InvalidRefreshTokenException();
 
         var user = await userRepository.FindByIdAsync(presented.UserId);
-        if (user is null || user.Status == UserStatus.Inactive || !presented.BelongsToCurrentSessionOf(user))
+        // A staff account without a second factor (e.g. after an MFA reset) must sign in again and enroll (US-52).
+        if (user is null || user.Status == UserStatus.Inactive || !presented.BelongsToCurrentSessionOf(user)
+            || user.RequiresMfaEnrollment)
         {
             await RevokeAsync([presented], RefreshTokenRevocationReason.SessionRevoked, now);
             throw new InvalidRefreshTokenException();
