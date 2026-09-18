@@ -73,3 +73,20 @@ public class ResourceExpiredException : DomainException
 {
     public ResourceExpiredException(string message) : base(message) { }
 }
+
+/// <summary>
+///     One input field has an invalid value (e.g. a password that breaks the password policy). The API reports it
+///     as a validation problem keyed by that field, like model validation errors.
+/// </summary>
+public class InvalidFieldException : DomainValidationException
+{
+    /// <param name="field">Name of the invalid input (the property of the command or request, any casing).</param>
+    /// <param name="message">What is wrong and how to fix it.</param>
+    public InvalidFieldException(string field, string message) : base(message)
+    {
+        Field = field;
+    }
+
+    /// <summary>Name of the invalid input.</summary>
+    public string Field { get; }
+}

@@ -37,5 +37,6 @@ public static class WebApplicationBuilderExtensions
             };
         });
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+        builder.Services.AddSingleton<IProblemDetailsEnricher, InvalidFieldProblemDetailsEnricher>();
     }
 }
