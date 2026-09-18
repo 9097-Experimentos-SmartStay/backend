@@ -4,7 +4,8 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 /// <param name="Id">Technical id (use it in the URLs).</param>
 /// <param name="Code">Unique human-readable code, e.g. SS-7KQ4M2XP (US-51).</param>
 /// <param name="HotelId">Hotel of the room.</param>
-/// <param name="RoomId">The booked room.</param>
+/// <param name="RoomId">The booked room (technical id).</param>
+/// <param name="RoomNumber">Number of the room, as guests and staff know it (US-53).</param>
 /// <param name="GuestName">Name of the guest.</param>
 /// <param name="GuestEmail">Where the booking e-mails go.</param>
 /// <param name="GuestPhone">Phone of the guest, if given.</param>
@@ -27,6 +28,7 @@ public record BookingResource(
     string Code,
     int HotelId,
     int RoomId,
+    string RoomNumber,
     string GuestName,
     string GuestEmail,
     string? GuestPhone,

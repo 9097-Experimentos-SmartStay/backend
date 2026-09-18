@@ -47,6 +47,10 @@ public class RoomRepository(AppDbContext context) : BaseRepository<Room>(context
         Context.Set<Room>().AnyAsync(r => r.HotelId == hotelId && r.Number == number
                                           && (excludingRoomId == null || r.Id != excludingRoomId));
 
+    public async Task<IReadOnlyDictionary<int, string>> FindNumbersAsync(IReadOnlyCollection<int> roomIds) =>
+        await Context.Set<Room>().Where(r => roomIds.Contains(r.Id))
+            .Select(r => new { r.Id, r.Number }).ToDictionaryAsync(r => r.Id, r => r.Number);
+
     public async Task<IReadOnlyList<Room>> ListInMaintenanceAsync() =>
         await Context.Set<Room>().Where(r => r.Status == RoomStatus.Maintenance).ToListAsync();
 

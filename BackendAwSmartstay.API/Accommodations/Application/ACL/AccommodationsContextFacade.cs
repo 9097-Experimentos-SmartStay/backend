@@ -32,6 +32,9 @@ public class AccommodationsContextFacade(
         new(room.Id, room.HotelId, room.RoomTypeId, room.RoomType?.Name ?? string.Empty,
             room.Price, room.Description, room.Amenities, room.Status.ToString(), room.Number);
 
+    public async Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IReadOnlyCollection<int> roomIds) =>
+        roomIds.Count == 0 ? new Dictionary<int, string>() : await roomRepository.FindNumbersAsync(roomIds);
+
     public async Task<RoomOffer?> FetchRoomAsync(int roomId)
     {
         if (roomId <= 0) return null;

@@ -39,7 +39,7 @@ public class BookingsController(
     {
         var booking = await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId, User.ToBookingRequester()));
         if (booking is null) return NotFound();
-        return Ok(BookingResourceFromEntityAssembler.ToResourceFromEntity(booking));
+        return Ok(await ToResourceAsync(booking));
     }
 
     /// <summary>Books a room (US-51 guest self-service; US-07 scenario 2 reservation taken by the staff).</summary>
@@ -67,8 +67,7 @@ public class BookingsController(
     {
         var booking = await bookingCommandService.Handle(
             CreateBookingCommandFromResourceAssembler.ToCommandFromResource(resource, User.ToBookingRequester()));
-        return CreatedAtAction(nameof(GetBookingById), new { bookingId = booking.Id },
-            BookingResourceFromEntityAssembler.ToResourceFromEntity(booking));
+        return CreatedAtAction(nameof(GetBookingById), new { bookingId = booking.Id }, await ToResourceAsync(booking));
     }
 
     /// <summary>Lists the bookings visible to the requester, newest first.</summary>
@@ -79,7 +78,7 @@ public class BookingsController(
     public async Task<IActionResult> GetAllBookings()
     {
         var bookings = await bookingQueryService.Handle(new GetBookingsQuery(User.ToBookingRequester()));
-        return Ok(bookings.Select(BookingResourceFromEntityAssembler.ToResourceFromEntity));
+        return Ok(await ToResourcesAsync(bookings));
     }
 
     /// <summary>Lists the bookings of a room (hotel staff of that room's hotel).</summary>
@@ -90,7 +89,7 @@ public class BookingsController(
     public async Task<IActionResult> GetBookingsByRoomId(int roomId)
     {
         var bookings = await bookingQueryService.Handle(new GetBookingsByRoomIdQuery(roomId, User.ToBookingRequester()));
-        return Ok(bookings.Select(BookingResourceFromEntityAssembler.ToResourceFromEntity));
+        return Ok(await ToResourcesAsync(bookings));
     }
 
     /// <summary>Booking calendar of a hotel (US-07 scenario 1).</summary>
@@ -113,7 +112,8 @@ public class BookingsController(
     {
         var window = new DateRange(from.ToDateTime(TimeOnly.MinValue), to.ToDateTime(TimeOnly.MinValue));
         var calendar = await bookingQueryService.Handle(new GetBookingCalendarQuery(User.ToBookingRequester(), hotelId, window));
-        return Ok(BookingResourceFromEntityAssembler.ToResource(calendar));
+        return Ok(BookingResourceFromEntityAssembler.ToResource(calendar,
+            await bookingQueryService.FetchRoomNumbersAsync(calendar.Bookings)));
     }
 
     /// <summary>Changes the dates and/or the room of a booking (US-07 scenario 3).</summary>
@@ -140,7 +140,7 @@ public class BookingsController(
 
         var booking = await bookingCommandService.Handle(new RescheduleBookingCommand(bookingId, User.ToBookingRequester(),
             resource.CheckInDate, resource.CheckOutDate, resource.RoomId));
-        return Ok(BookingResourceFromEntityAssembler.ToResourceFromEntity(booking));
+        return Ok(await ToResourceAsync(booking));
     }
 
     /// <summary>Cancels a booking (US-07 scenario 4).</summary>
@@ -159,6 +159,17 @@ public class BookingsController(
     public async Task<IActionResult> CancelBooking(int bookingId)
     {
         var booking = await bookingCommandService.Handle(new CancelBookingCommand(bookingId, User.ToBookingRequester()));
-        return Ok(BookingResourceFromEntityAssembler.ToResourceFromEntity(booking));
+        return Ok(await ToResourceAsync(booking));
+    }
+
+    private async Task<BookingResource> ToResourceAsync(Domain.Model.Aggregates.Booking booking) =>
+        BookingResourceFromEntityAssembler.ToResourceFromEntity(booking, await bookingQueryService.FetchRoomNumbersAsync([booking]));
+
+    /// <summary>Room numbers of the whole list are resolved in one batch (no query per booking).</summary>
+    private async Task<IEnumerable<BookingResource>> ToResourcesAsync(IEnumerable<Domain.Model.Aggregates.Booking> bookings)
+    {
+        var list = bookings.ToList();
+        var numbers = await bookingQueryService.FetchRoomNumbersAsync(list);
+        return list.Select(booking => BookingResourceFromEntityAssembler.ToResourceFromEntity(booking, numbers));
     }
 }

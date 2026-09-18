@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
@@ -15,9 +16,13 @@ namespace BackendAwSmartstay.API.Bookings.Application.Internal.QueryServices;
 /// </summary>
 public class BookingQueryService(
     IBookingRepository bookingRepository,
-    IGuestProfilesContextFacade guestProfilesContextFacade)
+    IGuestProfilesContextFacade guestProfilesContextFacade,
+    IAccommodationsContextFacade accommodationsContextFacade)
     : IBookingQueryService
 {
+    public Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IEnumerable<Booking> bookings) =>
+        accommodationsContextFacade.FetchRoomNumbersAsync(bookings.Select(booking => booking.RoomId).Distinct().ToList());
+
     /// <summary>Longest period the calendar shows at once.</summary>
     public const int MaxCalendarDays = 92;
 

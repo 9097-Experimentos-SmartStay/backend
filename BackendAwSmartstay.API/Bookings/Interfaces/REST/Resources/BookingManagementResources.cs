@@ -19,7 +19,7 @@ public record RescheduleBookingResource
 }
 
 /// <summary>A booking as shown in the calendar.</summary>
-public record CalendarBookingResource(int Id, string Code, int RoomId, string GuestName, string GuestEmail, string? GuestPhone,
+public record CalendarBookingResource(int Id, string Code, int RoomId, string RoomNumber, string GuestName, string GuestEmail, string? GuestPhone,
     DateOnly CheckInDate, DateOnly CheckOutDate, int Nights, string Status, decimal TotalPrice, DateTimeOffset? PaymentDueAt);
 
 /// <summary>One date of the calendar: ids of the bookings arriving, leaving and staying that night.</summary>

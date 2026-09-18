@@ -25,6 +25,9 @@ public sealed record HotelSummary(int HotelId, string Name, string Address);
 
 public interface IAccommodationsContextFacade
 {
+    /// <summary>Number of each of <paramref name="roomIds"/> (one query; unknown ids are omitted).</summary>
+    Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IReadOnlyCollection<int> roomIds);
+
     /// <summary>The room, or null when it does not exist.</summary>
     Task<RoomOffer?> FetchRoomAsync(int roomId);
 

@@ -18,6 +18,12 @@ public interface IBookingQueryService
     /// <summary>The bookings of a room visible to the requester.</summary>
     Task<IEnumerable<Booking>> Handle(GetBookingsByRoomIdQuery query);
 
+    /// <summary>
+    ///     The number of the room of each booking (one batch lookup in the Accommodations context), so clients never
+    ///     resolve rooms themselves.
+    /// </summary>
+    Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IEnumerable<Booking> bookings);
+
     /// <summary>US-07 scenario 1: the calendar of a hotel.</summary>
     Task<BookingCalendar> Handle(GetBookingCalendarQuery query);
 }
