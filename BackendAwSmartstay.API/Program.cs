@@ -1,5 +1,7 @@
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Audit.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Marketing.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Authentication.ScheduledJobs;
 using BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Payments.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Documentation.OpenApi.Configuration.Extensions;
@@ -45,6 +47,7 @@ builder.AddIamContextServices();
 builder.AddProfilesContextServices();
 builder.AddAnalyticsContextServices();
 builder.AddAuditContextServices();
+builder.AddMarketingContextServices();
 builder.AddIoTEmulatorServices();
 
 // Mediator for Services
@@ -58,6 +61,9 @@ builder.Services.AddHealthChecks()
 
 // Optional analytics cache lab: Redis + ActiveMQ fallback (only when configured)
 builder.AddAnalyticsCacheServices();
+
+// X-Cron-Key authentication of the external scheduler (scheduled jobs)
+builder.Services.AddScheduledJobsAuthentication(builder.Configuration);
 
 // Rate limiting of the anonymous endpoints, per client IP
 builder.Services.AddSmartStayRateLimiting(builder.Configuration);
