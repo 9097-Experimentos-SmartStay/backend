@@ -1,8 +1,9 @@
 using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
@@ -17,7 +18,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST;
 ///     This controller serves as a master data gateway. While reading catalog information is open to all validated profiles,
 ///     mutating the global catalog state changes constraints globally and is restricted strictly to multi-property corporate managers.
 /// </remarks>
-[Authorize]
+[Authorize(Policy = Policies.ReadInventory)]
 [ApiController]
 [Route("api/v1/accommodations/options")]
 [Produces(MediaTypeNames.Application.Json)]
@@ -66,7 +67,7 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
     /// <param name="resource">The incoming configuration resource representation containing parameters for target generation.</param>
     /// <returns>A confirmation outcome showing the tracking state of the newly appended category resource metadata.</returns>
     [HttpPost("categories")]
-    [Authorize(UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageCatalog)]
     [SwaggerOperation(
         Summary = "Create a new hotel category definition entry",
         Description = "Appends a new structural entry to the shared hotel type directory. Restricted strictly to ChainAdmin operators.",
@@ -96,7 +97,7 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
     /// <param name="resource">The incoming input layout mapping specifications required for amenity catalog expansion.</param>
     /// <returns>A confirmation representation containing the structural name marker of the compiled item.</returns>
     [HttpPost("amenities")]
-    [Authorize(UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageCatalog)]
     [SwaggerOperation(
         Summary = "Create a new master amenity option node",
         Description = "Appends a new trackable amenity option to the global definition scheme. Restricted to full multi-property clearance operators.",

@@ -1,6 +1,4 @@
 using System.Net.Mime;
-using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Commands;
 using BackendAwSmartstay.API.Profiles.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Queries;
@@ -8,6 +6,8 @@ using BackendAwSmartstay.API.Profiles.Application.Internal.QueryServices;
 using BackendAwSmartstay.API.Profiles.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Profiles.Interfaces.REST.Transform;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -27,7 +27,7 @@ public class StaffController(
     : ControllerBase
 {
     [HttpGet("{id:guid}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Get staff profile by ID", OperationId = "GetStaffProfileById")]
     [SwaggerResponse(StatusCodes.Status200OK, "Staff profile found.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -40,7 +40,7 @@ public class StaffController(
     }
 
     [HttpGet("code/{code}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Get staff profile by employee code", OperationId = "GetStaffProfileByCode")]
     [SwaggerResponse(StatusCodes.Status200OK, "Staff profile found.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -53,7 +53,7 @@ public class StaffController(
     }
 
     [HttpGet("user/{userId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Get staff profile by IAM User ID", OperationId = "GetStaffProfileByUserId")]
     [SwaggerResponse(StatusCodes.Status200OK, "Staff profile found.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -66,7 +66,7 @@ public class StaffController(
     }
 
     [HttpGet("hotel/{hotelId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Get staff profiles assigned to a hotel", OperationId = "GetStaffProfilesByHotel")]
     [SwaggerResponse(StatusCodes.Status200OK, "Staff profiles retrieved.", typeof(IEnumerable<StaffProfileResource>))]
     public async Task<IActionResult> GetByHotel(int hotelId)
@@ -77,7 +77,7 @@ public class StaffController(
     }
 
     [HttpGet]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Get all staff profiles", OperationId = "GetAllStaffProfiles")]
     [SwaggerResponse(StatusCodes.Status200OK, "Staff profiles retrieved.", typeof(IEnumerable<StaffProfileResource>))]
     public async Task<IActionResult> GetAll()
@@ -87,7 +87,7 @@ public class StaffController(
     }
 
     [HttpPost]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Create a new staff profile", OperationId = "CreateStaffProfile")]
     [SwaggerResponse(StatusCodes.Status201Created, "Staff profile created successfully.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid input data.")]
@@ -101,7 +101,7 @@ public class StaffController(
     }
 
     [HttpPost("{id:guid}/assignments")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Add an assignment to a staff profile", OperationId = "AddStaffAssignment")]
     [SwaggerResponse(StatusCodes.Status200OK, "Assignment added successfully.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -121,7 +121,7 @@ public class StaffController(
     }
 
     [HttpPost("{id:guid}/assignments/{assignmentId:guid}/terminate")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Terminate a staff assignment", OperationId = "TerminateStaffAssignment")]
     [SwaggerResponse(StatusCodes.Status200OK, "Assignment terminated successfully.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile or assignment not found.")]
@@ -138,7 +138,7 @@ public class StaffController(
     }
 
     [HttpPost("{id:guid}/assignments/{assignmentId:guid}/suspend")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Suspend a staff assignment", OperationId = "SuspendStaffAssignment")]
     [SwaggerResponse(StatusCodes.Status200OK, "Assignment suspended successfully.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile or assignment not found.")]
@@ -154,7 +154,7 @@ public class StaffController(
     }
 
     [HttpPost("{id:guid}/assignments/{assignmentId:guid}/reactivate")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Reactivate a staff assignment", OperationId = "ReactivateStaffAssignment")]
     [SwaggerResponse(StatusCodes.Status200OK, "Assignment reactivated successfully.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile or assignment not found.")]
@@ -171,7 +171,7 @@ public class StaffController(
     }
 
     [HttpPut("{id:guid}/legal-name")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Change staff legal name", OperationId = "ChangeStaffLegalName")]
     [SwaggerResponse(StatusCodes.Status200OK, "Legal name updated successfully.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -187,7 +187,7 @@ public class StaffController(
     }
 
     [HttpPut("{id:guid}/personal-contact")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Update staff personal contact information", OperationId = "UpdateStaffPersonalContact")]
     [SwaggerResponse(StatusCodes.Status200OK, "Personal contact information updated.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -208,7 +208,7 @@ public class StaffController(
     }
 
     [HttpPut("{id:guid}/job-position")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Change staff job position", OperationId = "ChangeStaffJobPosition")]
     [SwaggerResponse(StatusCodes.Status200OK, "Job position updated.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -224,7 +224,7 @@ public class StaffController(
     }
 
     [HttpPut("{id:guid}/habitual-shift")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Change staff habitual shift", OperationId = "ChangeStaffHabitualShift")]
     [SwaggerResponse(StatusCodes.Status200OK, "Habitual shift updated.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -240,7 +240,7 @@ public class StaffController(
     }
 
     [HttpPut("{id:guid}/identification")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Update staff identification document", OperationId = "UpdateStaffIdentification")]
     [SwaggerResponse(StatusCodes.Status200OK, "Identification document updated.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -256,7 +256,7 @@ public class StaffController(
     }
 
     [HttpPost("{id:guid}/deactivate")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Deactivate staff profile", OperationId = "DeactivateStaffProfile")]
     [SwaggerResponse(StatusCodes.Status200OK, "Staff profile deactivated.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]
@@ -269,7 +269,7 @@ public class StaffController(
     }
 
     [HttpPost("{id:guid}/activate")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageStaff)]
     [SwaggerOperation(Summary = "Activate staff profile", OperationId = "ActivateStaffProfile")]
     [SwaggerResponse(StatusCodes.Status200OK, "Staff profile activated.", typeof(StaffProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Staff profile not found.")]

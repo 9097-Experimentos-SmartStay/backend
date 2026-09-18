@@ -1,4 +1,5 @@
-﻿using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Models;
+using BackendAwSmartstay.API.Shared.Infrastructure.Documentation.OpenApi.Configuration;
 
 namespace BackendAwSmartstay.API.Shared.Infrastructure.Documentation.OpenApi.Configuration.Extensions;
 
@@ -37,33 +38,20 @@ public static class WebApplicationBuilderExtensions
                     }
                 });
             
-            // Configure JWT Bearer authentication
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            // JWT bearer scheme: the "Authorize" button of Swagger UI sends "Authorization: Bearer <token>".
+            options.AddSecurityDefinition(BearerSecurityRequirementOperationFilter.SchemeId, new OpenApiSecurityScheme
             {
                 In = ParameterLocation.Header,
-                Description = "Enter JWT token with Bearer prefix",
+                Description = "Paste the token returned by POST /api/v1/authentication/sign-in (without the 'Bearer ' prefix).",
                 Name = "Authorization",
                 Type = SecuritySchemeType.Http,
                 BearerFormat = "JWT",
                 Scheme = "bearer"
             });
-            
-            // Apply JWT authentication globally
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
-                {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Id = "Bearer",
-                            Type = ReferenceType.SecurityScheme
-                        }
-                    },
-                    Array.Empty<string>()
-                }
-            });
-            
+
+            // Only endpoints that are not [AllowAnonymous] require the bearer token.
+            options.OperationFilter<BearerSecurityRequirementOperationFilter>();
+
             options.EnableAnnotations();
         });
     }

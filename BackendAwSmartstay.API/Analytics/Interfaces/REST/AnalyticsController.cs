@@ -3,8 +3,8 @@ using BackendAwSmartstay.API.Analytics.Domain.Model.Queries;
 using BackendAwSmartstay.API.Analytics.Domain.Services;
 using BackendAwSmartstay.API.Analytics.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Analytics.Interfaces.REST.Transform;
-using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 using Swashbuckle.AspNetCore.Annotations;
@@ -41,7 +41,7 @@ public class AnalyticsController(
     //  Retrieves monthly performance metrics.
     // <returns>An action result containing the performance metrics resource.</returns>
     [HttpGet("performance/monthly")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ViewAnalytics)]
     [SwaggerOperation(
         Summary = "Get monthly performance metrics",
         Description = "Retrieves aggregated metrics like revenue and occupancy for the current month. Requires Admin or ChainAdmin.",
@@ -59,7 +59,7 @@ public class AnalyticsController(
     }
 
     [HttpPost("cache")]
-    [Authorize(UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.OperateAnalyticsLab)]
     [SwaggerOperation(
         Summary = "Push a message to the analytics cache (resilience lab)",
         Description = "Writes to Redis through a circuit breaker; falls back to ActiveMQ. 503 when the lab is not configured. ChainAdmin only.",
@@ -122,7 +122,7 @@ public class AnalyticsController(
     }
     
     [HttpGet("cache")]
-    [Authorize(UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.OperateAnalyticsLab)]
     [SwaggerOperation(
         Summary = "Read the analytics cache (resilience lab)",
         Description = "Reads the cached messages from Redis through a circuit breaker. 503 when the lab is not configured or the circuit is open. ChainAdmin only.",

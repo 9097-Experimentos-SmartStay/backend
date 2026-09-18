@@ -6,7 +6,6 @@ using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Mediator.Cortex.Configuration.Extensions;
 using BackendAwSmartstay.API.IAM.Infrastructure.Interfaces.ASP.Configuration.Extensions;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using BackendAwSmartstay.API.IAM.Infrastructure.Extensions;
 using BackendAwSmartstay.API.Profiles.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
@@ -103,10 +102,15 @@ app.UseHttpsRedirection();
 
 app.UseRateLimiter();
 
-app.UseRequestAuthorization();
+// Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user)
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
-// maping health checks endpoint
-app.MapHealthChecks("/health");
+app.MapSwagger().AllowAnonymous();
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
+
+/// <summary>Entry point, exposed for integration tests (WebApplicationFactory).</summary>
+public partial class Program;

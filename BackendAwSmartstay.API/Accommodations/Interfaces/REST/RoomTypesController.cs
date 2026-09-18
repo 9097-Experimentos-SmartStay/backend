@@ -4,7 +4,8 @@ using BackendAwSmartstay.API.Accommodations.Domain.Services;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Transform;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -16,7 +17,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST;
 /// </summary>
 /// <param name="roomTypeCommandService">The domain command service used to handle room type mutations.</param>
 /// <param name="roomTypeQueryService">The domain query service used to handle room type state extraction.</param>
-[Authorize]
+[Authorize(Policy = Policies.ReadInventory)]
 [ApiController]
 [Route("api/v1/[controller]")]
 [Produces(MediaTypeNames.Application.Json)]
@@ -54,7 +55,7 @@ public class RoomTypesController(
     /// <param name="resource">The incoming input resource containing constraints required for room type construction.</param>
     /// <returns>A created resource response alongside the tracking location parameters of the processed entity.</returns>
     [HttpPost]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Create a new room type category",
         Description = "Registers a new room type scheme within the catalog context. Restricted to management nodes.",

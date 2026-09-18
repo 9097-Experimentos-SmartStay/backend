@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
+﻿using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using BackendAwSmartstay.API.Models.IoT;
 using BackendAwSmartstay.API.Infrastructure.Telemetry;
 
@@ -19,7 +19,7 @@ public class IoTEmulatorController : ControllerBase
 {
     // POST /api/v1/io-t-emulator/rooms/{roomId}/inject-telemetry
     [HttpPost("rooms/{roomId:int:min(1)}/inject-telemetry")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Maintenance)]
+    [Authorize(Policy = Policies.InjectTelemetry)]
     public IActionResult InjectTelemetry(int roomId, [FromBody] InjectTelemetryRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.SimulatedSensorType) || request.ReadingValue == null)
@@ -61,7 +61,7 @@ public class IoTEmulatorController : ControllerBase
 
     // POST /api/v1/io-t-emulator/rooms/{roomId}/thermostat
     [HttpPost("rooms/{roomId:int:min(1)}/thermostat")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception, UserRoles.Maintenance)]
+    [Authorize(Policy = Policies.ControlRoomDevices)]
     public IActionResult SetThermostat(int roomId, [FromBody] SetThermostatRequest request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.FanSpeed) || string.IsNullOrWhiteSpace(request.SimulationMode))
@@ -83,8 +83,7 @@ public class IoTEmulatorController : ControllerBase
 
     // GET /api/v1/io-t-emulator/rooms/{roomId}/actuators-state
     [HttpGet("rooms/{roomId:int:min(1)}/actuators-state")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Staff, UserRoles.Reception,
-        UserRoles.Housekeeping, UserRoles.Maintenance)]
+    [Authorize(Policy = Policies.ReadRoomDevices)]
     public IActionResult GetActuatorsState(int roomId)
     {
         var state = IoTEmulatorStore.GetOrAdd(roomId);

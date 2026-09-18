@@ -42,4 +42,10 @@ public class UserQueryService(
         var username = new Username(query.Username);
         return await userRepository.FindByUsernameAsync(username);
     }
+
+    public async Task<UserSession> Handle(GetUserSessionQuery query)
+    {
+        var user = await userRepository.FindByIdAsync(query.UserId);
+        return user?.GetSession(query.TokenVersion) ?? UserSession.NotFound();
+    }
 }

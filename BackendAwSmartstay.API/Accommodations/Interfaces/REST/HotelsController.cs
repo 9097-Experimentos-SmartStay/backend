@@ -1,13 +1,12 @@
-using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Net.Mime;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
+using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Authorization;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Transform;
-using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -17,14 +16,15 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST;
 ///     RESTful API interface controller responsible for handling corporate and guest operations 
 ///     related to hotel property aggregates within the hotel accommodation bounded context.
 /// </summary>
-[Authorize]
+[Authorize(Policy = Policies.ReadInventory)]
 [ApiController]
 [Route("api/v1/[controller]")]
 [Produces(MediaTypeNames.Application.Json)]
 [SwaggerTag("Available Hotel Endpoints")]
 public class HotelsController(
     IHotelCommandService hotelCommandService,
-    IHotelQueryService hotelQueryService) : ControllerBase
+    IHotelQueryService hotelQueryService,
+    IAuthorizationService authorizationService) : ControllerBase
 {
     /// <summary>
     ///     Retrieves a collection of all registered hotel property resources.
@@ -76,7 +76,7 @@ public class HotelsController(
     /// <param name="resource">The incoming payload representation mapping properties required for construction.</param>
     /// <returns>A created resource location confirmation with the persistence tracking instance representation.</returns>
     [HttpPost]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Create a new hotel property entry",
         Description = "Constructs a new hotel aggregate root. Restricted exclusively to administrative and corporate management roles.",
@@ -88,8 +88,7 @@ public class HotelsController(
     public async Task<IActionResult> CreateHotel([FromBody] CreateHotelResource resource)
     {
         // Admins always host the hotels they create; a chain admin may create it on behalf of another host.
-        var actor = HttpContext.RequireAuthenticatedUser();
-        var hostId = actor.IsInRole(UserRoles.ChainAdmin) && resource.HostId is > 0 ? resource.HostId.Value : actor.Id;
+        var hostId = User.IsChainAdmin() && resource.HostId is > 0 ? resource.HostId.Value : User.GetUserId();
         var command = CreateHotelCommandFromResourceAssembler.ToCommandFromResource(resource, hostId);
         var hotel = await hotelCommandService.Handle(command);
         
@@ -106,7 +105,7 @@ public class HotelsController(
     /// <param name="resource">The incoming state modification layout resource constraints.</param>
     /// <returns>The updated hotel resource state outcome representation.</returns>
     [HttpPut("{hotelId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Update an existing hotel aggregate's context properties",
         Description = "Mutates descriptive fields on an active hotel target. Only accessible by authorized management nodes.",
@@ -135,7 +134,7 @@ public class HotelsController(
     /// <param name="hotelId">The unique structural aggregate identifier targeted for transactional removal.</param>
     /// <returns>The final detached state representation of the processed resource entry.</returns>
     [HttpDelete("{hotelId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Delete a hotel property cluster",
         Description = "Triggers complete cascading teardown routines for a single hotel entity group. Strictly for administrative clearance nodes.",
@@ -159,17 +158,15 @@ public class HotelsController(
     }
 
     /// <summary>
-    ///     Returns 404 when the hotel does not exist and throws (403) when the caller may not manage it.
+    ///     Resource-based authorization: 404 when the hotel does not exist, 403 (native Forbid) when it is
+    ///     outside the requester's scope, null when the requester may manage it.
     /// </summary>
     private async Task<IActionResult?> EnsureCanManageHotelAsync(int hotelId)
     {
         var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(hotelId));
         if (hotel is null) return NotFound();
 
-        var actor = HttpContext.RequireAuthenticatedUser();
-        if (!HotelAccessPolicy.CanManage(actor.Role.Value, actor.Id, actor.HotelId, hotel))
-            throw new OperationNotAllowedException($"You are not allowed to manage hotel {hotelId}.");
-
-        return null;
+        var authorization = await authorizationService.AuthorizeAsync(User, hotel, HotelManagementRequirement.Instance);
+        return authorization.Succeeded ? null : Forbid();
     }
 }

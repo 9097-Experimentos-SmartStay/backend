@@ -1,8 +1,5 @@
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Net.Mime;
-using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Commands;
 using BackendAwSmartstay.API.Profiles.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.Queries;
@@ -10,6 +7,8 @@ using BackendAwSmartstay.API.Profiles.Application.Internal.QueryServices;
 using BackendAwSmartstay.API.Profiles.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Profiles.Interfaces.REST.Transform;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -29,7 +28,7 @@ public class GuestsController(
     : ControllerBase
 {
     [HttpGet("{id:guid}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception, UserRoles.Guest)]
+    [Authorize(Policy = Policies.AccessGuestProfiles)]
     [SwaggerOperation(Summary = "Get guest profile by ID", OperationId = "GetGuestProfileById")]
     [SwaggerResponse(StatusCodes.Status200OK, "Guest profile found.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -42,7 +41,7 @@ public class GuestsController(
     }
 
     [HttpGet("email/{email}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
+    [Authorize(Policy = Policies.SearchGuestProfiles)]
     [SwaggerOperation(Summary = "Get guest profile by email address", OperationId = "GetGuestProfileByEmail")]
     [SwaggerResponse(StatusCodes.Status200OK, "Guest profile found.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -55,7 +54,7 @@ public class GuestsController(
     }
 
     [HttpGet("user/{userId:int}")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception, UserRoles.Guest)]
+    [Authorize(Policy = Policies.AccessGuestProfiles)]
     [SwaggerOperation(Summary = "Get guest profile by IAM User ID", OperationId = "GetGuestProfileByUserId")]
     [SwaggerResponse(StatusCodes.Status200OK, "Guest profile found.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -71,7 +70,7 @@ public class GuestsController(
     }
 
     [HttpGet]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
+    [Authorize(Policy = Policies.SearchGuestProfiles)]
     [SwaggerOperation(Summary = "Get all guest profiles", OperationId = "GetAllGuestProfiles")]
     [SwaggerResponse(StatusCodes.Status200OK, "Guest profiles retrieved.", typeof(IEnumerable<GuestProfileResource>))]
     public async Task<IActionResult> GetAll()
@@ -81,7 +80,7 @@ public class GuestsController(
     }
 
     [HttpPost]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception, UserRoles.Guest)]
+    [Authorize(Policy = Policies.AccessGuestProfiles)]
     [SwaggerOperation(Summary = "Create a new guest profile", OperationId = "CreateGuestProfile")]
     [SwaggerResponse(StatusCodes.Status201Created, "Guest profile created successfully.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid input data.")]
@@ -98,7 +97,7 @@ public class GuestsController(
     }
 
     [HttpPost("{id:guid}/link-user")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Guest)]
+    [Authorize(Policy = Policies.LinkGuestProfiles)]
     [SwaggerOperation(Summary = "Link guest profile to an IAM user account", OperationId = "LinkGuestToUser")]
     [SwaggerResponse(StatusCodes.Status200OK, "Guest profile linked to user.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -119,7 +118,7 @@ public class GuestsController(
     }
 
     [HttpPut("{id:guid}/contact-info")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception, UserRoles.Guest)]
+    [Authorize(Policy = Policies.AccessGuestProfiles)]
     [SwaggerOperation(Summary = "Update guest contact information", OperationId = "UpdateGuestContactInfo")]
     [SwaggerResponse(StatusCodes.Status200OK, "Contact information updated.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -146,7 +145,7 @@ public class GuestsController(
     }
 
     [HttpPut("{id:guid}/identification")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
+    [Authorize(Policy = Policies.SearchGuestProfiles)]
     [SwaggerOperation(Summary = "Set initial guest identification document", OperationId = "SetGuestIdentification")]
     [SwaggerResponse(StatusCodes.Status200OK, "Identification document set.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -162,7 +161,7 @@ public class GuestsController(
     }
 
     [HttpPost("{id:guid}/correct-identification")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.AdministerGuestProfiles)]
     [SwaggerOperation(Summary = "Correct guest identification document with audit trail justification", OperationId = "CorrectGuestIdentification")]
     [SwaggerResponse(StatusCodes.Status200OK, "Identification document corrected.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -173,7 +172,7 @@ public class GuestsController(
             new IdentificationDocument(resource.NewDocumentType, resource.NewDocumentNumber),
             resource.Reason,
             // Audit identity comes from the token, not from the body
-            new UserId(HttpContext.RequireAuthenticatedUser().Id));
+            new UserId(User.GetUserId()));
 
         var guest = await guestCommandService.Handle(command);
         if (guest is null) return NotFound();
@@ -181,7 +180,7 @@ public class GuestsController(
     }
 
     [HttpPost("{id:guid}/deactivate")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.AdministerGuestProfiles)]
     [SwaggerOperation(Summary = "Deactivate guest profile", OperationId = "DeactivateGuestProfile")]
     [SwaggerResponse(StatusCodes.Status200OK, "Guest profile deactivated.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -194,7 +193,7 @@ public class GuestsController(
     }
 
     [HttpPost("{id:guid}/activate")]
-    [Authorize(UserRoles.Admin, UserRoles.ChainAdmin)]
+    [Authorize(Policy = Policies.AdministerGuestProfiles)]
     [SwaggerOperation(Summary = "Activate guest profile", OperationId = "ActivateGuestProfile")]
     [SwaggerResponse(StatusCodes.Status200OK, "Guest profile activated.", typeof(GuestProfileResource))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Guest profile not found.")]
@@ -209,8 +208,7 @@ public class GuestsController(
     /// <summary>The caller's user id when the caller is a guest; null for hotel staff roles.</summary>
     private int? CallerGuestUserId()
     {
-        var actor = HttpContext.RequireAuthenticatedUser();
-        return actor.IsInRole(UserRoles.Guest) ? actor.Id : null;
+        return User.IsGuest() ? User.GetUserId() : null;
     }
 
     /// <summary>Staff roles can access any profile; a guest only the profile linked to their account.</summary>

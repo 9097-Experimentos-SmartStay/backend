@@ -5,6 +5,8 @@ using BackendAwSmartstay.API.Accommodations.Domain.Repositories;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Persistence.EFC.Repositories;
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
+using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 
@@ -31,6 +33,9 @@ public static class WebApplicationBuilderExtensions
 
         // ACL Facade
         builder.Services.AddScoped<IAccommodationsContextFacade, AccommodationsContextFacade>();
+
+        // Resource-based authorization (hotel scope)
+        builder.Services.AddSingleton<IAuthorizationHandler, HotelManagementAuthorizationHandler>();
     }
 }
 

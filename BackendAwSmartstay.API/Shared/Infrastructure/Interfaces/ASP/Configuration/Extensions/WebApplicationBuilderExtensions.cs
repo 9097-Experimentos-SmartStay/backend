@@ -21,7 +21,10 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddProblemDetails(options =>
         {
             options.CustomizeProblemDetails = context =>
+            {
+                context.ProblemDetails.Instance ??= context.HttpContext.Request.Path;
                 context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+            };
         });
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     }

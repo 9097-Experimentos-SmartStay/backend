@@ -1,5 +1,4 @@
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
-using System.Text.Json.Serialization;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
@@ -32,7 +31,7 @@ public class User
     /// <summary>
     /// EF Core constructor. Do not use directly in domain logic.
     /// </summary>
-    public User()
+    protected User()
     {
         Username = null!; // EF populates this via reflection after materialization
         PasswordHash = string.Empty;
@@ -45,7 +44,7 @@ public class User
 
     public int Id { get; private set; }
     public Username Username { get; private set; }
-    [JsonIgnore] public string PasswordHash { get; private set; }
+    public string PasswordHash { get; private set; }
     public Role Role { get; private set; }
     public UserStatus Status { get; private set; }
     public int? HotelId { get; private set; }
@@ -91,12 +90,8 @@ public class User
         return this;
     }
 
-    public User IncrementTokenVersion()
-    {
-        TokenVersion++;
-        UpdatedAt = DateTime.UtcNow;
-        return this;
-    }
+    /// <summary>Revokes every token issued so far (password change, deactivation).</summary>
+    public User IncrementTokenVersion() => StartNewSession();
 
     public User UpdateHotelId(int? hotelId)
     {
@@ -108,6 +103,24 @@ public class User
     public User UpdateChainId(int? chainId)
     {
         ChainId = chainId;
+        UpdatedAt = DateTime.UtcNow;
+        return this;
+    }
+
+    /// <summary>
+    ///     Decides whether an access token issued with <paramref name="tokenVersion"/> still represents a valid
+    ///     session: the account must be active and the token must belong to the current session generation.
+    /// </summary>
+    public UserSession GetSession(int tokenVersion)
+    {
+        if (Status == UserStatus.Inactive) return new UserSession(UserSessionStatus.Inactive);
+        if (tokenVersion != TokenVersion) return new UserSession(UserSessionStatus.Revoked);
+        return new UserSession(UserSessionStatus.Valid, Role.Value, HotelId, ChainId);
+    }
+
+    private User StartNewSession()
+    {
+        TokenVersion++;
         UpdatedAt = DateTime.UtcNow;
         return this;
     }

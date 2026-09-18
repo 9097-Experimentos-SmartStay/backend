@@ -1,79 +1,50 @@
+using System.Globalization;
 using System.Security.Claims;
-using System.Text;
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
 using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.IAM.Infrastructure.Tokens.JWT.Configuration;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 
 namespace BackendAwSmartstay.API.IAM.Infrastructure.Tokens.JWT.Services;
 
-public class TokenService(IOptions<TokenSettings> tokenSettings, ILogger<TokenService> logger) : ITokenService
+/// <summary>
+///     Issues HS256 access tokens whose claims are exactly the ones the JWT bearer handler reads
+///     (see <see cref="IamClaimTypes"/>).
+/// </summary>
+public class TokenService(IOptions<TokenSettings> tokenSettings, TimeProvider timeProvider) : ITokenService
 {
     private readonly TokenSettings _tokenSettings = tokenSettings.Value;
 
     public string GenerateToken(User user)
     {
-        var secret = _tokenSettings.Secret;
-        var key = Encoding.UTF8.GetBytes(secret);
+        var claims = new List<Claim>
+        {
+            new(IamClaimTypes.UserId, user.Id.ToString(CultureInfo.InvariantCulture)),
+            new(IamClaimTypes.Username, user.Username.Value),
+            new(IamClaimTypes.Role, user.Role.Value),
+            new(IamClaimTypes.TokenVersion, user.TokenVersion.ToString(CultureInfo.InvariantCulture)),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
+        };
+        if (user.HotelId is { } hotelId)
+            claims.Add(new Claim(IamClaimTypes.HotelId, hotelId.ToString(CultureInfo.InvariantCulture)));
+        if (user.ChainId is { } chainId)
+            claims.Add(new Claim(IamClaimTypes.ChainId, chainId.ToString(CultureInfo.InvariantCulture)));
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim(ClaimTypes.Sid, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Role, user.Role),
-                new Claim("token_version", user.TokenVersion.ToString())
-            }),
-            Expires = DateTime.UtcNow.AddHours(_tokenSettings.ExpirationInHours),
+            Subject = new ClaimsIdentity(claims),
+            IssuedAt = now,
+            NotBefore = now,
+            Expires = now.AddHours(_tokenSettings.ExpirationInHours),
             Issuer = _tokenSettings.Issuer,
             Audience = _tokenSettings.Audience,
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials = new SigningCredentials(_tokenSettings.CreateSigningKey(), SecurityAlgorithms.HmacSha256)
         };
 
-        var tokenHandler = new JsonWebTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        return token;
-    }
-
-    public async Task<int?> ValidateToken(string token)
-    {
-        if (string.IsNullOrEmpty(token))
-            return null;
-
-        var tokenHandler = new JsonWebTokenHandler();
-        var key = Encoding.UTF8.GetBytes(_tokenSettings.Secret);
-
-        try
-        {
-            var tokenValidationResult = await tokenHandler.ValidateTokenAsync(token, new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = true,
-                ValidIssuer = _tokenSettings.Issuer,
-                ValidateAudience = true,
-                ValidAudience = _tokenSettings.Audience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            });
-
-            if (!tokenValidationResult.IsValid)
-                return null;
-
-            var jwtToken = (JsonWebToken)tokenValidationResult.SecurityToken;
-            var sidClaim = jwtToken.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.Sid);
-
-            if (sidClaim is null || !int.TryParse(sidClaim.Value, out var userId))
-                return null;
-
-            return userId;
-        }
-        catch (Exception e)
-        {
-            logger.LogWarning(e, "Token validation threw an exception.");
-            return null;
-        }
+        return new JsonWebTokenHandler().CreateToken(tokenDescriptor);
     }
 }

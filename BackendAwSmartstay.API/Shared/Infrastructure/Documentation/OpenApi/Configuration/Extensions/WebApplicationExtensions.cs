@@ -14,7 +14,8 @@ public static class WebApplicationExtensions
     /// </remarks>
     public static void UseOpenApiConfiguration(this WebApplication app)
     {
-        app.UseSwagger();
+        // The OpenAPI document is an endpoint (MapSwagger().AllowAnonymous() in Program.cs); the UI is static
+        // middleware that runs before authentication, so the interactive docs stay public (US-32).
         app.UseSwaggerUI(c =>
         {
             c.SwaggerEndpoint("/swagger/v1/swagger.json", "BackendAwSmartstay API v1");

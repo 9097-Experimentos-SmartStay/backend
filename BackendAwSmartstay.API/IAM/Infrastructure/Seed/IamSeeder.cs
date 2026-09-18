@@ -1,55 +1,40 @@
-﻿using BackendAwSmartstay.API.IAM.Domain.Repositories;
+using BackendAwSmartstay.API.IAM.Application.OutboundServices;
 using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Application.OutboundServices;
+using BackendAwSmartstay.API.IAM.Domain.Repositories;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using Microsoft.Extensions.Options;
 
 namespace BackendAwSmartstay.API.IAM.Infrastructure.Seed;
 
-public class IamSeeder
+/// <summary>Creates the initial chain administrator when <see cref="InitialChainAdminSettings"/> are provided.</summary>
+public static class IamSeeder
 {
     public static async Task SeedAsync(IServiceProvider services)
     {
-        var logger = services.GetRequiredService<ILogger<IamSeeder>>();
-        try
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(IamSeeder));
+        var settings = services.GetRequiredService<IOptions<InitialChainAdminSettings>>().Value;
+
+        if (!settings.IsConfigured)
         {
-            var config = services.GetRequiredService<IConfiguration>();
-            // Preferred: InitialChainAdmin__Username / InitialChainAdmin__Password.
-            // Legacy fallback: INITIAL_CHAIN_ADMIN_USERNAME / INITIAL_CHAIN_ADMIN_PASSWORD.
-            // appsettings.json ships empty placeholders, so blank values must also fall through.
-            var username = FirstNonBlank(config["InitialChainAdmin:Username"], Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_USERNAME"));
-            var password = FirstNonBlank(config["InitialChainAdmin:Password"], Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_PASSWORD"));
-
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-            {
-                logger.LogWarning("IamSeeder: Initial chain admin credentials not provided; skipping seed.");
-                return;
-            }
-
-            var userRepository = services.GetRequiredService<IUserRepository>();
-            var hashingService = services.GetRequiredService<IHashingService>();
-            var unitOfWork = services.GetRequiredService<IUnitOfWork>();
-
-            if (await userRepository.ExistsByUsernameAsync(username))
-            {
-                logger.LogWarning("IamSeeder: User '{Username}' already exists; skipping seed.", username);
-                return;
-            }
-
-            var hashed = hashingService.HashPassword(password);
-            var user = new User(username, hashed, UserRoles.ChainAdmin, hotelId: 1);
-
-            await userRepository.AddAsync(user);
-            await unitOfWork.CompleteAsync();
-            logger.LogInformation("IamSeeder: Created initial chain admin user '{Username}' with HotelId=1.", username);
+            logger.LogWarning("IamSeeder: InitialChainAdmin credentials not provided; skipping seed.");
+            return;
         }
-        catch (Exception e)
+
+        var userRepository = services.GetRequiredService<IUserRepository>();
+        if (await userRepository.ExistsByUsernameAsync(settings.Username!))
         {
-            logger.LogError(e, "IamSeeder: Seed failed.");
-            throw;
+            logger.LogInformation("IamSeeder: user '{Username}' already exists; skipping seed.", settings.Username);
+            return;
         }
+
+        var hashingService = services.GetRequiredService<IHashingService>();
+        var user = new User(settings.Username!, hashingService.HashPassword(settings.Password!), UserRoles.ChainAdmin,
+            hotelId: settings.HotelId);
+
+        await userRepository.AddAsync(user);
+        await services.GetRequiredService<IUnitOfWork>().CompleteAsync();
+        logger.LogInformation("IamSeeder: created initial chain admin '{Username}' (hotel {HotelId}).",
+            settings.Username, settings.HotelId);
     }
-
-    private static string? FirstNonBlank(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 }

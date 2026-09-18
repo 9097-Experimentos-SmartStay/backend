@@ -1,11 +1,10 @@
 using System.Net.Mime;
-using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
-using BackendAwSmartstay.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
 using BackendAwSmartstay.API.Payments.Domain.Model.Queries;
 using BackendAwSmartstay.API.Payments.Domain.Services;
 using BackendAwSmartstay.API.Payments.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Payments.Interfaces.REST.Transform;
+using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -32,7 +31,7 @@ public class PaymentsController(
     /// <param name="resource">The incoming input resource payload mapping credit parameters and booking context metrics required for transaction execution.</param>
     /// <returns>A created resource response alongside the structural tracking location parameters of the processed transaction aggregate.</returns>
     [HttpPost]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
+    [Authorize(Policy = Policies.ProcessPayments)]
     [SwaggerOperation(
         Summary = "Process a new payment transaction",
         Description = "Simulates and records a credit card payment for a Pending/Confirmed booking. The amount is computed by the backend (room price per night × nights); any client amount is ignored. Guests can only pay their own bookings. A successful payment confirms the booking; a declined card returns status 'Failed'.",
@@ -45,8 +44,7 @@ public class PaymentsController(
     [SwaggerResponse(StatusCodes.Status409Conflict, "The booking is cancelled/completed, already paid, or its room no longer exists.")]
     public async Task<IActionResult> ProcessPayment([FromBody] ProcessPaymentResource resource)
     {
-        var actor = HttpContext.RequireAuthenticatedUser();
-        var guestUserId = actor.IsInRole(UserRoles.Guest) ? actor.Id : (int?)null;
+        var guestUserId = User.IsGuest() ? User.GetUserId() : (int?)null;
         var command = ProcessPaymentCommandFromResourceAssembler.ToCommandFromResource(resource, guestUserId);
         var payment = await paymentCommandService.Handle(command);
 
@@ -63,7 +61,7 @@ public class PaymentsController(
     /// <param name="bookingId">The unique structural domain identity number of the parent booking target context.</param>
     /// <returns>An asynchronous action result containing the matching financial payment resource representation state, or NotFound.</returns>
     [HttpGet("booking/{bookingId:int}")]
-    [Authorize(UserRoles.Guest, UserRoles.Admin, UserRoles.ChainAdmin, UserRoles.Reception)]
+    [Authorize(Policy = Policies.ProcessPayments)]
     [SwaggerOperation(
         Summary = "Get payment ledger properties by booking aggregate identifier",
         Description = "Returns the payment of a booking (the completed one if any, otherwise the latest attempt). Guests only see payments of their own bookings (404 otherwise).",
@@ -74,9 +72,7 @@ public class PaymentsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "No payment transaction aggregate matched the supplied booking identifier criteria.")]
     public async Task<IActionResult> GetPaymentByBooking(int bookingId)
     {
-        var actor = HttpContext.RequireAuthenticatedUser();
-        var query = new GetPaymentByBookingIdQuery(bookingId,
-            actor.IsInRole(UserRoles.Guest) ? actor.Id : null);
+        var query = new GetPaymentByBookingIdQuery(bookingId, User.IsGuest() ? User.GetUserId() : null);
         var payment = await paymentQueryService.Handle(query);
 
         if (payment is null) return NotFound();
