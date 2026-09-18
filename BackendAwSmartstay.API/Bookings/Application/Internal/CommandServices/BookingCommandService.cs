@@ -46,7 +46,7 @@ public class BookingCommandService(
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             var room = await accommodationsContextFacade.LockRoomForBookingAsync(command.RoomId)
-                       ?? throw new InvalidFieldException("roomId", $"Room {command.RoomId} does not exist.");
+                       ?? throw new InvalidFieldException("roomId", BookingErrorCodes.RoomNotFound, $"Room {command.RoomId} does not exist.");
 
             await roomAvailabilityService.EnsureRoomIsAvailableAsync(room.RoomId, dates);
 
@@ -93,7 +93,7 @@ public class BookingCommandService(
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             var room = await accommodationsContextFacade.LockRoomForBookingAsync(roomId)
-                       ?? throw new InvalidFieldException("roomId", $"Room {roomId} does not exist.");
+                       ?? throw new InvalidFieldException("roomId", BookingErrorCodes.RoomNotFound, $"Room {roomId} does not exist.");
             await roomAvailabilityService.EnsureRoomIsAvailableAsync(room.RoomId, dates, excludingBookingId: booking.Id);
 
             booking.Reschedule(command.Requester, room, dates, calendar.Today, calendar.Now);
@@ -125,7 +125,7 @@ public class BookingCommandService(
         {
             var account = await iamContextFacade.FetchUserContactAsync(accountId.Value);
             if (account is null && !requester.IsGuest)
-                throw new InvalidFieldException("userId", $"User {accountId} does not exist or is inactive.");
+                throw new InvalidFieldException("userId", BookingErrorCodes.GuestAccountInvalid, $"User {accountId} does not exist or is inactive.");
             if (account is not null)
                 return new GuestContact(
                     string.IsNullOrWhiteSpace(command.GuestName) ? account.FullName ?? account.Email : command.GuestName,

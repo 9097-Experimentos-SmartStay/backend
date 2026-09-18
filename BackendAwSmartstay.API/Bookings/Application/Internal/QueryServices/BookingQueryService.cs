@@ -57,7 +57,7 @@ public class BookingQueryService(
     {
         var requester = query.Requester;
         if (query.Window.Nights > MaxCalendarDays)
-            throw new DomainValidationException($"The calendar shows at most {MaxCalendarDays} days at once.");
+            throw new DomainValidationException(BookingErrorCodes.CalendarRangeTooLong, $"The calendar shows at most {MaxCalendarDays} days at once.");
 
         var hotelId = query.HotelId ?? (requester.AllHotels ? null : requester.StaffHotelId);
         if (hotelId is null && !requester.AllHotels)

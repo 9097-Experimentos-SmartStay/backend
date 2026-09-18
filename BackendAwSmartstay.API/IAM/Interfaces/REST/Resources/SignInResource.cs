@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Validation;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using BackendAwSmartstay.API.IAM.Interfaces.REST.Validation;
@@ -40,6 +42,6 @@ public record SignInResource : IValidatableObject
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (string.IsNullOrWhiteSpace(LoginEmail))
-            yield return new ValidationResult("The Email field is required.", ["email"]);
+            yield return new CodedValidationResult(ErrorCodes.FieldRequired, "The Email field is required.", ["email"]);
     }
 }

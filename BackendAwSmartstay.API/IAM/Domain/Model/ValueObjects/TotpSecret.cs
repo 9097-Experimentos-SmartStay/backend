@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using System.Security.Cryptography;
 using System.Text;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
@@ -18,7 +19,7 @@ public sealed class TotpSecret
     private TotpSecret(byte[] key)
     {
         if (key.Length < 10)
-            throw new DomainValidationException("A TOTP secret needs at least 80 bits.");
+            throw new DomainValidationException(IamErrorCodes.MfaSecretInvalid, "A TOTP secret needs at least 80 bits.");
         _key = key;
     }
 
@@ -34,7 +35,7 @@ public sealed class TotpSecret
         foreach (var c in clean)
         {
             var value = Base32Alphabet.IndexOf(c);
-            if (value < 0) throw new DomainValidationException("The TOTP secret is not valid Base32.");
+            if (value < 0) throw new DomainValidationException(IamErrorCodes.MfaSecretInvalid, "The TOTP secret is not valid Base32.");
             buffer = (buffer << 5) | value;
             bits += 5;
             if (bits < 8) continue;

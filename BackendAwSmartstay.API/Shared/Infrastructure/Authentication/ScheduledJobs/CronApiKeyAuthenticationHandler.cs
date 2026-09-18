@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -48,7 +49,8 @@ public class CronApiKeyAuthenticationHandler(
             {
                 Status = StatusCodes.Status401Unauthorized,
                 Title = "Unauthorized",
-                Detail = $"A valid {HeaderName} header is required to run scheduled jobs."
+                Detail = $"A valid {HeaderName} header is required to run scheduled jobs.",
+                Extensions = { [ProblemCodes.CodeExtension] = ProblemCodes.SchedulerKeyInvalid }
             }
         });
     }

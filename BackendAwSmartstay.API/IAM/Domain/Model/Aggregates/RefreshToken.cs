@@ -26,9 +26,9 @@ public class RefreshToken
 
     private RefreshToken(int userId, Guid familyId, int tokenVersion, string tokenHash, DateTimeOffset now, TimeSpan lifetime)
     {
-        if (userId <= 0) throw new DomainValidationException("A refresh token must belong to a user.");
-        if (string.IsNullOrWhiteSpace(tokenHash)) throw new DomainValidationException("A refresh token needs a hash.");
-        if (lifetime <= TimeSpan.Zero) throw new DomainValidationException("A refresh token lifetime must be positive.");
+        if (userId <= 0) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "A refresh token must belong to a user.");
+        if (string.IsNullOrWhiteSpace(tokenHash)) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "A refresh token needs a hash.");
+        if (lifetime <= TimeSpan.Zero) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "A refresh token lifetime must be positive.");
 
         UserId = userId;
         FamilyId = familyId;

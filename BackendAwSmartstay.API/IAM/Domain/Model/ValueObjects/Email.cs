@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -16,15 +17,15 @@ public sealed partial record Email
     public Email(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new DomainValidationException("Email cannot be empty.");
+            throw new DomainValidationException(IamErrorCodes.EmailRequired, "Email cannot be empty.");
 
         var normalized = value.Trim().ToLowerInvariant();
 
         if (normalized.Length > MaxLength)
-            throw new DomainValidationException($"Email cannot exceed {MaxLength} characters.");
+            throw new DomainValidationException(IamErrorCodes.EmailTooLong, $"Email cannot exceed {MaxLength} characters.");
 
         if (!EmailFormat().IsMatch(normalized))
-            throw new DomainValidationException("Email has an invalid format.");
+            throw new DomainValidationException(IamErrorCodes.EmailInvalid, "Email has an invalid format.");
 
         Value = normalized;
     }

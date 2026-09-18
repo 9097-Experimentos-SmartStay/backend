@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
@@ -60,7 +61,8 @@ public static class RateLimitingServiceCollectionExtensions
             {
                 Status = StatusCodes.Status429TooManyRequests,
                 Title = "Too many requests",
-                Detail = "Too many attempts from this network. Wait a moment and try again."
+                Detail = "Too many attempts from this network. Wait a moment and try again.",
+                Extensions = { [ProblemCodes.CodeExtension] = ProblemCodes.RateLimited }
             }
         });
     }

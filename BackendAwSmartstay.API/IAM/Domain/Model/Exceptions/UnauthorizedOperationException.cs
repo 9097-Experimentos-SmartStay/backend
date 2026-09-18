@@ -7,6 +7,10 @@ namespace BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 /// </summary>
 public class UnauthorizedOperationException : OperationNotAllowedException
 {
-    public UnauthorizedOperationException(string message)
-        : base(message) { }
+    public UnauthorizedOperationException(string code, string message)
+        : base(code, message) { }
+
+    /// <summary>Kind-only constructor, kept for tests: production code always names its code.</summary>
+    internal UnauthorizedOperationException(string message)
+        : base(IamErrorCodes.OutsideHierarchy, message) { }
 }

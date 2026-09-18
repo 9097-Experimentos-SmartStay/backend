@@ -10,8 +10,8 @@ public sealed record GetDemoRequestsQuery
 
     public GetDemoRequestsQuery(DemoRequestStatus? status, int page, int pageSize)
     {
-        if (page < 1) throw new DomainValidationException("page must be 1 or greater.");
-        if (pageSize is < 1 or > MaxPageSize) throw new DomainValidationException($"pageSize must be between 1 and {MaxPageSize}.");
+        if (page < 1) throw new DomainValidationException(ErrorCodes.PageInvalid, "page must be 1 or greater.");
+        if (pageSize is < 1 or > MaxPageSize) throw new DomainValidationException(ErrorCodes.PageSizeInvalid, $"pageSize must be between 1 and {MaxPageSize}.");
         Status = status;
         Page = page;
         PageSize = pageSize;

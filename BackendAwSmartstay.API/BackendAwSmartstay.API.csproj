@@ -66,5 +66,9 @@
       <ProjectReference Include="..\BackendAwSmartstay.Domain\BackendAwSmartstay.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <InternalsVisibleTo Include="BackendAwSmartstay.API.Tests" />
+    </ItemGroup>
+
 
 </Project>

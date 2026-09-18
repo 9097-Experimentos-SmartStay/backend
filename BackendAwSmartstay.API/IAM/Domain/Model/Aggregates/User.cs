@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Events;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
@@ -151,7 +152,7 @@ public class User : IHasDomainEvents
     public User UpdatePasswordHash(string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(passwordHash))
-            throw new DomainValidationException("Password hash cannot be empty.");
+            throw new DomainValidationException(IamErrorCodes.InternalInvariant, "Password hash cannot be empty.");
         PasswordHash = passwordHash;
         UpdatedAt = DateTime.UtcNow;
         return this;
@@ -211,9 +212,9 @@ public class User : IHasDomainEvents
     public User TakeChargeOfHotel(int hotelId)
     {
         if (!Role.Value.Equals(UserRoles.Admin, StringComparison.Ordinal))
-            throw new BusinessRuleViolationException("Only a hotel administrator takes charge of a single hotel.");
+            throw new BusinessRuleViolationException(IamErrorCodes.NotHotelAdministrator, "Only a hotel administrator takes charge of a single hotel.");
         if (HotelId is not null && HotelId != hotelId)
-            throw new BusinessRuleViolationException("A hotel administrator manages a single hotel and already has one.");
+            throw new BusinessRuleViolationException(IamErrorCodes.AdminAlreadyHasHotel, "A hotel administrator manages a single hotel and already has one.");
 
         HotelId = hotelId;
         UpdatedAt = DateTime.UtcNow;
@@ -292,7 +293,7 @@ public class User : IHasDomainEvents
     public void RegisterSuccessfulSignIn(DateTimeOffset now)
     {
         if (IsLockedOut(now))
-            throw new BusinessRuleViolationException("A locked account cannot sign in.");
+            throw new BusinessRuleViolationException(IamErrorCodes.AccountLocked, "A locked account cannot sign in.");
         FailedSignInAttempts = 0;
         LockedUntil = null;
         _domainEvents.Add(new UserSignedInEvent(Id, Email.Value, HotelId, now));
@@ -311,9 +312,9 @@ public class User : IHasDomainEvents
     public void StartMfaEnrollment(string protectedSecret)
     {
         if (MfaEnabled)
-            throw new BusinessRuleViolationException("Two-factor authentication is already enabled for this account.");
+            throw new BusinessRuleViolationException(IamErrorCodes.MfaAlreadyEnabled, "Two-factor authentication is already enabled for this account.");
         if (string.IsNullOrWhiteSpace(protectedSecret))
-            throw new DomainValidationException("The enrollment needs a secret.");
+            throw new DomainValidationException(IamErrorCodes.InternalInvariant, "The enrollment needs a secret.");
         MfaPendingSecretProtected = protectedSecret;
         UpdatedAt = DateTime.UtcNow;
     }
@@ -411,16 +412,16 @@ public class User : IHasDomainEvents
     public void EnsureMfaEnrollmentInProgress()
     {
         if (MfaEnabled)
-            throw new BusinessRuleViolationException("Two-factor authentication is already enabled for this account.");
+            throw new BusinessRuleViolationException(IamErrorCodes.MfaAlreadyEnabled, "Two-factor authentication is already enabled for this account.");
         if (MfaPendingSecretProtected is null)
-            throw new BusinessRuleViolationException("Start the two-factor enrollment first to get the QR code.");
+            throw new BusinessRuleViolationException(IamErrorCodes.MfaEnrollmentNotStarted, "Start the two-factor enrollment first to get the QR code.");
     }
 
     /// <summary>The account has an enrolled authenticator.</summary>
     public void EnsureMfaEnabled()
     {
         if (!MfaEnabled)
-            throw new BusinessRuleViolationException("Two-factor authentication is not enabled for this account.");
+            throw new BusinessRuleViolationException(IamErrorCodes.MfaNotEnabled, "Two-factor authentication is not enabled for this account.");
     }
 
     // ── E-mail verification (US-01) ─────────────────────────────────────────

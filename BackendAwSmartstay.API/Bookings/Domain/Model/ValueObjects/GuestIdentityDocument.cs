@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -26,29 +27,29 @@ public sealed partial record GuestIdentityDocument
     {
         var normalizedNationality = nationality?.Trim().ToUpperInvariant() ?? string.Empty;
         if (!IsoCountryCodes.IsValid(normalizedNationality))
-            throw new InvalidFieldException("nationality", "Nationality must be an ISO 3166-1 alpha-2 country code, e.g. PE, AR, US.");
+            throw new InvalidFieldException("nationality", BookingErrorCodes.CheckInNationalityInvalid, "Nationality must be an ISO 3166-1 alpha-2 country code, e.g. PE, AR, US.");
 
         var normalizedNumber = Separators().Replace(number?.Trim() ?? string.Empty, string.Empty).ToUpperInvariant();
         switch (type)
         {
             case IdentityDocumentType.Dni:
                 if (!Dni().IsMatch(normalizedNumber))
-                    throw new InvalidFieldException("documentNumber", "A DNI has exactly 8 digits.");
+                    throw new InvalidFieldException("documentNumber", BookingErrorCodes.CheckInDniInvalid, "A DNI has exactly 8 digits.");
                 if (normalizedNationality != Peru)
-                    throw new InvalidFieldException("documentType", "The DNI is only for Peruvian nationals (nationality PE). Use your passport or carné de extranjería.");
+                    throw new InvalidFieldException("documentType", BookingErrorCodes.CheckInDniOnlyForNationals, "The DNI is only for Peruvian nationals (nationality PE). Use your passport or carné de extranjería.");
                 break;
             case IdentityDocumentType.Passport:
                 if (!Passport().IsMatch(normalizedNumber))
-                    throw new InvalidFieldException("documentNumber", "A passport number has 6 to 12 letters and digits.");
+                    throw new InvalidFieldException("documentNumber", BookingErrorCodes.CheckInPassportInvalid, "A passport number has 6 to 12 letters and digits.");
                 break;
             case IdentityDocumentType.Ce:
                 if (!ForeignerCard().IsMatch(normalizedNumber))
-                    throw new InvalidFieldException("documentNumber", "A carné de extranjería number has 8 to 12 letters and digits.");
+                    throw new InvalidFieldException("documentNumber", BookingErrorCodes.CheckInForeignerCardInvalid, "A carné de extranjería number has 8 to 12 letters and digits.");
                 if (normalizedNationality == Peru)
-                    throw new InvalidFieldException("documentType", "The carné de extranjería is for foreign nationals. Peruvian nationals use their DNI.");
+                    throw new InvalidFieldException("documentType", BookingErrorCodes.CheckInForeignerCardOnlyForForeigners, "The carné de extranjería is for foreign nationals. Peruvian nationals use their DNI.");
                 break;
             default:
-                throw new InvalidFieldException("documentType", "Document type must be DNI, PASSPORT or CE.");
+                throw new InvalidFieldException("documentType", BookingErrorCodes.CheckInDocumentTypeUnknown, "Document type must be DNI, PASSPORT or CE.");
         }
 
         Type = type;

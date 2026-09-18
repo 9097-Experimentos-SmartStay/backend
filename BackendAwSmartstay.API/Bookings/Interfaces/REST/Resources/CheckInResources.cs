@@ -1,3 +1,5 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Validation;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
@@ -40,7 +42,8 @@ public class CheckInFormResource : IValidatableObject
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (!string.IsNullOrWhiteSpace(DocumentType) && DocumentType.Trim().ToUpperInvariant() is not ("DNI" or "PASSPORT" or "CE"))
-            yield return new ValidationResult("Document type must be DNI, PASSPORT or CE.", ["documentType"]);
+            yield return new CodedValidationResult(BookingErrorCodes.CheckInDocumentTypeUnknown,
+                "Document type must be DNI, PASSPORT or CE.", ["documentType"]);
     }
 }
 

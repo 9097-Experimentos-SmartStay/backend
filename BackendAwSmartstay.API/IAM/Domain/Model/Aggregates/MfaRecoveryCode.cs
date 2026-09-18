@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
@@ -17,8 +18,8 @@ public class MfaRecoveryCode
 
     private MfaRecoveryCode(int userId, string codeHash, DateTimeOffset createdAt)
     {
-        if (userId <= 0) throw new DomainValidationException("A recovery code must belong to a user.");
-        if (string.IsNullOrWhiteSpace(codeHash)) throw new DomainValidationException("A recovery code needs a hash.");
+        if (userId <= 0) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "A recovery code must belong to a user.");
+        if (string.IsNullOrWhiteSpace(codeHash)) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "A recovery code needs a hash.");
         UserId = userId;
         CodeHash = codeHash;
         CreatedAt = createdAt;
@@ -37,7 +38,7 @@ public class MfaRecoveryCode
     /// <summary>Uses the code (single use).</summary>
     public void Redeem(DateTimeOffset now)
     {
-        if (IsUsed) throw new BusinessRuleViolationException("This recovery code was already used.");
+        if (IsUsed) throw new BusinessRuleViolationException(IamErrorCodes.MfaRecoveryCodeInvalid, "This recovery code was already used.");
         UsedAt = now;
     }
 }

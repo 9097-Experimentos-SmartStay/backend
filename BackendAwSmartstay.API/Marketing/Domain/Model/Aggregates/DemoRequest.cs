@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Marketing.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Marketing.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -66,7 +67,7 @@ public class DemoRequest
         var job = Text(jobTitle, "Job title", JobTitleMinLength, JobTitleMaxLength);
         var note = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
         if (note is { Length: > MessageMaxLength })
-            throw new DomainValidationException($"The message cannot exceed {MessageMaxLength} characters.");
+            throw new DomainValidationException(MarketingErrorCodes.MessageTooLong, $"The message cannot exceed {MessageMaxLength} characters.");
 
         return new DemoRequest(contact, hotel, job, accommodationType, roomsRange, referralSource, profile, note, now);
     }
@@ -90,9 +91,9 @@ public class DemoRequest
     private static string Text(string? value, string label, int min, int max)
     {
         var trimmed = System.Text.RegularExpressions.Regex.Replace(value?.Trim() ?? string.Empty, @"\s+", " ");
-        if (trimmed.Length == 0) throw new DomainValidationException($"{label} is required.");
+        if (trimmed.Length == 0) throw new DomainValidationException(MarketingErrorCodes.FieldRequired, $"{label} is required.");
         if (trimmed.Length < min || trimmed.Length > max)
-            throw new DomainValidationException($"{label} must have between {min} and {max} characters.");
+            throw new DomainValidationException(MarketingErrorCodes.FieldLength, $"{label} must have between {min} and {max} characters.");
         return trimmed;
     }
 }

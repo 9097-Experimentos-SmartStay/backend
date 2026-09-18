@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Payments.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Payments.Domain.Model.Events;
 using BackendAwSmartstay.API.Payments.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Events;
@@ -74,17 +75,17 @@ public class Payment : IHasDomainEvents
     public static Payment Register(int bookingId, decimal amount, PaymentMethod method, string? operationNumber,
         string? note, int recordedByUserId, DateTimeOffset now)
     {
-        if (bookingId <= 0) throw new DomainValidationException("A payment must reference a booking.");
-        if (amount <= 0) throw new DomainValidationException("The amount to pay must be positive.");
+        if (bookingId <= 0) throw new DomainValidationException(PaymentErrorCodes.InternalInvariant, "A payment must reference a booking.");
+        if (amount <= 0) throw new DomainValidationException(PaymentErrorCodes.InternalInvariant, "The amount to pay must be positive.");
 
         var operation = string.IsNullOrWhiteSpace(operationNumber) ? null : operationNumber.Trim();
         if (method != PaymentMethod.Cash && operation is null)
-            throw new InvalidFieldException("operationNumber", $"Enter the operation number of the {method} payment.");
+            throw new InvalidFieldException("operationNumber", PaymentErrorCodes.OperationNumberRequired, $"Enter the operation number of the {method} payment.");
         if (operation is { Length: > MaxOperationNumberLength })
-            throw new InvalidFieldException("operationNumber", $"The operation number cannot exceed {MaxOperationNumberLength} characters.");
+            throw new InvalidFieldException("operationNumber", PaymentErrorCodes.OperationNumberTooLong, $"The operation number cannot exceed {MaxOperationNumberLength} characters.");
         var trimmedNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
         if (trimmedNote is { Length: > MaxNoteLength })
-            throw new InvalidFieldException("note", $"The note cannot exceed {MaxNoteLength} characters.");
+            throw new InvalidFieldException("note", PaymentErrorCodes.NoteTooLong, $"The note cannot exceed {MaxNoteLength} characters.");
 
         return new Payment
         {
@@ -103,7 +104,7 @@ public class Payment : IHasDomainEvents
     public void Complete(string transactionReference, DateTimeOffset now)
     {
         if (Status != PaymentStatus.Pending)
-            throw new BusinessRuleViolationException($"A {Status.ToString().ToLowerInvariant()} payment cannot be completed.");
+            throw new BusinessRuleViolationException(PaymentErrorCodes.CannotComplete, $"A {Status.ToString().ToLowerInvariant()} payment cannot be completed.");
         TransactionId = transactionReference;
         Status = PaymentStatus.Completed;
         _completedAt = now;
@@ -113,7 +114,7 @@ public class Payment : IHasDomainEvents
     public void Fail(string reason)
     {
         if (Status != PaymentStatus.Pending)
-            throw new BusinessRuleViolationException($"A {Status.ToString().ToLowerInvariant()} payment cannot fail.");
+            throw new BusinessRuleViolationException(PaymentErrorCodes.CannotFail, $"A {Status.ToString().ToLowerInvariant()} payment cannot fail.");
         Status = PaymentStatus.Failed;
         FailureReason = reason;
     }

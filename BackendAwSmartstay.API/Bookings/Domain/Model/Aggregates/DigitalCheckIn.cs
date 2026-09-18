@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -55,9 +56,9 @@ public class DigitalCheckIn
         string documentFileId, string accessCodeProtected, DateTimeOffset accessCodeValidUntil, DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(documentFileId))
-            throw new DomainValidationException("The check-in needs the stored document.");
+            throw new DomainValidationException(BookingErrorCodes.InternalInvariant, "The check-in needs the stored document.");
         if (accessCodeValidUntil <= now)
-            throw new DomainValidationException("The access code must be valid until the check-out.");
+            throw new DomainValidationException(BookingErrorCodes.InternalInvariant, "The access code must be valid until the check-out.");
 
         return new DigitalCheckIn
         {

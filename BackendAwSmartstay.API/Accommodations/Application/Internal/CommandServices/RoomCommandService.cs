@@ -88,7 +88,7 @@ public class RoomCommandService(
     private async Task EnsureRoomTypeExistsAsync(int roomTypeId)
     {
         if (await roomTypeRepository.FindByIdAsync(roomTypeId) is null)
-            throw new InvalidFieldException("roomTypeId", $"Room type {roomTypeId} does not exist.");
+            throw new InvalidFieldException("roomTypeId", AccommodationErrorCodes.RoomTypeNotFound, $"Room type {roomTypeId} does not exist.");
     }
 
     public async Task<int> Handle(RaiseMaintenanceAlertsCommand command)
@@ -112,8 +112,9 @@ public async Task<Room?> Handle(DeleteRoomCommand command)
     // A room that still holds bookings cannot disappear under them.
     var active = await roomReservationsFacade.CountActiveBookingsAsync([room.Id]);
     if (active.TryGetValue(room.Id, out var count) && count > 0)
-        throw new RoomHasActiveBookingsException(
-            $"Room {room.Number} has {count} active booking(s) (pending, confirmed or checked in). Cancel or move them before deleting the room.");
+        throw new RoomHasActiveBookingsException(AccommodationErrorCodes.RoomHasActiveBookings,
+            $"Room {room.Number} has {count} active booking(s) (pending, confirmed or checked in). Cancel or move them before deleting the room.",
+            count);
 
     // Remove the room from the repository
     roomRepository.Remove(room);

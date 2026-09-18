@@ -1,3 +1,5 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Validation;
 using System.ComponentModel.DataAnnotations;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 
@@ -41,8 +43,10 @@ public record MfaVerificationResource : IValidatableObject
         var hasCode = !string.IsNullOrWhiteSpace(Code);
         var hasRecovery = !string.IsNullOrWhiteSpace(RecoveryCode);
         if (hasCode == hasRecovery)
-            yield return new ValidationResult("Send either the code of your authenticator app or a recovery code.", ["code"]);
+            yield return new CodedValidationResult(IamErrorCodes.MfaCodeOrRecoveryCodeRequired,
+                "Send either the code of your authenticator app or a recovery code.", ["code"]);
         else if (hasRecovery && !RecoveryCodeFormat.IsWellFormed(RecoveryCode))
-            yield return new ValidationResult("A recovery code has 10 letters and digits (XXXXX-XXXXX).", ["recoveryCode"]);
+            yield return new CodedValidationResult(IamErrorCodes.MfaRecoveryCodeFormat,
+                "A recovery code has 10 letters and digits (XXXXX-XXXXX).", ["recoveryCode"]);
     }
 }

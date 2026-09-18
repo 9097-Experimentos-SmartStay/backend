@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Audit.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Audit.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -59,7 +60,7 @@ public class AuditEntry
         string? ipAddress, string? details = null)
     {
         if (actorUserId is null && string.IsNullOrWhiteSpace(actorEmail))
-            throw new DomainValidationException("An audit entry must identify who acted (user id or e-mail).");
+            throw new DomainValidationException(AuditErrorCodes.InternalInvariant, "An audit entry must identify who acted (user id or e-mail).");
         if (details is { Length: > MaxDetailsLength })
             details = details[..MaxDetailsLength];
 

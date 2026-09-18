@@ -80,7 +80,7 @@ public class AuthenticationCommandService(
         {
             user.RejectSignInWhileDeactivated(now);
             await unitOfWork.CompleteAsync();
-            throw new UnauthorizedOperationException("The account has been deactivated. Contact the administrator.");
+            throw new UnauthorizedOperationException(IamErrorCodes.AccountDeactivated, "The account has been deactivated. Contact the administrator.");
         }
 
         if (!user.EmailVerified)
@@ -168,11 +168,11 @@ public class AuthenticationCommandService(
         if (requestedRole is not null && requestedRole.Value != UserRoles.Guest)
         {
             if (command.ActorUserId is null)
-                throw new UnauthorizedOperationException("Authentication required to assign a specific role during sign-up.");
+                throw new UnauthorizedOperationException(IamErrorCodes.RoleNotAssignable, "Authentication required to assign a specific role during sign-up.");
 
             var actor = await userRepository.FindByIdAsync(command.ActorUserId.Value);
             if (actor is null || actor.Status == UserStatus.Inactive || !roleAuthorizationService.CanAssignRole(actor, requestedRole.Value))
-                throw new UnauthorizedOperationException($"You cannot assign the role '{requestedRole.Value}'.");
+                throw new UnauthorizedOperationException(IamErrorCodes.RoleNotAssignable, $"You cannot assign the role '{requestedRole.Value}'.");
             role = requestedRole;
         }
 

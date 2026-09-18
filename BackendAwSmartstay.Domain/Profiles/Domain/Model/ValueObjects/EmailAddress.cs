@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 
@@ -10,11 +11,11 @@ public partial record EmailAddress
     public EmailAddress(string address)
     {
         if (string.IsNullOrWhiteSpace(address))
-            throw new DomainValidationException("Email address cannot be empty.");
+            throw new DomainValidationException(ProfileErrorCodes.EmailRequired, "Email address cannot be empty.");
 
         var trimmed = address.Trim().ToLowerInvariant();
         if (!EmailRegex().IsMatch(trimmed))
-            throw new DomainValidationException("Invalid email address format.");
+            throw new DomainValidationException(ProfileErrorCodes.EmailInvalid, "Invalid email address format.");
 
         Address = trimmed;
     }

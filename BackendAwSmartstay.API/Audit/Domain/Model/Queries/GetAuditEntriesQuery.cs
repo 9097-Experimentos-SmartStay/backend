@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Audit.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Audit.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -14,9 +15,9 @@ public sealed record GetAuditEntriesQuery
     public GetAuditEntriesQuery(AuditReadScope scope, int? userId, AuditAction? action,
         DateTimeOffset? from, DateTimeOffset? to, int page, int pageSize)
     {
-        if (page < 1) throw new DomainValidationException("page must be 1 or greater.");
-        if (pageSize is < 1 or > MaxPageSize) throw new DomainValidationException($"pageSize must be between 1 and {MaxPageSize}.");
-        if (from is not null && to is not null && from > to) throw new DomainValidationException("from must not be later than to.");
+        if (page < 1) throw new DomainValidationException(ErrorCodes.PageInvalid, "page must be 1 or greater.");
+        if (pageSize is < 1 or > MaxPageSize) throw new DomainValidationException(ErrorCodes.PageSizeInvalid, $"pageSize must be between 1 and {MaxPageSize}.");
+        if (from is not null && to is not null && from > to) throw new DomainValidationException(AuditErrorCodes.PeriodInvalid, "from must not be later than to.");
 
         Scope = scope;
         UserId = userId;

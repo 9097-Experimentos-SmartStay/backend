@@ -28,14 +28,14 @@ public static class StaffAccountPolicy
         if (actor.Role.Value == UserRoles.Admin)
         {
             if (actor.HotelId is null)
-                throw new BusinessRuleViolationException("Register your hotel before creating staff users.");
+                throw new BusinessRuleViolationException(IamErrorCodes.AdminWithoutHotel, "Register your hotel before creating staff users.");
             if (requestedHotelId is not null && requestedHotelId != actor.HotelId)
-                throw new UnauthorizedOperationException("A hotel administrator can only create users for their own hotel.");
+                throw new UnauthorizedOperationException(IamErrorCodes.HotelOutOfScope, "A hotel administrator can only create users for their own hotel.");
             return actor.HotelId;
         }
 
         if (requestedHotelId is null && HotelBoundRoles.Contains(role))
-            throw new DomainValidationException($"A '{role}' user must belong to a hotel: send hotelId.");
+            throw new DomainValidationException(IamErrorCodes.HotelRequired, $"A '{role}' user must belong to a hotel: send hotelId.");
         return requestedHotelId;
     }
 }

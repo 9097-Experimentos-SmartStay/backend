@@ -1,3 +1,5 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Validation;
 using System.ComponentModel.DataAnnotations;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 
@@ -9,8 +11,10 @@ namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Validation;
 ///     <see cref="RequiredAttribute"/>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
-public sealed class AccountEmailAttribute() : ValidationAttribute("Enter a valid e-mail address (for example name@domain.com).")
+public sealed class AccountEmailAttribute() : ValidationAttribute("Enter a valid e-mail address (for example name@domain.com)."), ICodedValidationAttribute
 {
+    public string ErrorCode => IamErrorCodes.EmailInvalid;
+
     public override bool IsValid(object? value) =>
         value is null || (value is string text && (string.IsNullOrWhiteSpace(text) || Email.IsValid(text)));
 }
@@ -18,8 +22,10 @@ public sealed class AccountEmailAttribute() : ValidationAttribute("Enter a valid
 /// <summary>Model validation with the rule of <see cref="PersonName"/> (letters, 2 to 50 characters).</summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
 public sealed class PersonNamePartAttribute()
-    : ValidationAttribute("The {0} field must have 2 to 50 letters (spaces, hyphens and apostrophes allowed).")
+    : ValidationAttribute("The {0} field must have 2 to 50 letters (spaces, hyphens and apostrophes allowed)."), ICodedValidationAttribute
 {
+    public string ErrorCode => IamErrorCodes.NameFormat;
+
     public override bool IsValid(object? value) =>
         value is null || (value is string text && (string.IsNullOrWhiteSpace(text) || PersonName.IsValidPart(text)));
 }

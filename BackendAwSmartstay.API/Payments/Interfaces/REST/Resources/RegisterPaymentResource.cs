@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Validation;
 using System.ComponentModel.DataAnnotations;
 using BackendAwSmartstay.API.Payments.Domain.Model.ValueObjects;
 
@@ -27,7 +29,8 @@ public record RegisterPaymentResource : IValidatableObject
     {
         if (!string.IsNullOrWhiteSpace(Method)
             && (int.TryParse(Method, out _) || !Enum.TryParse<PaymentMethod>(Method, true, out var parsed) || !Enum.IsDefined(parsed)))
-            yield return new ValidationResult(
-                $"Method must be one of: {string.Join(", ", Enum.GetNames<PaymentMethod>())}.", ["method"]);
+            yield return new CodedValidationResult(ErrorCodes.FieldNotAllowed,
+                $"Method must be one of: {string.Join(", ", Enum.GetNames<PaymentMethod>())}.", ["method"],
+                new Dictionary<string, object?> { ["allowed"] = Enum.GetNames<PaymentMethod>() });
     }
 }

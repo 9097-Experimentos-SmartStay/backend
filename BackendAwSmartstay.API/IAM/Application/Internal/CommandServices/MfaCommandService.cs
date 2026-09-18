@@ -113,7 +113,7 @@ public class MfaCommandService(
         var target = await userRepository.FindByIdAsync(command.TargetUserId)
                      ?? throw new UserNotFoundException(command.TargetUserId);
         if (actor.Status == UserStatus.Inactive || !roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException($"You cannot reset the two-factor authentication of user {target.Id}.");
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy, $"You cannot reset the two-factor authentication of user {target.Id}.");
 
         target.ResetMfa(actor.Id, now);
         await recoveryCodeRepository.RemoveAllOfUserAsync(target.Id);

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -34,11 +35,11 @@ public sealed partial record PersonName
     {
         var collapsed = Collapse(value);
         if (collapsed.Length == 0)
-            throw new DomainValidationException($"{label} is required.");
+            throw new DomainValidationException(IamErrorCodes.NameRequired, $"{label} is required.");
         if (collapsed.Length is < MinLength or > MaxLength)
-            throw new DomainValidationException($"{label} must have between {MinLength} and {MaxLength} characters.");
+            throw new DomainValidationException(IamErrorCodes.NameLength, $"{label} must have between {MinLength} and {MaxLength} characters.");
         if (!NamePattern().IsMatch(collapsed))
-            throw new DomainValidationException($"{label} can only contain letters, spaces, hyphens and apostrophes.");
+            throw new DomainValidationException(IamErrorCodes.NameFormat, $"{label} can only contain letters, spaces, hyphens and apostrophes.");
         return collapsed;
     }
 

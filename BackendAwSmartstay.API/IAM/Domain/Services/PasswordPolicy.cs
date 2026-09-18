@@ -1,16 +1,22 @@
 using System.Globalization;
 using System.Text;
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 
 namespace BackendAwSmartstay.API.IAM.Domain.Services;
 
 /// <summary>Outcome of checking a new password against <see cref="PasswordPolicy"/>.</summary>
+/// <param name="Code">Stable code of the broken rule (<c>password.*</c>), or null when the password is acceptable.</param>
 /// <param name="Problem">Why the password is rejected, or null when it is acceptable.</param>
-public sealed record PasswordCheck(string? Problem)
+/// <param name="Parameters">Values of the broken rule (e.g. <c>minLength</c>), or null.</param>
+public sealed record PasswordCheck(string? Code, string? Problem, IReadOnlyDictionary<string, object?>? Parameters = null)
 {
-    public static readonly PasswordCheck Acceptable = new((string?)null);
+    public static readonly PasswordCheck Acceptable = new(null, null);
 
-    public bool IsAcceptable => Problem is null;
+    public bool IsAcceptable => Code is null;
+
+    internal static PasswordCheck Rejected(string code, string problem, IReadOnlyDictionary<string, object?>? parameters = null) =>
+        new(code, problem, parameters);
 }
 
 /// <summary>
@@ -48,26 +54,30 @@ public static class PasswordPolicy
     public static PasswordCheck Check(string? password, Role role, Email? email)
     {
         if (string.IsNullOrEmpty(password))
-            return new PasswordCheck("Enter a password.");
+            return PasswordCheck.Rejected(IamErrorCodes.PasswordRequired, "Enter a password.");
 
         var normalized = Normalize(password);
         var length = normalized.EnumerateRunes().Count();
         var minimum = MinimumLengthFor(role);
 
         if (length < minimum)
-            return new PasswordCheck(role.RequiresMultiFactorAuthentication
-                ? $"Use at least {minimum} characters."
-                : $"Use at least {minimum} characters. A passphrase of a few words is long and easy to remember.");
+            return PasswordCheck.Rejected(IamErrorCodes.PasswordTooShort,
+                role.RequiresMultiFactorAuthentication
+                    ? $"Use at least {minimum} characters."
+                    : $"Use at least {minimum} characters. A passphrase of a few words is long and easy to remember.",
+                new Dictionary<string, object?> { ["minLength"] = minimum });
         if (length > MaximumLength)
-            return new PasswordCheck($"The password cannot exceed {MaximumLength} characters.");
+            return PasswordCheck.Rejected(IamErrorCodes.PasswordTooLong,
+                $"The password cannot exceed {MaximumLength} characters.",
+                new Dictionary<string, object?> { ["maxLength"] = MaximumLength });
 
         var folded = normalized.ToLower(CultureInfo.InvariantCulture);
         if (CommonPasswords.Contains(folded) || ContainsServiceName(folded))
-            return new PasswordCheck("This password is too common or easy to guess. Choose a different one.");
+            return PasswordCheck.Rejected(IamErrorCodes.PasswordTooCommon, "This password is too common or easy to guess. Choose a different one.");
         if (IsRepetitiveOrSequential(folded))
-            return new PasswordCheck("The password cannot be a repeated or sequential run of characters (such as 'aaaaaaaa' or '12345678').");
+            return PasswordCheck.Rejected(IamErrorCodes.PasswordRepetitive, "The password cannot be a repeated or sequential run of characters (such as 'aaaaaaaa' or '12345678').");
         if (email is not null && IsDerivedFromEmail(folded, email))
-            return new PasswordCheck("The password cannot be your e-mail address or its user name.");
+            return PasswordCheck.Rejected(IamErrorCodes.PasswordContainsEmail, "The password cannot be your e-mail address or its user name.");
 
         return PasswordCheck.Acceptable;
     }

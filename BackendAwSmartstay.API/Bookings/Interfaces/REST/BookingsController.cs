@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
 using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
@@ -133,10 +135,8 @@ public class BookingsController(
     public async Task<IActionResult> RescheduleBooking(int bookingId, [FromBody] RescheduleBookingResource resource)
     {
         if (resource.CheckInDate is null && resource.CheckOutDate is null && resource.RoomId is null)
-        {
-            ModelState.AddModelError("checkInDate", "Send at least one of checkInDate, checkOutDate or roomId.");
-            return ValidationProblem(ModelState);
-        }
+            throw new InvalidFieldException(nameof(resource.CheckInDate), BookingErrorCodes.ChangeRequiresAField,
+                "Send at least one of checkInDate, checkOutDate or roomId.");
 
         var booking = await bookingCommandService.Handle(new RescheduleBookingCommand(bookingId, User.ToBookingRequester(),
             resource.CheckInDate, resource.CheckOutDate, resource.RoomId));

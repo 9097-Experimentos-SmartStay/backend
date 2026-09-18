@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -13,7 +14,7 @@ public static partial class RoomNumber
     {
         var normalized = number?.Trim().ToUpperInvariant() ?? string.Empty;
         if (!Format().IsMatch(normalized))
-            throw new InvalidFieldException("number", "The room number must have 1 to 10 letters, digits or hyphens (e.g. 101 or 2B).");
+            throw new InvalidFieldException("number", AccommodationErrorCodes.RoomNumberInvalid, "The room number must have 1 to 10 letters, digits or hyphens (e.g. 101 or 2B).");
         return normalized;
     }
 

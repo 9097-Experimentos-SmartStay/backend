@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
 
@@ -24,11 +25,11 @@ public sealed record Role
     public Role(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
-            throw new DomainValidationException("Role cannot be empty or whitespace.");
+            throw new DomainValidationException(IamErrorCodes.RoleRequired, "Role cannot be empty or whitespace.");
 
         var normalized = value.Trim().ToLowerInvariant();
         if (!RoleHierarchy.ContainsKey(normalized))
-            throw new DomainValidationException(
+            throw new DomainValidationException(IamErrorCodes.RoleUnknown,
                 $"Invalid role: '{value}'. Allowed roles are: {string.Join(", ", RoleHierarchy.Keys)}.");
 
         // Canonical lowercase value: role claims and policies compare it exactly.

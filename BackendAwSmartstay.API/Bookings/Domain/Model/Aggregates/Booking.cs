@@ -125,7 +125,7 @@ public class Booking : IHasDomainEvents
         dates.EnsureNotInThePast(hotelToday);
         EnsureBookable(room);
         if (paymentHold <= TimeSpan.Zero)
-            throw new DomainValidationException("The payment hold must be positive.");
+            throw new DomainValidationException(BookingErrorCodes.InternalInvariant, "The payment hold must be positive.");
 
         var booking = new Booking
         {
@@ -171,7 +171,7 @@ public class Booking : IHasDomainEvents
     {
         if (Status == BookingStatus.Confirmed) return;
         if (Status != BookingStatus.Pending)
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.ConfirmationNotAllowed,
                 $"A {Status.ToString().ToLowerInvariant()} booking cannot be confirmed.");
 
         Status = BookingStatus.Confirmed;
@@ -194,7 +194,7 @@ public class Booking : IHasDomainEvents
         }
         EnsureCancellable();
         if (hotelToday.Date >= CheckInDate.Date)
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CancellationTooLate,
                 $"A booking cannot be cancelled on or after its check-in day ({CheckInDate:yyyy-MM-dd}).");
 
         MarkCancelled(requester.IsGuest ? ValueObjects.CancellationReason.GuestRequest : ValueObjects.CancellationReason.HotelRequest, now);
@@ -222,17 +222,17 @@ public class Booking : IHasDomainEvents
         if (!requester.OperatesHotel(HotelId))
             throw new BookingOutsideHotelScopeException();
         if (Status is not (BookingStatus.Pending or BookingStatus.Confirmed))
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.ChangeNotAllowed,
                 $"A {Status.ToString().ToLowerInvariant()} booking cannot be changed.");
         if (room.HotelId != HotelId)
-            throw new DomainValidationException("A booking can only move to a room of the same hotel.");
+            throw new DomainValidationException(BookingErrorCodes.RoomOfOtherHotel, "A booking can only move to a room of the same hotel.");
         dates.EnsureNotInThePast(hotelToday);
         if (room.RoomId != RoomId) EnsureBookable(room);
 
         var newPrice = room.RoomId == RoomId ? PricePerNight : room.PricePerNight;
         var newTotal = decimal.Round(newPrice * dates.Nights, 2, MidpointRounding.AwayFromZero);
         if (Status == BookingStatus.Confirmed && newTotal != TotalPrice)
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.PaidTotalMismatch,
                 $"This booking is already paid ({TotalPrice:0.00}); it can only change to a stay with the same total (the new one costs {newTotal:0.00}). Cancel it and book again instead.");
 
         var previousRoom = RoomId;
@@ -267,14 +267,14 @@ public class Booking : IHasDomainEvents
     {
         if (!IsOwnedBy(requester)) throw new BookingNotFoundException(Id);
         if (Status is not (BookingStatus.Pending or BookingStatus.Confirmed))
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CheckInAssistanceNotAllowed,
                 $"Assistance with the check-in is only for pending or confirmed bookings; this one is {Status.ToString().ToLowerInvariant()}.");
         if (hotelToday.Date >= CheckOutDate.Date)
-            throw new InvalidBookingTransitionException("The stay of this booking has already ended.");
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CheckInStayEnded, "The stay of this booking has already ended.");
 
         var trimmed = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
         if (trimmed is { Length: > 500 })
-            throw new InvalidFieldException("message", "The message cannot exceed 500 characters.");
+            throw new InvalidFieldException("message", BookingErrorCodes.CheckInMessageTooLong, "The message cannot exceed 500 characters.");
         _domainEvents.Add(new CheckInAssistanceRequestedEvent(Id, Code.Value, HotelId, RoomId, trimmed, now));
     }
 
@@ -282,21 +282,21 @@ public class Booking : IHasDomainEvents
     public void EnsureCheckInAllowed(DateTime hotelToday)
     {
         if (Status == BookingStatus.CheckedIn)
-            throw new InvalidBookingTransitionException("The check-in of this booking is already completed.");
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CheckInAlreadyCompleted, "The check-in of this booking is already completed.");
         if (Status != BookingStatus.Confirmed)
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CheckInBookingNotConfirmed,
                 $"Only a confirmed (paid) booking can check in; this one is {Status.ToString().ToLowerInvariant()}.");
         if (hotelToday.Date < CheckInDate.Date)
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CheckInNotOpenYet,
                 $"The digital check-in opens on the check-in day ({CheckInDate:yyyy-MM-dd}).");
         if (hotelToday.Date >= CheckOutDate.Date)
-            throw new InvalidBookingTransitionException("The stay of this booking has already ended.");
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CheckInStayEnded, "The stay of this booking has already ended.");
     }
 
     private void EnsureCancellable()
     {
         if (Status is not (BookingStatus.Pending or BookingStatus.Confirmed))
-            throw new InvalidBookingTransitionException(
+            throw new InvalidBookingTransitionException(BookingErrorCodes.CancellationNotAllowed,
                 $"Only pending or confirmed bookings can be cancelled; this one is {Status.ToString().ToLowerInvariant()}.");
     }
 

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
@@ -18,7 +19,7 @@ public sealed partial record BookingCode
     {
         var normalized = value?.Trim().ToUpperInvariant() ?? string.Empty;
         if (!Format().IsMatch(normalized))
-            throw new DomainValidationException("A booking code looks like SS-7KQ4M2XP.");
+            throw new DomainValidationException(BookingErrorCodes.CodeInvalid, "A booking code looks like SS-7KQ4M2XP.");
         Value = normalized;
     }
 

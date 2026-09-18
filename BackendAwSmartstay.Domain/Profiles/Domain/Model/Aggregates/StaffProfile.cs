@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Entities;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
@@ -71,31 +72,31 @@ public class StaffProfile
         EnsureActive();
 
         if (scope == ScopeLevel.Chain && role != StaffRole.ChainAdmin)
-            throw new DomainValidationException("Only ChainAdmin role is allowed at Chain scope.");
+            throw new DomainValidationException(ProfileErrorCodes.ChainScopeRequiresChainAdmin, "Only ChainAdmin role is allowed at Chain scope.");
 
         if (scope == ScopeLevel.Hotel && role == StaffRole.ChainAdmin)
-            throw new DomainValidationException("ChainAdmin role is not permitted at Hotel scope.");
+            throw new DomainValidationException(ProfileErrorCodes.ChainAdminNotAllowedAtHotel, "ChainAdmin role is not permitted at Hotel scope.");
 
         if (role == StaffRole.ChainAdmin && _assignments.Any(a => a.IsCurrentOrScheduled() && a.Role == StaffRole.ChainAdmin))
-            throw new BusinessRuleViolationException("A staff profile cannot have more than one active, scheduled, or suspended ChainAdmin assignment.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.ChainAdminAlreadyAssigned, "A staff profile cannot have more than one active, scheduled, or suspended ChainAdmin assignment.");
 
         if (scope == ScopeLevel.Hotel && _assignments.Any(a => a.IsCurrentOrScheduled() && a.Role == StaffRole.ChainAdmin))
-            throw new BusinessRuleViolationException("Staff with active/scheduled ChainAdmin role cannot take Hotel assignments.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.ChainAdminCannotTakeHotelAssignment, "Staff with active/scheduled ChainAdmin role cannot take Hotel assignments.");
 
         if (scope == ScopeLevel.Chain && _assignments.Any(a => a.IsCurrentOrScheduled() && a.Scope == ScopeLevel.Hotel))
-            throw new BusinessRuleViolationException("Cannot assign ChainAdmin to a staff profile with existing Hotel assignments.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.HotelAssignmentsBlockChainAdmin, "Cannot assign ChainAdmin to a staff profile with existing Hotel assignments.");
 
         if (scope == ScopeLevel.Hotel)
         {
             if (role == StaffRole.Admin && _assignments.Any(a => a.IsCurrentOrScheduled() && a.TargetId == targetId && a.Role == StaffRole.Reception))
-                throw new BusinessRuleViolationException("Cannot assign Admin role: Staff already has Reception duties in this hotel.");
+                throw new BusinessRuleViolationException(ProfileErrorCodes.AdminConflictsWithReception, "Cannot assign Admin role: Staff already has Reception duties in this hotel.");
 
             if (role == StaffRole.Reception && _assignments.Any(a => a.IsCurrentOrScheduled() && a.TargetId == targetId && a.Role == StaffRole.Admin))
-                throw new BusinessRuleViolationException("Cannot assign Reception role: Staff already holds Admin duties in this hotel.");
+                throw new BusinessRuleViolationException(ProfileErrorCodes.ReceptionConflictsWithAdmin, "Cannot assign Reception role: Staff already holds Admin duties in this hotel.");
         }
 
         if (_assignments.Any(a => a.IsCurrentOrScheduled() && a.Scope == scope && a.TargetId == targetId && a.Role == role))
-            throw new BusinessRuleViolationException("A current or scheduled assignment with the identical scope, target, and role already exists.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.AssignmentDuplicated, "A current or scheduled assignment with the identical scope, target, and role already exists.");
 
         var assignment = new StaffAssignment(AssignmentId.New(), scope, targetId, role, period, today);
         _assignments.Add(assignment);
@@ -196,6 +197,6 @@ public class StaffProfile
     private void EnsureActive()
     {
         if (Status == ProfileStatus.Inactive)
-            throw new BusinessRuleViolationException("Operation not permitted on an inactive staff profile.");
+            throw new BusinessRuleViolationException(ProfileErrorCodes.StaffProfileInactive, "Operation not permitted on an inactive staff profile.");
     }
 }

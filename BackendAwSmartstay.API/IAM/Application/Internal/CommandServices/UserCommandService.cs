@@ -61,14 +61,14 @@ public class UserCommandService(
         var role = new Role(command.Role.Trim().ToLowerInvariant());
 
         if (!roleAuthorizationService.CanAssignRole(actor, role.Value))
-            throw new UnauthorizedOperationException($"You cannot assign the role '{role.Value}'.");
+            throw new UnauthorizedOperationException(IamErrorCodes.RoleNotAssignable, $"You cannot assign the role '{role.Value}'.");
 
         var hotelId = StaffAccountPolicy.ResolveHotel(actor, role.Value, command.HotelId);
         if (hotelId.HasValue && !userScopeService.CanAccessHotel(actor, hotelId))
-            throw new UnauthorizedOperationException($"You cannot create users for hotel {hotelId}.");
+            throw new UnauthorizedOperationException(IamErrorCodes.HotelOutOfScope, $"You cannot create users for hotel {hotelId}.");
 
         if (command.ChainId.HasValue && !roleAuthorizationService.CanAssignChainId(actor, command.ChainId))
-            throw new UnauthorizedOperationException($"You cannot assign chain {command.ChainId}.");
+            throw new UnauthorizedOperationException(IamErrorCodes.ChainOutOfScope, $"You cannot assign chain {command.ChainId}.");
 
         var email = new Email(command.Email);
         if (await userRepository.ExistsByEmailAsync(email))
@@ -103,7 +103,7 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot manage user {target.Id}.");
 
         if (command.NewEmail is not null)
@@ -125,7 +125,7 @@ public class UserCommandService(
         if (command.NewHotelId.HasValue)
         {
             if (!userScopeService.CanAccessHotel(actor, command.NewHotelId))
-                throw new UnauthorizedOperationException(
+                throw new UnauthorizedOperationException(IamErrorCodes.HotelOutOfScope,
                     $"User {actor.Id} cannot assign hotel {command.NewHotelId}.");
 
             target.UpdateHotelId(command.NewHotelId);
@@ -134,7 +134,7 @@ public class UserCommandService(
         if (command.NewChainId.HasValue)
         {
             if (!roleAuthorizationService.CanAssignChainId(actor, command.NewChainId))
-                throw new UnauthorizedOperationException(
+                throw new UnauthorizedOperationException(IamErrorCodes.ChainOutOfScope,
                     $"User {actor.Id} cannot assign chain {command.NewChainId}.");
 
             target.UpdateChainId(command.NewChainId);
@@ -153,11 +153,11 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot manage user {target.Id}.");
 
         if (!roleAuthorizationService.CanAssignRole(actor, command.NewRole))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.RoleNotAssignable,
                 $"User {actor.Id} cannot assign role '{command.NewRole}'.");
 
         // --- NEW RULE: Protect the last ChainAdmin ---
@@ -182,7 +182,7 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot deactivate user {target.Id}.");
 
         // --- NEW RULE: Protect the last ChainAdmin ---
@@ -209,7 +209,7 @@ public class UserCommandService(
         var target = await ResolveTargetAsync(command.TargetUserId);
 
         if (!roleAuthorizationService.CanManage(actor, target))
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.OutsideHierarchy,
                 $"User {actor.Id} cannot activate user {target.Id}.");
 
         target.Activate(actor.Id, timeProvider.GetUtcNow());
@@ -240,7 +240,7 @@ public class UserCommandService(
             throw new UserNotFoundException(actorUserId);
 
         if (actor.Status == UserStatus.Inactive)
-            throw new UnauthorizedOperationException(
+            throw new UnauthorizedOperationException(IamErrorCodes.ActorInactive,
                 $"User {actorUserId} is inactive and cannot perform management operations.");
 
         return actor;
@@ -266,7 +266,7 @@ public class UserCommandService(
         var activeChainAdminsCount = await userRepository.CountActiveByRoleAsync(UserRoles.ChainAdmin);
         if (activeChainAdminsCount <= 1)
         {
-            throw new UnauthorizedOperationException("Operation would leave the system without an active ChainAdmin.");
+            throw new UnauthorizedOperationException(IamErrorCodes.LastChainAdmin, "Operation would leave the system without an active ChainAdmin.");
         }
     }
 }

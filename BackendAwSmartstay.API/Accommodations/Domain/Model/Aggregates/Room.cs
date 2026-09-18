@@ -61,9 +61,9 @@ public partial class Room : IHasDomainEvents
     private static void EnsureValidPrice(decimal price)
     {
         if (price <= 0)
-            throw new InvalidFieldException("price", "The price per night must be greater than 0.");
+            throw new InvalidFieldException("price", AccommodationErrorCodes.RoomPriceOutOfRange, "The price per night must be greater than 0.");
         if (price > RoomNumber.MaxPrice)
-            throw new InvalidFieldException("price", $"The price per night cannot exceed {RoomNumber.MaxPrice}.");
+            throw new InvalidFieldException("price", AccommodationErrorCodes.RoomPriceOutOfRange, $"The price per night cannot exceed {RoomNumber.MaxPrice}.");
     }
 
     /// <summary>Operational status (US-29). New rooms are Available.</summary>

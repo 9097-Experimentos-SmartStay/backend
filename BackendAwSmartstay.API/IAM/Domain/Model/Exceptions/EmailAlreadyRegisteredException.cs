@@ -10,7 +10,7 @@ public class EmailAlreadyRegisteredException : BusinessRuleViolationException
 {
     public const string DefaultMessage = "Email already registered";
 
-    public EmailAlreadyRegisteredException(string email) : base(DefaultMessage)
+    public EmailAlreadyRegisteredException(string email) : base(IamErrorCodes.EmailAlreadyRegistered, DefaultMessage)
     {
         Email = email;
     }

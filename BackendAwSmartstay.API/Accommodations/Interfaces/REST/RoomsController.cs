@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
@@ -72,10 +74,8 @@ public class RoomsController(
     {
         var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(resource.HotelId));
         if (hotel is null)
-        {
-            ModelState.AddModelError("hotelId", $"Hotel {resource.HotelId} does not exist.");
-            return ValidationProblem(ModelState);
-        }
+            throw new InvalidFieldException(nameof(resource.HotelId), AccommodationErrorCodes.HotelNotFound,
+                $"Hotel {resource.HotelId} does not exist.");
         if (!await CanManageAsync(hotel)) return Forbid();
 
         var createRoomCommand = CreateRoomCommandFromResourceAssembler.ToCommandFromResource(resource);
@@ -231,10 +231,7 @@ public class RoomsController(
     {
         var targetHotelId = hotelId ?? (User.IsChainAdmin() ? null : User.GetHotelId());
         if (targetHotelId is null)
-        {
-            ModelState.AddModelError("hotelId", "Send the hotelId of the map.");
-            return ValidationProblem(ModelState);
-        }
+            throw new InvalidFieldException("hotelId", AccommodationErrorCodes.HotelRequired, "Send the hotelId of the map.");
 
         var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(targetHotelId.Value));
         if (hotel is null) return NotFound();

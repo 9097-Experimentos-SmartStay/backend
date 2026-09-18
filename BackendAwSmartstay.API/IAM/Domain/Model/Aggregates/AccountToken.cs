@@ -46,9 +46,9 @@ public class AccountToken
     /// <summary>Issues a token for <paramref name="userId"/> valid for <paramref name="lifetime"/>.</summary>
     public static AccountToken Issue(int userId, AccountTokenPurpose purpose, string tokenHash, DateTimeOffset now, TimeSpan lifetime)
     {
-        if (userId <= 0) throw new DomainValidationException("An account token must belong to a user.");
-        if (string.IsNullOrWhiteSpace(tokenHash)) throw new DomainValidationException("An account token needs a hash.");
-        if (lifetime <= TimeSpan.Zero) throw new DomainValidationException("An account token lifetime must be positive.");
+        if (userId <= 0) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "An account token must belong to a user.");
+        if (string.IsNullOrWhiteSpace(tokenHash)) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "An account token needs a hash.");
+        if (lifetime <= TimeSpan.Zero) throw new DomainValidationException(IamErrorCodes.InternalInvariant, "An account token lifetime must be positive.");
         return new AccountToken(userId, purpose, tokenHash, now, now + lifetime);
     }
 

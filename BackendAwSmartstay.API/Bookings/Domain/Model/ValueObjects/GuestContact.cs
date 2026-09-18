@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -17,18 +18,18 @@ public sealed partial record GuestContact
     {
         var trimmedName = Collapse(name);
         if (trimmedName.Length is < 2 or > MaxNameLength)
-            throw new InvalidFieldException("guestName", $"Enter the guest's name (2 to {MaxNameLength} characters).");
+            throw new InvalidFieldException("guestName", BookingErrorCodes.GuestNameInvalid, $"Enter the guest's name (2 to {MaxNameLength} characters).");
 
         var trimmedEmail = email?.Trim().ToLowerInvariant() ?? string.Empty;
         if (trimmedEmail.Length > MaxEmailLength || !EmailFormat().IsMatch(trimmedEmail))
-            throw new InvalidFieldException("guestEmail", "Enter a valid guest e-mail (for example name@domain.com): the booking e-mails go there.");
+            throw new InvalidFieldException("guestEmail", BookingErrorCodes.GuestEmailInvalid, "Enter a valid guest e-mail (for example name@domain.com): the booking e-mails go there.");
 
         string? normalizedPhone = null;
         if (!string.IsNullOrWhiteSpace(phone))
         {
             normalizedPhone = PhoneSeparators().Replace(phone.Trim(), string.Empty);
             if (!PhoneFormat().IsMatch(normalizedPhone))
-                throw new InvalidFieldException("guestPhone", "The phone must have 7 to 15 digits and may start with +.");
+                throw new InvalidFieldException("guestPhone", BookingErrorCodes.GuestPhoneInvalid, "The phone must have 7 to 15 digits and may start with +.");
         }
 
         Name = trimmedName;

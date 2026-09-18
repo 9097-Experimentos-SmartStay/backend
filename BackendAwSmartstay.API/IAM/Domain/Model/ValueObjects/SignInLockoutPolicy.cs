@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
@@ -11,9 +12,9 @@ public sealed record SignInLockoutPolicy
     public SignInLockoutPolicy(int maxConsecutiveFailures, TimeSpan lockoutDuration)
     {
         if (maxConsecutiveFailures < 1)
-            throw new DomainValidationException("The lockout threshold must be at least one failed attempt.");
+            throw new DomainValidationException(IamErrorCodes.InternalInvariant, "The lockout threshold must be at least one failed attempt.");
         if (lockoutDuration <= TimeSpan.Zero)
-            throw new DomainValidationException("The lockout duration must be positive.");
+            throw new DomainValidationException(IamErrorCodes.InternalInvariant, "The lockout duration must be positive.");
         MaxConsecutiveFailures = maxConsecutiveFailures;
         LockoutDuration = lockoutDuration;
     }

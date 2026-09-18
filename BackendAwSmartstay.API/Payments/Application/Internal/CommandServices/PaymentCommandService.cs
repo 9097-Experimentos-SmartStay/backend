@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Payments.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
 using BackendAwSmartstay.API.Payments.Application.OutboundServices;
 using BackendAwSmartstay.API.Payments.Domain.Model.Aggregates;
@@ -35,11 +36,11 @@ public class PaymentCommandService(
             var booking = await bookingsContextFacade.FetchBookingAsync(command.BookingId)
                           ?? throw new EntityNotFoundException("Booking", command.BookingId);
             if (!command.AllHotels && command.StaffHotelId != booking.HotelId)
-                throw new OperationNotAllowedException("You can only register payments of the bookings of your hotel.");
+                throw new OperationNotAllowedException(PaymentErrorCodes.OutsideHotelScope, "You can only register payments of the bookings of your hotel.");
             if (await paymentRepository.ExistsCompletedForBookingAsync(booking.BookingId))
-                throw new BusinessRuleViolationException($"Booking {booking.Code} is already paid.");
+                throw new BusinessRuleViolationException(PaymentErrorCodes.BookingAlreadyPaid, $"Booking {booking.Code} is already paid.");
             if (!booking.CanBePaid)
-                throw new BusinessRuleViolationException(
+                throw new BusinessRuleViolationException(PaymentErrorCodes.BookingNotPending,
                     $"Booking {booking.Code} is {booking.Status.ToLowerInvariant()}: only a pending booking can be paid.");
 
             var now = timeProvider.GetUtcNow();

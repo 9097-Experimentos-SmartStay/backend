@@ -1,3 +1,5 @@
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Validation;
 using System.ComponentModel.DataAnnotations;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 
@@ -18,7 +20,8 @@ public record ChangeRoomStatusResource : IValidatableObject
     {
         if (!string.IsNullOrWhiteSpace(Status)
             && (!Enum.TryParse<RoomStatus>(Status, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed) || int.TryParse(Status, out _)))
-            yield return new ValidationResult(
-                $"Status must be one of: {string.Join(", ", Enum.GetNames<RoomStatus>())}.", ["status"]);
+            yield return new CodedValidationResult(ErrorCodes.FieldNotAllowed,
+                $"Status must be one of: {string.Join(", ", Enum.GetNames<RoomStatus>())}.", ["status"],
+                new Dictionary<string, object?> { ["allowed"] = Enum.GetNames<RoomStatus>() });
     }
 }

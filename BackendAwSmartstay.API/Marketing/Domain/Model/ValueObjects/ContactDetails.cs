@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Marketing.Domain.Model.Exceptions;
 using System.Text.RegularExpressions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -21,12 +22,12 @@ public sealed partial record ContactDetails
 
         var normalizedEmail = email?.Trim().ToLowerInvariant() ?? string.Empty;
         if (!IsValidEmail(normalizedEmail))
-            throw new DomainValidationException("Enter a valid e-mail address (for example name@domain.com).");
+            throw new DomainValidationException(MarketingErrorCodes.EmailInvalid, "Enter a valid e-mail address (for example name@domain.com).");
         Email = normalizedEmail;
 
         var normalizedPhone = NormalizePhone(phone);
         if (normalizedPhone is not null && !PhonePattern().IsMatch(normalizedPhone))
-            throw new DomainValidationException("The phone must have 7 to 15 digits and may start with +.");
+            throw new DomainValidationException(MarketingErrorCodes.PhoneInvalid, "The phone must have 7 to 15 digits and may start with +.");
         Phone = normalizedPhone;
     }
 
@@ -65,9 +66,9 @@ public sealed partial record ContactDetails
     private static string Name(string value, string label)
     {
         var collapsed = Collapse(value);
-        if (collapsed.Length == 0) throw new DomainValidationException($"{label} is required.");
+        if (collapsed.Length == 0) throw new DomainValidationException(MarketingErrorCodes.FieldRequired, $"{label} is required.");
         if (!IsValidName(collapsed))
-            throw new DomainValidationException($"{label} must have 2 to 50 letters (spaces, hyphens and apostrophes allowed).");
+            throw new DomainValidationException(MarketingErrorCodes.NameInvalid, $"{label} must have 2 to 50 letters (spaces, hyphens and apostrophes allowed).");
         return collapsed;
     }
 

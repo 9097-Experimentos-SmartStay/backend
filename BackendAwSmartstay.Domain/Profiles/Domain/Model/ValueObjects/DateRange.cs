@@ -1,3 +1,4 @@
+using BackendAwSmartstay.Domain.Profiles.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 namespace BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 
@@ -9,7 +10,7 @@ public record DateRange
     public DateRange(DateOnly startDate, DateOnly? endDate = null)
     {
         if (endDate.HasValue && endDate.Value < startDate)
-            throw new DomainValidationException("EndDate cannot be earlier than StartDate.");
+            throw new DomainValidationException(ProfileErrorCodes.DateRangeInvalid, "EndDate cannot be earlier than StartDate.");
 
         StartDate = startDate;
         EndDate = endDate;

@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Security.Claims;
 using BackendAwSmartstay.API.IAM.Domain.Model.Enums;
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.ExceptionHandling;
 using BackendAwSmartstay.API.IAM.Domain.Model.Queries;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.IAM.Domain.Services;
@@ -18,7 +20,8 @@ namespace BackendAwSmartstay.API.IAM.Infrastructure.Authentication;
 ///         <item>after the signature/lifetime checks, asks the IAM application layer whether the session is still
 ///         valid (active user, current token version: a password change or a deactivation revokes tokens) and
 ///         refreshes the role/scope claims from the User aggregate;</item>
-///         <item>writes 401/403 responses as RFC 7807 ProblemDetails through the native problem details service.</item>
+///         <item>writes 401/403 responses as RFC 7807 ProblemDetails through the native problem details service,
+///         with the stable code of the rejection (<see cref="BearerRejection"/>).</item>
 ///     </list>
 /// </summary>
 public class IamJwtBearerEvents(
@@ -26,12 +29,6 @@ public class IamJwtBearerEvents(
     IProblemDetailsService problemDetailsService,
     ILogger<IamJwtBearerEvents> logger) : JwtBearerEvents
 {
-    private const string MissingTokenDetail = "A valid bearer token is required to access this resource.";
-    private const string InvalidTokenDetail = "The bearer token is invalid.";
-    private const string ExpiredTokenDetail = "The bearer token has expired. Sign in again.";
-    private const string RevokedTokenDetail = "The bearer token has been revoked. Sign in again.";
-    private const string InactiveUserDetail = "The account has been deactivated. Contact the administrator.";
-    private const string ForbiddenDetail = "You do not have permission to perform this operation.";
 
     public override async Task TokenValidated(TokenValidatedContext context)
     {
@@ -41,7 +38,7 @@ public class IamJwtBearerEvents(
 
         if (userId is null || tokenVersion is null)
         {
-            context.Fail(InvalidTokenDetail);
+            context.Fail(new BearerTokenRejectedException(BearerRejection.Invalid));
             return;
         }
 
@@ -53,15 +50,15 @@ public class IamJwtBearerEvents(
                 return;
             case UserSessionStatus.Inactive:
                 logger.LogInformation("Rejected token of inactive user {UserId}.", userId);
-                context.Fail(InactiveUserDetail);
+                context.Fail(new BearerTokenRejectedException(BearerRejection.Deactivated));
                 return;
             case UserSessionStatus.UserNotFound:
                 logger.LogWarning("Rejected token of unknown user {UserId}.", userId);
-                context.Fail(RevokedTokenDetail);
+                context.Fail(new BearerTokenRejectedException(BearerRejection.Revoked));
                 return;
             default:
                 logger.LogInformation("Rejected revoked token (version {TokenVersion}) of user {UserId}.", tokenVersion, userId);
-                context.Fail(RevokedTokenDetail);
+                context.Fail(new BearerTokenRejectedException(BearerRejection.Revoked));
                 return;
         }
     }
@@ -90,13 +87,13 @@ public class IamJwtBearerEvents(
         // Replace the default empty 401 with a ProblemDetails body (the WWW-Authenticate header is kept).
         context.HandleResponse();
 
-        // Only our own session messages (TokenValidated -> Fail) are shown; library errors are never echoed.
-        var detail = context.AuthenticateFailure switch
+        // Only our own session rejections (TokenValidated -> Fail) are described; library errors are never echoed.
+        var rejection = context.AuthenticateFailure switch
         {
-            null => MissingTokenDetail,
-            SecurityTokenExpiredException => ExpiredTokenDetail,
-            AuthenticationFailureException { Message: var message } when !string.IsNullOrWhiteSpace(message) => message,
-            _ => InvalidTokenDetail
+            null => BearerRejection.Missing,
+            SecurityTokenExpiredException => BearerRejection.Expired,
+            BearerTokenRejectedException rejected => rejected.Rejection,
+            _ => BearerRejection.Invalid
         };
 
         var response = context.Response;
@@ -105,21 +102,27 @@ public class IamJwtBearerEvents(
             ? "Bearer"
             : "Bearer error=\"invalid_token\"";
 
-        await WriteProblemAsync(context.HttpContext, StatusCodes.Status401Unauthorized, "Unauthorized", detail);
+        await WriteProblemAsync(context.HttpContext, StatusCodes.Status401Unauthorized, "Unauthorized", rejection);
     }
 
     public override Task Forbidden(ForbiddenContext context)
     {
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
-        return WriteProblemAsync(context.HttpContext, StatusCodes.Status403Forbidden, "Forbidden", ForbiddenDetail);
+        return WriteProblemAsync(context.HttpContext, StatusCodes.Status403Forbidden, "Forbidden", BearerRejection.Forbidden);
     }
 
-    private async Task WriteProblemAsync(HttpContext httpContext, int status, string title, string detail)
+    private async Task WriteProblemAsync(HttpContext httpContext, int status, string title, BearerRejection rejection)
     {
         await problemDetailsService.WriteAsync(new ProblemDetailsContext
         {
             HttpContext = httpContext,
-            ProblemDetails = new ProblemDetails { Status = status, Title = title, Detail = detail }
+            ProblemDetails = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Detail = rejection.Detail,
+                Extensions = { [ProblemCodes.CodeExtension] = rejection.Code }
+            }
         });
     }
 }

@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
@@ -22,9 +23,9 @@ public sealed record IdentityDocumentFile
     public static IdentityDocumentFile Inspect(ReadOnlySpan<byte> content)
     {
         if (content.Length == 0)
-            throw new InvalidFieldException("document", "Upload a photo or scan of your identity document.");
+            throw new InvalidFieldException("document", BookingErrorCodes.CheckInDocumentRequired, "Upload a photo or scan of your identity document.");
         if (content.Length > MaxSizeBytes)
-            throw new InvalidFieldException("document", "The document file cannot exceed 5 MB.");
+            throw new InvalidFieldException("document", BookingErrorCodes.CheckInDocumentTooLarge, "The document file cannot exceed 5 MB.");
 
         var contentType = content switch
         {
@@ -34,7 +35,7 @@ public sealed record IdentityDocumentFile
             _ => null
         };
         if (contentType is null)
-            throw new InvalidFieldException("document", "The document must be a JPG, PNG or PDF file.");
+            throw new InvalidFieldException("document", BookingErrorCodes.CheckInDocumentFileType, "The document must be a JPG, PNG or PDF file.");
 
         return new IdentityDocumentFile(contentType, content.Length);
     }

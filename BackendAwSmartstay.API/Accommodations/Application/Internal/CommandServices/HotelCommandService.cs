@@ -86,8 +86,9 @@ public class HotelCommandService(
         var rooms = await roomRepository.ListByHotelAsync(hotel.Id);
         var active = await roomReservationsFacade.CountActiveBookingsAsync(rooms.Select(room => room.Id).ToList());
         if (active.Count > 0)
-            throw new RoomHasActiveBookingsException(
-                $"Hotel {hotel.Name} has {active.Values.Sum()} active booking(s). Cancel or complete them before deleting the hotel.");
+            throw new RoomHasActiveBookingsException(AccommodationErrorCodes.HotelHasActiveBookings,
+                $"Hotel {hotel.Name} has {active.Values.Sum()} active booking(s). Cancel or complete them before deleting the hotel.",
+                active.Values.Sum());
 
         hotelRepository.Remove(hotel);
         await unitOfWork.CompleteAsync();

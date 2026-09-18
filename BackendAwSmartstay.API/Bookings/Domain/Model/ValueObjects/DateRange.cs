@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
@@ -12,7 +13,7 @@ public sealed record DateRange
     public DateRange(DateTime checkIn, DateTime checkOut)
     {
         if (checkOut.Date <= checkIn.Date)
-            throw new DomainValidationException("The check-out date must be at least one day after the check-in date.");
+            throw new DomainValidationException(BookingErrorCodes.CheckOutNotAfterCheckIn, "The check-out date must be at least one day after the check-in date.");
 
         CheckIn = DateTime.SpecifyKind(checkIn.Date, DateTimeKind.Unspecified);
         CheckOut = DateTime.SpecifyKind(checkOut.Date, DateTimeKind.Unspecified);
@@ -37,7 +38,7 @@ public sealed record DateRange
     public void EnsureNotInThePast(DateTime hotelToday)
     {
         if (CheckIn < hotelToday.Date)
-            throw new DomainValidationException("The check-in date cannot be in the past.");
+            throw new DomainValidationException(BookingErrorCodes.CheckInInPast, "The check-in date cannot be in the past.");
     }
 
     public override string ToString() => $"{CheckIn:yyyy-MM-dd}..{CheckOut:yyyy-MM-dd}";

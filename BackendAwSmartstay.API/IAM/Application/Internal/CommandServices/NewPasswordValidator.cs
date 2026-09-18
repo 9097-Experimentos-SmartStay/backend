@@ -1,4 +1,5 @@
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
+using BackendAwSmartstay.API.IAM.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.IAM.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.IAM.Domain.Services;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
@@ -23,12 +24,12 @@ public class NewPasswordValidator(IBreachedPasswordChecker breachedPasswordCheck
     {
         var check = PasswordPolicy.Check(password, role, email);
         if (!check.IsAcceptable)
-            throw new InvalidFieldException(field, check.Problem!);
+            throw new InvalidFieldException(field, check.Code!, check.Problem!, check.Parameters);
 
         switch (await breachedPasswordChecker.CheckAsync(PasswordPolicy.Normalize(password!)))
         {
             case BreachedPasswordStatus.Breached:
-                throw new InvalidFieldException(field, PasswordPolicy.BreachedPasswordProblem);
+                throw new InvalidFieldException(field, IamErrorCodes.PasswordBreached, PasswordPolicy.BreachedPasswordProblem);
             case BreachedPasswordStatus.Unavailable:
                 logger.LogWarning("Breached password check unavailable: the new password was accepted without it (fail open).");
                 break;

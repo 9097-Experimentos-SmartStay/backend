@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
@@ -24,7 +25,7 @@ public static class HotelRegistrationPolicy
             return requestedHostId is > 0 ? requestedHostId.Value : registrant.UserId;
 
         if (registrant.AssignedHotelId is not null || registrantAlreadyHostsAHotel)
-            throw new BusinessRuleViolationException(
+            throw new BusinessRuleViolationException(AccommodationErrorCodes.AdminAlreadyHasHotel,
                 "A hotel administrator manages a single hotel and already has one. Ask a chain administrator to register more hotels.");
 
         return registrant.UserId;
