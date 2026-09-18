@@ -17,7 +17,7 @@ public static class BookingResourceFromEntityAssembler
             entity.CheckOutDate,
             entity.Status.ToString(),
             entity.GuestProfileId,
-            entity.UserId);
+            entity.GuestId?.Value);
     }
 }
 

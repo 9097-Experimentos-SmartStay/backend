@@ -48,9 +48,7 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "No booking aggregate matched the supplied structural query identifier.")]
     public async Task<IActionResult> GetBookingById(int bookingId)
     {
-        var booking = User.IsGuest()
-            ? await bookingQueryService.Handle(new GetOwnedBookingByIdQuery(bookingId, User.GetUserId()))
-            : await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId));
+        var booking = await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId, User.ToBookingRequester()));
         if (booking is null) return NotFound();
         var resource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
         return Ok(resource);
@@ -69,30 +67,14 @@ public class BookingsController(
         OperationId = "CreateBooking")]
     [SwaggerResponse(StatusCodes.Status201Created, "The booking aggregate root was successfully validated, processed, and tracked.", typeof(BookingResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource schema layout contains invalid parameters or violates business rule constraints.")]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "The room already has an active booking for some of the requested nights (no overbooking).")]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "The authenticated identity has insufficient privilege levels.")]
     public async Task<IActionResult> CreateBooking([FromBody] CreateBookingResource resource)
     {
-        CreateBookingCommand createBookingCommand;
-        if (User.IsGuest())
-        {
-            // Guests always book for themselves: identity comes from the token, never from the body.
-            // Blank name/email (the web client sometimes sends them empty) default to the username.
-            createBookingCommand = CreateBookingCommandFromResourceAssembler.ToCommandFromResource(
-                resource,
-                userId: User.GetUserId(),
-                guestProfileId: null,
-                guestName: string.IsNullOrWhiteSpace(resource.GuestName) ? User.GetUsername() : resource.GuestName,
-                guestEmail: string.IsNullOrWhiteSpace(resource.GuestEmail) ? User.GetUsername() : resource.GuestEmail);
-        }
-        else
-        {
-            // Assisted booking by hotel staff: may be made on behalf of a guest user/profile.
-            createBookingCommand = CreateBookingCommandFromResourceAssembler.ToCommandFromResource(resource);
-        }
-
+        var createBookingCommand = CreateBookingCommandFromResourceAssembler.ToCommandFromResource(
+            resource, User.ToBookingRequester());
         var booking = await bookingCommandService.Handle(createBookingCommand);
-        if (booking is null) return BadRequest();
         var bookingResource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
         return CreatedAtAction(nameof(GetBookingById), new { bookingId = booking.Id }, bookingResource);
     }
@@ -112,9 +94,7 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status403Forbidden, "The requesting identity lacks the administrative clearance parameter to execute ledger enumeration.")]
     public async Task<IActionResult> GetAllBookings()
     {
-        var bookings = User.IsGuest()
-            ? await bookingQueryService.Handle(new GetBookingsByOwnerQuery(User.GetUserId()))
-            : await bookingQueryService.Handle(new GetAllBookingsQuery());
+        var bookings = await bookingQueryService.Handle(new GetBookingsQuery(User.ToBookingRequester()));
         var bookingResources = bookings.Select(BookingResourceFromEntityAssembler.ToResourceFromEntity);
         return Ok(bookingResources);
     }
@@ -157,9 +137,7 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "The targeted booking index node could not be pulled for status update.")]
     public async Task<IActionResult> ConfirmBooking(int bookingId)
     {
-        var confirmBookingCommand = new ConfirmBookingCommand(bookingId);
-        var booking = await bookingCommandService.Handle(confirmBookingCommand);
-        if (booking is null) return NotFound();
+        var booking = await bookingCommandService.Handle(new ConfirmBookingCommand(bookingId));
         var bookingResource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
         return Ok(bookingResource);
     }
@@ -181,13 +159,7 @@ public class BookingsController(
     [SwaggerResponse(StatusCodes.Status404NotFound, "The targeted booking instance was not active or present within the context persistence tree.")]
     public async Task<IActionResult> CancelBooking(int bookingId)
     {
-        if (User.IsGuest()
-            && await bookingQueryService.Handle(new GetOwnedBookingByIdQuery(bookingId, User.GetUserId())) is null)
-            return NotFound();
-
-        var cancelBookingCommand = new CancelBookingCommand(bookingId);
-        var booking = await bookingCommandService.Handle(cancelBookingCommand);
-        if (booking is null) return NotFound();
+        var booking = await bookingCommandService.Handle(new CancelBookingCommand(bookingId, User.ToBookingRequester()));
         var bookingResource = BookingResourceFromEntityAssembler.ToResourceFromEntity(booking);
         return Ok(bookingResource);
     }

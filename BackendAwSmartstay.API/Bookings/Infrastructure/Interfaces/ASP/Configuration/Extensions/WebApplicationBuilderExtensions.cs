@@ -17,6 +17,9 @@ public static class WebApplicationBuilderExtensions
         // Repositories
         builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 
+        // Domain Services
+        builder.Services.AddScoped<RoomAvailabilityService>();
+
         // Command Services
         builder.Services.AddScoped<IBookingCommandService, BookingCommandService>();
 

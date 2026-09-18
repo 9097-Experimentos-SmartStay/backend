@@ -34,6 +34,6 @@ public interface IBookingsContextFacade
     ///     Confirms the booking through the Bookings application layer.
     ///     Changes pending in the shared unit of work (e.g. a new payment) are committed together.
     /// </summary>
-    /// <returns>False when the booking does not exist.</returns>
+    /// <exception cref="BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions.EntityNotFoundException">The booking does not exist.</exception>
     Task<bool> ConfirmBookingAsync(int bookingId);
 }

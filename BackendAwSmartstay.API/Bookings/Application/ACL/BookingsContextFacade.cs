@@ -1,6 +1,7 @@
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Queries;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
 using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
 
@@ -12,17 +13,15 @@ public class BookingsContextFacade(
 {
     public async Task<BookingSnapshot?> FetchBookingAsync(int bookingId, int? guestUserId = null)
     {
-        var booking = guestUserId.HasValue
-            ? await bookingQueryService.Handle(new GetOwnedBookingByIdQuery(bookingId, guestUserId.Value))
-            : await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId));
-
+        var requester = guestUserId.HasValue ? BookingRequester.Guest(guestUserId.Value, string.Empty) : null;
+        var booking = await bookingQueryService.Handle(new GetBookingByIdQuery(bookingId, requester));
         return booking is null ? null : ToSnapshot(booking);
     }
 
     public async Task<bool> ConfirmBookingAsync(int bookingId)
     {
-        var booking = await bookingCommandService.Handle(new ConfirmBookingCommand(bookingId));
-        return booking is not null;
+        await bookingCommandService.Handle(new ConfirmBookingCommand(bookingId));
+        return true;
     }
 
     private static BookingSnapshot ToSnapshot(Booking booking) => new(

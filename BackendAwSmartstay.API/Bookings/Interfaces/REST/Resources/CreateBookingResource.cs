@@ -11,8 +11,8 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 /// <param name="GuestProfileId">Optional guest profile identifier.</param>
 public record CreateBookingResource(
     int RoomId,
-    string GuestName,
-    string GuestEmail,
+    string? GuestName,
+    string? GuestEmail,
     DateTime CheckInDate,
     DateTime CheckOutDate,
     int? UserId = null,

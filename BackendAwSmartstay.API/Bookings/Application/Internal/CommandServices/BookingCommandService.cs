@@ -1,87 +1,84 @@
-using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
+using BackendAwSmartstay.API.Bookings.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Domain.Repositories;
 using BackendAwSmartstay.API.Bookings.Domain.Services;
 using BackendAwSmartstay.API.Profiles.Interfaces.ACL;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 
 namespace BackendAwSmartstay.API.Bookings.Application.Internal.CommandServices;
 
 /// <summary>
-/// Service implementation for handling booking commands.
-/// Orchestrates the flow between the repository, domain logic, and external ACLs.
+/// Orchestrates booking commands: resolves data from other contexts through their ACL facades, delegates every
+/// rule to the domain (Booking aggregate, RoomAvailabilityService) and commits the unit of work.
 /// </summary>
 public class BookingCommandService(
     IBookingRepository bookingRepository,
     IUnitOfWork unitOfWork,
     IGuestProfilesContextFacade guestProfilesContextFacade,
-    IAccommodationsContextFacade accommodationsContextFacade)
+    IAccommodationsContextFacade accommodationsContextFacade,
+    RoomAvailabilityService roomAvailabilityService)
     : IBookingCommandService
 {
-    /// <summary>
-    /// Handles the creation of a new booking, resolving associated GuestProfileId via ACL if available.
-    /// </summary>
-    /// <param name="command">The command containing the booking creation data.</param>
-    /// <returns>The created booking or null if creation failed.</returns>
-    public async Task<Booking?> Handle(CreateBookingCommand command)
+    public async Task<Booking> Handle(CreateBookingCommand command)
     {
         if (!await accommodationsContextFacade.RoomExistsAsync(command.RoomId))
             throw new DomainValidationException($"Room {command.RoomId} does not exist.");
 
-        Guid? guestProfileId = command.GuestProfileId;
+        var dates = new DateRange(command.CheckInDate, command.CheckOutDate);
+        await roomAvailabilityService.EnsureRoomIsAvailableAsync(command.RoomId, dates);
 
-        if (!guestProfileId.HasValue)
-        {
-            if (command.UserId.HasValue && command.UserId.Value > 0)
-            {
-                guestProfileId = await guestProfilesContextFacade.FetchGuestProfileIdByUserIdAsync(command.UserId.Value);
-            }
-            else if (!string.IsNullOrWhiteSpace(command.GuestEmail))
-            {
-                guestProfileId = await guestProfilesContextFacade.FetchGuestProfileIdByEmailAsync(command.GuestEmail);
-            }
-        }
+        var requester = await ResolveGuestProfileAsync(command.Requester);
+        var guestProfileId = requester.IsGuest
+            ? requester.GuestProfileId
+            : command.GuestProfileId ?? await FindGuestProfileForStaffBookingAsync(command);
 
-        var booking = new Booking(command, guestProfileId);
+        var booking = Booking.Create(requester, command.RoomId, dates, command.GuestName, command.GuestEmail,
+            command.UserId, guestProfileId);
+
         await bookingRepository.AddAsync(booking);
         await unitOfWork.CompleteAsync();
-
         return booking;
     }
 
-    /// <summary>
-    /// Handles the confirmation of an existing booking.
-    /// </summary>
-    /// <param name="command">The command containing the booking confirmation data.</param>
-    /// <returns>The confirmed booking or null if the booking was not found.</returns>
-    public async Task<Booking?> Handle(ConfirmBookingCommand command)
+    public async Task<Booking> Handle(ConfirmBookingCommand command)
     {
-        var booking = await bookingRepository.FindByIdAsync(command.BookingId);
-        if (booking is null) return null;
+        var booking = await bookingRepository.FindByIdAsync(command.BookingId)
+                      ?? throw new BookingNotFoundException(command.BookingId);
 
         booking.Confirm();
         bookingRepository.Update(booking);
         await unitOfWork.CompleteAsync();
-
         return booking;
     }
 
-    /// <summary>
-    /// Handles the cancellation of an existing booking.
-    /// </summary>
-    /// <param name="command">The command containing the booking cancellation data.</param>
-    /// <returns>The cancelled booking or null if the booking was not found.</returns>
-    public async Task<Booking?> Handle(CancelBookingCommand command)
+    public async Task<Booking> Handle(CancelBookingCommand command)
     {
-        var booking = await bookingRepository.FindByIdAsync(command.BookingId);
-        if (booking is null) return null;
+        var booking = await bookingRepository.FindByIdAsync(command.BookingId)
+                      ?? throw new BookingNotFoundException(command.BookingId);
 
-        booking.Cancel();
+        booking.Cancel(await ResolveGuestProfileAsync(command.Requester));
         bookingRepository.Update(booking);
         await unitOfWork.CompleteAsync();
-
         return booking;
+    }
+
+    /// <summary>A guest's ownership also covers bookings attached to their guest profile (Profiles ACL).</summary>
+    private async Task<BookingRequester> ResolveGuestProfileAsync(BookingRequester requester) =>
+        requester.IsGuest
+            ? requester.WithGuestProfile(await guestProfilesContextFacade.FetchGuestProfileIdByUserIdAsync(requester.UserId))
+            : requester;
+
+    /// <summary>Desk bookings are attached to the guest's profile when it can be found by account or e-mail.</summary>
+    private async Task<Guid?> FindGuestProfileForStaffBookingAsync(CreateBookingCommand command)
+    {
+        if (command.UserId is > 0)
+            return await guestProfilesContextFacade.FetchGuestProfileIdByUserIdAsync(command.UserId.Value);
+        if (!string.IsNullOrWhiteSpace(command.GuestEmail))
+            return await guestProfilesContextFacade.FetchGuestProfileIdByEmailAsync(command.GuestEmail);
+        return null;
     }
 }

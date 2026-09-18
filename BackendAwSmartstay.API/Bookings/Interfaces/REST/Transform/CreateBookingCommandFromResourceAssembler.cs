@@ -1,30 +1,25 @@
 using BackendAwSmartstay.API.Bookings.Domain.Model.Commands;
+using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 
 namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Transform;
 
 public static class CreateBookingCommandFromResourceAssembler
 {
-    public static CreateBookingCommand ToCommandFromResource(CreateBookingResource resource)
-    {
-        return ToCommandFromResource(resource, resource.UserId, resource.GuestProfileId,
-            resource.GuestName, resource.GuestEmail);
-    }
-
     /// <summary>
-    ///     Builds the command with identity fields resolved by the controller (e.g. taken from the token for guests).
+    ///     Builds the command. The Booking aggregate decides which fields apply: a guest always books for
+    ///     themselves, so <c>userId</c> and <c>guestProfileId</c> only matter for desk bookings.
     /// </summary>
-    public static CreateBookingCommand ToCommandFromResource(CreateBookingResource resource, int? userId,
-        Guid? guestProfileId, string guestName, string guestEmail)
+    public static CreateBookingCommand ToCommandFromResource(CreateBookingResource resource, BookingRequester requester)
     {
         return new CreateBookingCommand(
+            requester,
             resource.RoomId,
-            guestName,
-            guestEmail,
+            resource.GuestName,
+            resource.GuestEmail,
             resource.CheckInDate,
             resource.CheckOutDate,
-            userId,
-            guestProfileId);
+            resource.UserId,
+            resource.GuestProfileId);
     }
 }
-
