@@ -2,6 +2,13 @@
 
 API REST de SmartStay (ASP.NET Core 9, MySQL 8). Documentación interactiva en `/scalar` una vez que la API está en marcha.
 
+## Enlaces
+
+- **API (producción):** https://smartstay-movildev-api.onrender.com · documentación en [https://smartstay-movildev-api.onrender.com/scalar](https://smartstay-movildev-api.onrender.com/scalar)
+- **Frontend web:** https://smartstay-movildev-web.vercel.app
+- **Landing page:** https://smartstay-movildev-landing.vercel.app
+- **Repositorios:** [backend](https://github.com/9097-Experimentos-SmartStay/backend) · [frontend](https://github.com/9097-Experimentos-SmartStay/frontend) · [landing-page](https://github.com/9097-Experimentos-SmartStay/landing-page) · [mobile](https://github.com/9097-Experimentos-SmartStay/mobile) · [Report](https://github.com/9097-Experimentos-SmartStay/Report)
+
 ## Configuración y secretos
 
 La API lee su configuración por capas; cada capa sobrescribe a la anterior:
@@ -51,6 +58,8 @@ curl http://localhost:10000/health
 ```
 
 ### Producción (Render)
+
+La API está publicada en https://smartstay-movildev-api.onrender.com (documentación en https://smartstay-movildev-api.onrender.com/scalar, salud en https://smartstay-movildev-api.onrender.com/health).
 
 Define cada valor como **variable de entorno** del servicio en Render (nunca en el repositorio). Los archivos sensibles, como el certificado CA de Aiven para MySQL, se suben como **Secret Files** (quedan en `/etc/secrets/`) y se referencian desde la variable, por ejemplo `SslMode=VerifyFull;SslCa=/etc/secrets/ca.pem;` en la cadena de conexión. `.env.example` lista todas las variables con su explicación.
 
