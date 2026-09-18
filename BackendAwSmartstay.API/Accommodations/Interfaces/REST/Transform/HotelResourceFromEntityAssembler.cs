@@ -20,7 +20,8 @@ public static class HotelResourceFromEntityAssembler
             entity.Description,
             lowestPrice,
             entity.Type,
-            entity.Amenities
+            entity.Amenities,
+            entity.AcceptsBookings
         );
     }
 }

@@ -28,4 +28,9 @@ public interface IHotelCommandService
     /// <param name="command">The delete command.</param>
     /// <returns>The deleted hotel or null if not found.</returns>
     Task<Hotel?> Handle(DeleteHotelCommand command);
+
+    /// <summary>US-53: sets the payment methods of a hotel.</summary>
+    /// <returns>The hotel, or null when it does not exist.</returns>
+    /// <exception cref="BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions.InvalidFieldsException">Invalid settings (every violation).</exception>
+    Task<Hotel?> Handle(ConfigureHotelPaymentSettingsCommand command);
 }

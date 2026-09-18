@@ -1,5 +1,6 @@
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Repositories;
@@ -68,6 +69,19 @@ public class HotelCommandService(
             command.Amenities);
 
         hotelRepository.Update(hotel);
+        await unitOfWork.CompleteAsync();
+        return hotel;
+    }
+
+    public async Task<Hotel?> Handle(ConfigureHotelPaymentSettingsCommand command)
+    {
+        var hotel = await hotelRepository.FindByIdAsync(command.HotelId);
+        if (hotel is null) return null;
+
+        hotel.ConfigurePaymentSettings(HotelPaymentSettings.Create(command.AccountHolder, command.YapeNumber,
+            command.PlinNumber, command.BankName, command.BankAccountNumber, command.BankAccountCci));
+
+        // The hotel is tracked: the change tracker replaces the owned settings (no Update() of the whole graph).
         await unitOfWork.CompleteAsync();
         return hotel;
     }

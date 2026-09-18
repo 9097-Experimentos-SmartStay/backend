@@ -35,7 +35,9 @@ public class RoomRepository(AppDbContext context) : BaseRepository<Room>(context
     {
         return await Context.Set<Room>()
             .Include(r => r.RoomType)
-            .Where(r => r.Status != RoomStatus.Maintenance && (hotelId == null || r.HotelId == hotelId))
+            // US-53: only hotels with payment methods accept bookings
+            .Where(r => r.Status != RoomStatus.Maintenance && (hotelId == null || r.HotelId == hotelId)
+                        && r.Hotel.PaymentSettings != null)
             .OrderBy(r => r.HotelId).ThenBy(r => r.Price).ThenBy(r => r.Id)
             .ToListAsync();
     }

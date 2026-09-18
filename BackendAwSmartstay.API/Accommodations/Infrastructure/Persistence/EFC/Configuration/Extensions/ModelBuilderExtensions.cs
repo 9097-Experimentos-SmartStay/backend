@@ -86,6 +86,49 @@ public static class ModelBuilderExtensions
             .HasColumnType("json") 
             .IsRequired();
 
+        // US-53: payment methods of the hotel, owned columns of "hotels" (all null = not configured yet).
+        // AccountHolder is required inside the owned type: EF uses it to tell "no settings" from "settings".
+        builder.Entity<Hotel>().Ignore(h => h.AcceptsBookings);
+        builder.Entity<Hotel>().OwnsOne(h => h.PaymentSettings, settings =>
+        {
+            settings.Property(p => p.AccountHolder).HasColumnName("payment_account_holder")
+                .HasMaxLength(HotelPaymentSettings.AccountHolderMaxLength).IsRequired();
+            settings.Property(p => p.YapeNumber).HasColumnName("payment_yape_number")
+                .HasMaxLength(HotelPaymentSettings.MobileNumberLength);
+            settings.Property(p => p.PlinNumber).HasColumnName("payment_plin_number")
+                .HasMaxLength(HotelPaymentSettings.MobileNumberLength);
+            settings.Property(p => p.BankName).HasColumnName("payment_bank_name")
+                .HasMaxLength(HotelPaymentSettings.BankNameMaxLength);
+            settings.Property(p => p.BankAccountNumber).HasColumnName("payment_bank_account_number")
+                .HasMaxLength(HotelPaymentSettings.BankAccountMaxLength);
+            settings.Property(p => p.BankAccountCci).HasColumnName("payment_bank_account_cci")
+                .HasMaxLength(HotelPaymentSettings.CciLength);
+            settings.Ignore(p => p.OffersBankTransfer);
+
+            // Demo payment methods of the seeded hotels (placeholders, not real accounts)
+            settings.HasData(
+                new
+                {
+                    HotelId = 1,
+                    AccountHolder = "Grand Hotel Bolivar S.A.C. (demo)",
+                    YapeNumber = "999000111",
+                    PlinNumber = (string?)null,
+                    BankName = "BCP",
+                    BankAccountNumber = "191-0000000-0-00",
+                    BankAccountCci = "00219100000000000000"
+                },
+                new
+                {
+                    HotelId = 2,
+                    AccountHolder = "Cusco Andean Lodge E.I.R.L. (demo)",
+                    YapeNumber = (string?)null,
+                    PlinNumber = "999000222",
+                    BankName = (string?)null,
+                    BankAccountNumber = (string?)null,
+                    BankAccountCci = (string?)null
+                });
+        });
+
         // Room Entity
         builder.Entity<Room>().ToTable("rooms");
         builder.Entity<Room>().HasKey(r => r.Id);

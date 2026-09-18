@@ -10,8 +10,9 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 /// <param name="Amenities">Amenities.</param>
 /// <param name="Status">Current operational status (Available, Occupied or Cleaning).</param>
 /// <param name="Number">Room number, unique in its hotel (what guests and staff see).</param>
+/// <param name="HotelAcceptsBookings">False while the hotel has no payment methods (US-53): its rooms cannot be booked.</param>
 public sealed record RoomOffer(int RoomId, int HotelId, int RoomTypeId, string RoomTypeName, decimal PricePerNight,
-    string Description, IReadOnlyList<string> Amenities, string Status, string Number)
+    string Description, IReadOnlyList<string> Amenities, string Status, string Number, bool HotelAcceptsBookings)
 {
     /// <summary>A room under maintenance is never offered nor booked.</summary>
     public bool IsOfferedForBooking => Status != "Maintenance";
@@ -23,6 +24,24 @@ public sealed record RoomOffer(int RoomId, int HotelId, int RoomTypeId, string R
 /// <param name="Address">Street address, city and country.</param>
 public sealed record HotelSummary(int HotelId, string Name, string Address);
 
+/// <summary>
+///     How the guests of a hotel pay their bookings (US-51 scenario 2), exposed to other bounded contexts
+///     (booking e-mails and the booking page). Null members are methods the hotel does not offer.
+/// </summary>
+/// <param name="AccountHolder">Name the guests pay to.</param>
+/// <param name="YapeNumber">Yape mobile number.</param>
+/// <param name="PlinNumber">Plin mobile number.</param>
+/// <param name="BankName">Bank of the transfer account.</param>
+/// <param name="BankAccountNumber">Account number (only with <paramref name="BankName"/>).</param>
+/// <param name="BankAccountCci">Interbank account code (CCI).</param>
+public sealed record HotelPaymentInstructions(
+    string AccountHolder,
+    string? YapeNumber,
+    string? PlinNumber,
+    string? BankName,
+    string? BankAccountNumber,
+    string? BankAccountCci);
+
 public interface IAccommodationsContextFacade
 {
     /// <summary>Number of each of <paramref name="roomIds"/> (one query; unknown ids are omitted).</summary>
@@ -33,6 +52,12 @@ public interface IAccommodationsContextFacade
 
     /// <summary>The hotel, or null when it does not exist.</summary>
     Task<HotelSummary?> FetchHotelAsync(int hotelId);
+
+    /// <summary>
+    ///     How to pay a booking of <paramref name="hotelId"/> (the hotel's payment methods), or null when the hotel
+    ///     does not exist or has none yet.
+    /// </summary>
+    Task<HotelPaymentInstructions?> FetchPaymentInstructionsAsync(int hotelId);
 
     Task<bool> HotelExistsAsync(int hotelId);
 

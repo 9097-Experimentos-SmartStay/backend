@@ -16,4 +16,19 @@ public static class AccommodationErrorCodes
     public const string RoomTypeNotFound = "room_type.not_found";
     public const string CategoryAlreadyExists = "catalog.category_already_exists";
     public const string AmenityAlreadyExists = "catalog.amenity_already_exists";
+
+    // Images of a hotel (hosted in the project's media library)
+    public const string HotelImageUrlNotAllowed = "hotel.image_url_not_allowed";
+
+    // Payment methods of a hotel (US-53): field rules of HotelPaymentSettings
+    public const string PaymentAccountHolderRequired = "payment_settings.account_holder_required";
+    public const string PaymentAccountHolderLength = "payment_settings.account_holder_length";
+    public const string PaymentYapeNumberInvalid = "payment_settings.yape_number_invalid";
+    public const string PaymentPlinNumberInvalid = "payment_settings.plin_number_invalid";
+    public const string PaymentBankNameRequired = "payment_settings.bank_name_required";
+    public const string PaymentBankNameLength = "payment_settings.bank_name_length";
+    public const string PaymentBankAccountNumberRequired = "payment_settings.bank_account_number_required";
+    public const string PaymentBankAccountNumberInvalid = "payment_settings.bank_account_number_invalid";
+    public const string PaymentCciInvalid = "payment_settings.cci_invalid";
+    public const string PaymentMethodRequired = "payment_settings.method_required";
 }
