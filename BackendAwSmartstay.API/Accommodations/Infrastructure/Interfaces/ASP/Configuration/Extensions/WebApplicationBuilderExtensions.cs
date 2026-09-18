@@ -36,6 +36,7 @@ public static class WebApplicationBuilderExtensions
 
         // Resource-based authorization (hotel scope)
         builder.Services.AddSingleton<IAuthorizationHandler, HotelManagementAuthorizationHandler>();
+        builder.Services.AddSingleton<IAuthorizationHandler, RoomOperationsAuthorizationHandler>();
     }
 }
 

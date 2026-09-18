@@ -41,6 +41,16 @@ public class RoomCommandService(
         return room;
     }
 
+    public async Task<Room?> Handle(ChangeRoomStatusCommand command)
+    {
+        var room = await roomRepository.FindByIdAsync(command.RoomId);
+        if (room is null) return null;
+
+        room.ChangeStatus(command.Status);
+        await unitOfWork.CompleteAsync();
+        return room;
+    }
+
 public async Task<Room?> Handle(DeleteRoomCommand command)
 {
     // Find the room by its identifier

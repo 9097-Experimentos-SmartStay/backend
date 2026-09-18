@@ -33,6 +33,9 @@ public class RoomQueryService(IRoomRepository roomRepository)
         return await roomRepository.ListAsync();
     }
 
+    public Task<IEnumerable<Room>> Handle(GetRoomsOfferedForBookingQuery query) =>
+        roomRepository.FindOfferedForBookingAsync(query.HotelId);
+
     public async Task<IEnumerable<Room>> Handle(GetRoomsByTypeQuery query)
     { 
         /// <summary>

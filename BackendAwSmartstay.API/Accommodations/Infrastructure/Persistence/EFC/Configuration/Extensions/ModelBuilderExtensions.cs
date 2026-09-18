@@ -1,5 +1,6 @@
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Entities;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Text.Json;
@@ -96,6 +97,13 @@ public static class ModelBuilderExtensions
             .HasColumnType("decimal(18,2)")
             .IsRequired();
 
+        // Operational status (US-29), stored as its name
+        builder.Entity<Room>().Property(r => r.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+        builder.Entity<Room>().Ignore(r => r.IsOfferedForBooking);
+
         // Apply JSON converter to Room Amenities
         builder.Entity<Room>().Property(r => r.Amenities)
             .HasConversion(amenitiesConverter)
@@ -161,6 +169,7 @@ public static class ModelBuilderExtensions
                 HotelId = 1,
                 RoomTypeId = 1,
                 Price = 85.00m,
+                Status = RoomStatus.Available,
                 Description = "Room 101 - Standard view.",
                 Amenities = new List<string> { "Wifi", "TV" }
             },
@@ -169,6 +178,7 @@ public static class ModelBuilderExtensions
                 HotelId = 1,
                 RoomTypeId = 2,
                 Price = 150.00m,
+                Status = RoomStatus.Available,
                 Description = "Room 102 - Plaza view with balcony.",
                 Amenities = new List<string> { "Wifi", "TV", "Minibar" }
             },
@@ -178,6 +188,7 @@ public static class ModelBuilderExtensions
                 HotelId = 2,
                 RoomTypeId = 3,
                 Price = 320.00m,
+                Status = RoomStatus.Available,
                 Description = "Suite 201 - Panoramic mountain view.",
                 Amenities = new List<string> { "Jacuzzi", "Wifi", "Desayuno", "Chimenea" }
             }

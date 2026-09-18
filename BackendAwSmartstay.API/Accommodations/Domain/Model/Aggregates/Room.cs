@@ -1,6 +1,8 @@
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Entities;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
 
 namespace BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
 
@@ -34,6 +36,22 @@ public partial class Room
         // -------------
         Description = command.Description;
         Amenities = command.Amenities;
+        Status = RoomStatus.Available;
+    }
+
+    /// <summary>Operational status (US-29). New rooms are Available.</summary>
+    public RoomStatus Status { get; private set; } = RoomStatus.Available;
+
+    /// <summary>A room under maintenance is never offered for booking.</summary>
+    public bool IsOfferedForBooking => Status != RoomStatus.Maintenance;
+
+    /// <summary>Moves the room to <paramref name="newStatus"/> if the transition is valid (same status: no-op).</summary>
+    /// <exception cref="InvalidRoomStatusTransitionException">The transition is not allowed.</exception>
+    public void ChangeStatus(RoomStatus newStatus)
+    {
+        if (!RoomStatusTransitions.IsAllowed(Status, newStatus))
+            throw new InvalidRoomStatusTransitionException(Id, Status, newStatus);
+        Status = newStatus;
     }
     
     /// <summary>

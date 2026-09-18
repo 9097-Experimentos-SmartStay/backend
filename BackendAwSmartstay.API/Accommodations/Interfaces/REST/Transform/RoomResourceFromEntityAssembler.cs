@@ -14,7 +14,8 @@ public static class RoomResourceFromEntityAssembler
             entity.RoomType?.Name ?? "Unknown", // Safe navigation
             entity.Price,
             entity.Description,
-            entity.Amenities
+            entity.Amenities,
+            entity.Status.ToString()
         );
     }
 }

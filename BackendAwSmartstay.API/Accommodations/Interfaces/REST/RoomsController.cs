@@ -179,6 +179,32 @@ public class RoomsController(
         return Ok(roomResource);
     }
 
+    /// <summary>Changes the operational status of a room (US-29 scenario 2).</summary>
+    /// <remarks>
+    ///     Valid transitions: Available → Occupied, Cleaning, Maintenance; Occupied → Cleaning, Maintenance;
+    ///     Cleaning → Available, Maintenance; Maintenance → Available, Cleaning. Setting the current status is a no-op.
+    ///     Hotel staff change the rooms of their hotel; a chain admin any room. PUT is accepted as a synonym.
+    /// </remarks>
+    [HttpPatch("{roomId:int}/status")]
+    [HttpPut("{roomId:int}/status")]
+    [Authorize(Policy = Policies.UpdateRoomStatus)]
+    [SwaggerOperation(Summary = "Change the status of a room", OperationId = "ChangeRoomStatus")]
+    [ProducesResponseType(typeof(RoomResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ChangeRoomStatus(int roomId, [FromBody] ChangeRoomStatusResource resource)
+    {
+        var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId));
+        if (room is null) return NotFound();
+        if (!(await authorizationService.AuthorizeAsync(User, room, RoomOperationsRequirement.Instance)).Succeeded)
+            return Forbid();
+
+        var updated = await roomCommandService.Handle(new ChangeRoomStatusCommand(roomId, resource.ParsedStatus));
+        return updated is null ? NotFound() : Ok(RoomResourceFromEntityAssembler.ToResourceFromEntity(updated));
+    }
+
     /// <summary>
     ///     Resource-based authorization on the room's hotel: 404 when the room does not exist, 403 (native Forbid)
     ///     when its hotel is outside the requester's scope, null when the requester may manage it.

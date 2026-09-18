@@ -11,5 +11,7 @@ public interface IRoomQueryService
     Task<IEnumerable<Room>> Handle(GetAllRoomsQuery query);
 
     Task<IEnumerable<Room>> Handle(GetRoomsByTypeQuery query);
+
+    Task<IEnumerable<Room>> Handle(GetRoomsOfferedForBookingQuery query);
 }
 
