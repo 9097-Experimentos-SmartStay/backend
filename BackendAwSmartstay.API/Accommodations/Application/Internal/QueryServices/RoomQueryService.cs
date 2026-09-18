@@ -6,9 +6,14 @@ using BackendAwSmartstay.API.Accommodations.Domain.Services;
 namespace BackendAwSmartstay.API.Accommodations.Application.Internal.QueryServices;
 
 
-public class RoomQueryService(IRoomRepository roomRepository)
+public class RoomQueryService(IRoomRepository roomRepository, IRoomStatusChangeRepository roomStatusChangeRepository)
     : IRoomQueryService
 {
+    public Task<IReadOnlyList<Room>> Handle(GetRoomMapQuery query) => roomRepository.ListByHotelAsync(query.HotelId);
+
+    public Task<IReadOnlyList<Domain.Model.Entities.RoomStatusChange>> Handle(GetRoomStatusHistoryQuery query) =>
+        roomStatusChangeRepository.ListByRoomAsync(query.RoomId, Math.Clamp(query.Limit, 1, 500));
+
     /// <summary>
     /// Provides query handling services for retrieving room information, 
     /// including fetching rooms by ID, type, or listing all available rooms.

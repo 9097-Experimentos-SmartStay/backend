@@ -45,6 +45,13 @@ public interface IAccommodationsContextFacade
     /// </summary>
     Task<RoomOffer?> LockRoomForBookingAsync(int roomId);
 
+    /// <summary>
+    ///     US-08: the guest of a completed check-in moves into the room, which becomes Occupied. Runs in the caller's
+    ///     transaction (commits the shared unit of work).
+    /// </summary>
+    /// <exception cref="BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions.BusinessRuleViolationException">The room is not Available.</exception>
+    Task OccupyRoomForCheckInAsync(int roomId, int? guestUserId, string? guestEmail);
+
     /// <summary>Rooms that can be offered for booking (not under maintenance), of one hotel or of every hotel.</summary>
     Task<IReadOnlyList<RoomOffer>> FetchRoomsOfferedForBookingAsync(int? hotelId);
 }

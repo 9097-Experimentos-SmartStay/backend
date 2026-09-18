@@ -40,6 +40,12 @@ public class RoomRepository(AppDbContext context) : BaseRepository<Room>(context
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<Room>> ListByHotelAsync(int hotelId) =>
+        await Context.Set<Room>().Include(r => r.RoomType).Where(r => r.HotelId == hotelId).OrderBy(r => r.Id).ToListAsync();
+
+    public async Task<IReadOnlyList<Room>> ListInMaintenanceAsync() =>
+        await Context.Set<Room>().Where(r => r.Status == RoomStatus.Maintenance).ToListAsync();
+
     public override async Task<IEnumerable<Room>> ListAsync()
     {
         return await Context.Set<Room>()

@@ -13,5 +13,9 @@ public interface IRoomQueryService
     Task<IEnumerable<Room>> Handle(GetRoomsByTypeQuery query);
 
     Task<IEnumerable<Room>> Handle(GetRoomsOfferedForBookingQuery query);
+
+    Task<IReadOnlyList<Room>> Handle(GetRoomMapQuery query);
+
+    Task<IReadOnlyList<Model.Entities.RoomStatusChange>> Handle(GetRoomStatusHistoryQuery query);
 }
 

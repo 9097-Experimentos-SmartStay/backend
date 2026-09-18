@@ -6,7 +6,9 @@ using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Authorization;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 using BackendAwSmartstay.API.Accommodations.Interfaces.REST.Transform;
 using BackendAwSmartstay.API.IAM.Interfaces.Authorization;
+using BackendAwSmartstay.API.Accommodations.Application.Internal.Configuration;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -24,7 +26,9 @@ public class RoomsController(
     IRoomCommandService roomCommandService,
     IRoomQueryService roomQueryService,
     IHotelQueryService hotelQueryService,
-    IAuthorizationService authorizationService) : ControllerBase
+    IAuthorizationService authorizationService,
+    IOptions<RoomOperationsSettings> roomSettings,
+    TimeProvider timeProvider) : ControllerBase
 {
     /// <summary>
     ///     Retrieves a single room resource partition by its structural domain identity marker.
@@ -179,8 +183,11 @@ public class RoomsController(
         return Ok(roomResource);
     }
 
-    /// <summary>Changes the operational status of a room (US-29 scenario 2).</summary>
+    /// <summary>Changes the operational status of a room (US-06 scenario 1, US-29 scenario 2).</summary>
     /// <remarks>
+    ///     The change is recorded in the room's status history (who and when) and the staff in charge of the new
+    ///     status is notified by e-mail: Cleaning and Occupied → housekeeping, Maintenance → maintenance and the hotel
+    ///     admin, Available → reception.
     ///     Valid transitions: Available → Occupied, Cleaning, Maintenance; Occupied → Cleaning, Maintenance;
     ///     Cleaning → Available, Maintenance; Maintenance → Available, Cleaning. Setting the current status is a no-op.
     ///     Hotel staff change the rooms of their hotel; a chain admin any room. PUT is accepted as a synonym.
@@ -201,8 +208,57 @@ public class RoomsController(
         if (!(await authorizationService.AuthorizeAsync(User, room, RoomOperationsRequirement.Instance)).Succeeded)
             return Forbid();
 
-        var updated = await roomCommandService.Handle(new ChangeRoomStatusCommand(roomId, resource.ToRoomStatus()));
+        var updated = await roomCommandService.Handle(new ChangeRoomStatusCommand(roomId, resource.ToRoomStatus(),
+            User.GetUserId(), User.GetUsername()));
         return updated is null ? NotFound() : Ok(RoomResourceFromEntityAssembler.ToResourceFromEntity(updated));
+    }
+
+    /// <summary>Room map of a hotel: every room with its status, for the color-coded view (US-06 scenario 2).</summary>
+    /// <remarks>
+    ///     Hotel staff (reception, housekeeping, maintenance, admin) see their hotel (<c>hotelId</c> optional); a chain
+    ///     admin must send <c>hotelId</c>. Each room has <c>statusSince</c> and <c>maintenanceOverdue</c> (under
+    ///     maintenance for longer than the alert threshold, 24 h). Suggested colors: Available green, Occupied blue,
+    ///     Cleaning amber, Maintenance red.
+    /// </remarks>
+    /// <param name="hotelId">The hotel.</param>
+    [HttpGet("map")]
+    [Authorize(Policy = Policies.ViewRoomOperations)]
+    [SwaggerOperation(Summary = "Room map of a hotel", OperationId = "GetRoomMap")]
+    [ProducesResponseType(typeof(RoomMapResource), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRoomMap([FromQuery] int? hotelId)
+    {
+        var targetHotelId = hotelId ?? (User.IsChainAdmin() ? null : User.GetHotelId());
+        if (targetHotelId is null)
+        {
+            ModelState.AddModelError("hotelId", "Send the hotelId of the map.");
+            return ValidationProblem(ModelState);
+        }
+
+        var hotel = await hotelQueryService.Handle(new GetHotelByIdQuery(targetHotelId.Value));
+        if (hotel is null) return NotFound();
+        if (!User.IsChainAdmin() && User.GetHotelId() != hotel.Id) return Forbid();
+
+        var rooms = await roomQueryService.Handle(new GetRoomMapQuery(hotel.Id));
+        return Ok(RoomMapResourceAssembler.ToResource(hotel, rooms, timeProvider.GetUtcNow(), roomSettings.Value.MaintenanceAlertAfter));
+    }
+
+    /// <summary>Status history of a room, newest first (US-06 scenario 3): date, time and user of each change.</summary>
+    [HttpGet("{roomId:int}/status-history")]
+    [Authorize(Policy = Policies.ViewRoomOperations)]
+    [SwaggerOperation(Summary = "Status history of a room", OperationId = "GetRoomStatusHistory")]
+    [ProducesResponseType(typeof(IEnumerable<RoomStatusChangeResource>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStatusHistory(int roomId)
+    {
+        var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId));
+        if (room is null) return NotFound();
+        if (!(await authorizationService.AuthorizeAsync(User, room, RoomOperationsRequirement.Instance)).Succeeded)
+            return Forbid();
+
+        var history = await roomQueryService.Handle(new GetRoomStatusHistoryQuery(roomId));
+        return Ok(history.Select(RoomMapResourceAssembler.ToResource));
     }
 
     /// <summary>

@@ -1,4 +1,8 @@
+using BackendAwSmartstay.API.Accommodations.Application.Internal.Configuration;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.ValueObjects;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
+using Microsoft.Extensions.Options;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Repositories;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
@@ -12,7 +16,10 @@ namespace BackendAwSmartstay.API.Accommodations.Application.Internal.CommandServ
 /// </summary>
 public class RoomCommandService(
     IRoomRepository roomRepository,
-    IUnitOfWork unitOfWork)
+    IRoomStatusChangeRepository roomStatusChangeRepository,
+    IUnitOfWork unitOfWork,
+    IOptions<RoomOperationsSettings> settings,
+    TimeProvider timeProvider)
     : IRoomCommandService
 {
     public async Task<Room?> Handle(CreateRoomCommand command)
@@ -46,9 +53,31 @@ public class RoomCommandService(
         var room = await roomRepository.FindByIdAsync(command.RoomId);
         if (room is null) return null;
 
-        room.ChangeStatus(command.Status);
+        // The history line is saved with the change itself (same unit of work).
+        var change = room.ChangeStatus(command.Status, RoomStatusChangeOrigin.Staff, command.ChangedByUserId,
+            command.ChangedByEmail, timeProvider.GetUtcNow());
+        if (change is not null) await roomStatusChangeRepository.AddAsync(change);
         await unitOfWork.CompleteAsync();
         return room;
+    }
+
+    public async Task<Room> Handle(OccupyRoomForCheckInCommand command)
+    {
+        var room = await roomRepository.FindByIdForUpdateAsync(command.RoomId)
+                   ?? throw new EntityNotFoundException("Room", command.RoomId);
+        await roomStatusChangeRepository.AddAsync(room.OccupyForCheckIn(command.GuestUserId, command.GuestEmail, timeProvider.GetUtcNow()));
+        await unitOfWork.CompleteAsync();
+        return room;
+    }
+
+    public async Task<int> Handle(RaiseMaintenanceAlertsCommand command)
+    {
+        var now = timeProvider.GetUtcNow();
+        var alerted = 0;
+        foreach (var room in await roomRepository.ListInMaintenanceAsync())
+            if (room.RaiseMaintenanceAlert(now, settings.Value.MaintenanceAlertAfter)) alerted++;
+        await unitOfWork.CompleteAsync();
+        return alerted;
     }
 
 public async Task<Room?> Handle(DeleteRoomCommand command)

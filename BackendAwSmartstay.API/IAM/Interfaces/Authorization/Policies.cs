@@ -22,6 +22,8 @@ public static class Policies
     public const string ManageHotels = nameof(ManageHotels);
     /// <summary>Change the operational status of a room (hotel scope checked per resource, US-29).</summary>
     public const string UpdateRoomStatus = nameof(UpdateRoomStatus);
+    /// <summary>See the room map and the status history of the rooms (hotel scope checked per resource, US-06).</summary>
+    public const string ViewRoomOperations = nameof(ViewRoomOperations);
     /// <summary>Add hotel categories and amenities to the shared master catalog.</summary>
     public const string ManageCatalog = nameof(ManageCatalog);
 
@@ -115,6 +117,7 @@ public static class Policies
         [ManageHotels] = Administrators,
         [ManageCatalog] = [UserRoles.ChainAdmin],
         [UpdateRoomStatus] = HotelStaff,
+        [ViewRoomOperations] = HotelStaff,
 
         [ReadBookings] = AllRoles,
         [ReadRoomBookings] = HotelStaff,

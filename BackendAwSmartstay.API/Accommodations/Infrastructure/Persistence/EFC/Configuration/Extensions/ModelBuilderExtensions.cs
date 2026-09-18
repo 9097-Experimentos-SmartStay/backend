@@ -103,6 +103,19 @@ public static class ModelBuilderExtensions
             .HasMaxLength(20)
             .IsRequired();
         builder.Entity<Room>().Ignore(r => r.IsOfferedForBooking);
+        builder.Entity<Room>().Ignore(r => r.DomainEvents);
+        builder.Entity<Room>().Property(r => r.StatusChangedAt).IsRequired();
+
+        // Status history (US-06 scenario 3), append-only
+        builder.Entity<RoomStatusChange>().ToTable("room_status_changes");
+        builder.Entity<RoomStatusChange>().HasKey(c => c.Id);
+        builder.Entity<RoomStatusChange>().Property(c => c.Id).ValueGeneratedOnAdd();
+        builder.Entity<RoomStatusChange>().Property(c => c.FromStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<RoomStatusChange>().Property(c => c.ToStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<RoomStatusChange>().Property(c => c.Origin).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<RoomStatusChange>().Property(c => c.ChangedByEmail).HasMaxLength(RoomStatusChange.MaxEmailLength);
+        builder.Entity<RoomStatusChange>().HasIndex(c => new { c.RoomId, c.ChangedAt });
+        builder.Entity<RoomStatusChange>().HasOne<Room>().WithMany().HasForeignKey(c => c.RoomId).OnDelete(DeleteBehavior.Cascade);
 
         // Apply JSON converter to Room Amenities
         builder.Entity<Room>().Property(r => r.Amenities)
@@ -166,6 +179,7 @@ public static class ModelBuilderExtensions
             // Rooms for Hotel 1 (Bolivar)
             new {
                 Id = 101,
+                StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
                 HotelId = 1,
                 RoomTypeId = 1,
                 Price = 85.00m,
@@ -175,6 +189,7 @@ public static class ModelBuilderExtensions
             },
             new {
                 Id = 102,
+                StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
                 HotelId = 1,
                 RoomTypeId = 2,
                 Price = 150.00m,
@@ -185,6 +200,7 @@ public static class ModelBuilderExtensions
             // Rooms for Hotel 2 (Cusco)
             new {
                 Id = 201,
+                StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
                 HotelId = 2,
                 RoomTypeId = 3,
                 Price = 320.00m,

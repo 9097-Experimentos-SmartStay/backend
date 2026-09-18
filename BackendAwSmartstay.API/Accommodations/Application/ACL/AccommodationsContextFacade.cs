@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
 using BackendAwSmartstay.API.Accommodations.Domain.Repositories;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
@@ -8,8 +9,12 @@ namespace BackendAwSmartstay.API.Accommodations.Application.ACL;
 public class AccommodationsContextFacade(
     IHotelQueryService hotelQueryService,
     IRoomQueryService roomQueryService,
+    IRoomCommandService roomCommandService,
     IRoomRepository roomRepository) : IAccommodationsContextFacade
 {
+    public Task OccupyRoomForCheckInAsync(int roomId, int? guestUserId, string? guestEmail) =>
+        roomCommandService.Handle(new OccupyRoomForCheckInCommand(roomId, guestUserId, guestEmail));
+
     public async Task<RoomOffer?> LockRoomForBookingAsync(int roomId)
     {
         if (roomId <= 0) return null;
