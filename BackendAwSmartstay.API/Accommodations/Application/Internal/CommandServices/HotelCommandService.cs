@@ -6,6 +6,8 @@ using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Repositories;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
 using BackendAwSmartstay.API.IAM.Interfaces.ACL;
+using BackendAwSmartstay.API.Media.Interfaces.ACL;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
 
 namespace BackendAwSmartstay.API.Accommodations.Application.Internal.CommandServices;
@@ -19,6 +21,7 @@ public class HotelCommandService(
     IIamContextFacade iamContextFacade,
     IRoomRepository roomRepository,
     IRoomReservationsFacade roomReservationsFacade,
+    IMediaContextFacade mediaContextFacade,
     IUnitOfWork unitOfWork)
     : IHotelCommandService
 {
@@ -33,6 +36,7 @@ public class HotelCommandService(
         var alreadyHostsAHotel = !registrant.ManagesChain
                                  && await hotelRepository.ExistsByHostIdAsync(registrant.UserId);
         var hostId = HotelRegistrationPolicy.ResolveHost(registrant, command.RequestedHostId, alreadyHostsAHotel);
+        EnsureImageIsFromTheMediaLibrary(command.ImageUrl);
 
         var hotel = new Hotel(hostId, command);
         await unitOfWork.ExecuteInTransactionAsync(async () =>
@@ -56,6 +60,10 @@ public class HotelCommandService(
     {
         var hotel = await hotelRepository.FindByIdAsync(command.Id);
         if (hotel is null) return null;
+
+        // Images registered before signed uploads existed (e.g. the seed placeholders) stay valid while unchanged.
+        if (!string.Equals(hotel.ImageUrl, command.ImageUrl, StringComparison.Ordinal))
+            EnsureImageIsFromTheMediaLibrary(command.ImageUrl);
 
         // Apply domain logic update
         hotel.UpdateInformation(
@@ -84,6 +92,17 @@ public class HotelCommandService(
         // The hotel is tracked: the change tracker replaces the owned settings (no Update() of the whole graph).
         await unitOfWork.CompleteAsync();
         return hotel;
+    }
+
+    /// <summary>
+    ///     A hotel image must be one uploaded to the project's media library with a signature of this API (not any
+    ///     URL of the internet): the Media context decides which URLs qualify.
+    /// </summary>
+    private void EnsureImageIsFromTheMediaLibrary(string imageUrl)
+    {
+        if (mediaContextFacade.IsAcceptedHotelImageUrl(imageUrl)) return;
+        throw new InvalidFieldException("imageUrl", AccommodationErrorCodes.HotelImageUrlNotAllowed,
+            $"Upload the image with the application: the hotel image must be an image of SmartStay's media library ({mediaContextFacade.AcceptedHotelImageUrlPrefix}...).");
     }
 
     /// <summary>
