@@ -81,7 +81,7 @@ public class AuthenticationController(IAuthenticationCommandService authenticati
     /// <remarks>
     ///     Missing or malformed fields answer 400 with one entry per field in <c>errors</c>. An e-mail that is
     ///     already registered answers 409 with <c>detail: "Email already registered"</c> and a
-    ///     <c>passwordRecoveryUrl</c> member. The account can sign in before verifying (<c>emailVerified: false</c>).
+    ///     <c>passwordRecoveryUrl</c> member. The account cannot sign in until the e-mail is verified.
     ///     A bearer token is optional and only needed to assign a non-guest role.
     /// </remarks>
     [HttpPost("sign-up")]

@@ -15,7 +15,9 @@ public enum SignInFailureReason
     /// <summary>The account is temporarily locked after too many failures (US-02 scenario 3).</summary>
     AccountLocked,
     /// <summary>The account is deactivated (US-03 scenario 3).</summary>
-    AccountDeactivated
+    AccountDeactivated,
+    /// <summary>The e-mail of the account is not verified yet (US-01).</summary>
+    EmailNotVerified
 }
 
 /// <summary>A user signed in successfully.</summary>

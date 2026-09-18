@@ -254,6 +254,13 @@ public class User : IHasDomainEvents
     public void RejectSignInWhileDeactivated(DateTimeOffset now) =>
         _domainEvents.Add(new SignInFailedEvent(Id, Email.Value, HotelId, SignInFailureReason.AccountDeactivated, now));
 
+    /// <summary>
+    ///     US-01: an account signs in only once its e-mail is verified. The attempt had the right password, so it
+    ///     does not count toward the temporary lock.
+    /// </summary>
+    public void RejectSignInWithUnverifiedEmail(DateTimeOffset now) =>
+        _domainEvents.Add(new SignInFailedEvent(Id, Email.Value, HotelId, SignInFailureReason.EmailNotVerified, now));
+
     /// <summary>A successful sign-in resets the consecutive failures and ends an expired lock.</summary>
     public void RegisterSuccessfulSignIn(DateTimeOffset now)
     {

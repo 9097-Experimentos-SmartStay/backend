@@ -29,3 +29,10 @@ public class AccountTokenExpiredException(AccountTokenPurpose purpose)
     : ResourceExpiredException(purpose == AccountTokenPurpose.PasswordReset
         ? "The password reset link has expired. Request a new one."
         : "The verification link has expired. Request a new one.");
+
+/// <summary>
+///     US-01: the account cannot sign in until its e-mail is verified. The user can ask for a new verification link
+///     (<c>POST /authentication/verify-email/resend</c>).
+/// </summary>
+public class EmailNotVerifiedException()
+    : OperationNotAllowedException("Confirm your e-mail before signing in. Open the link we sent you, or request a new one.");

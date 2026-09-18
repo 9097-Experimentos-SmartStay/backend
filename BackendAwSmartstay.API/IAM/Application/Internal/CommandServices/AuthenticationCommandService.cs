@@ -82,6 +82,13 @@ public class AuthenticationCommandService(
             throw new UnauthorizedOperationException("The account has been deactivated. Contact the administrator.");
         }
 
+        if (!user.EmailVerified)
+        {
+            user.RejectSignInWithUnverifiedEmail(now);
+            await unitOfWork.CompleteAsync();
+            throw new EmailNotVerifiedException();
+        }
+
         user.RegisterSuccessfulSignIn(now);
         IssuedRefreshToken? refreshToken = null;
         if (command.RememberMe)
