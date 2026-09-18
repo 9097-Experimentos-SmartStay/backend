@@ -40,15 +40,15 @@ public class IamAccessAuditHandler(
 
     public Task HandleAsync(MfaVerifiedEvent e, CancellationToken cancellationToken) =>
         RecordSelfAsync(e.OccurredOn, AuditAction.MfaVerified, AuditOutcome.Success, e.UserId, e.Email, e.HotelId,
-            $"Method: {e.Method}");
+            AuditDetails.SecondFactor(e.Method.ToString()));
 
     public Task HandleAsync(MfaVerificationFailedEvent e, CancellationToken cancellationToken) =>
         RecordSelfAsync(e.OccurredOn, AuditAction.MfaFailed, AuditOutcome.Failure, e.UserId, e.Email, e.HotelId,
-            $"Method: {e.Method}; Reason: {e.Reason}");
+            AuditDetails.SecondFactor(e.Method.ToString(), e.Reason.ToString()));
 
     public Task HandleAsync(MfaRecoveryCodeUsedEvent e, CancellationToken cancellationToken) =>
         RecordSelfAsync(e.OccurredOn, AuditAction.MfaRecoveryCodeUsed, AuditOutcome.Success, e.UserId, e.Email, e.HotelId,
-            $"Remaining recovery codes: {e.RemainingCodes}");
+            AuditDetails.RecoveryCodesLeft(e.RemainingCodes));
 
     public Task HandleAsync(MfaResetEvent e, CancellationToken cancellationToken) =>
         RecordByAdministratorAsync(e.OccurredOn, AuditAction.MfaReset, e.ResetByUserId, e.UserId, e.Email, e.HotelId);
@@ -61,11 +61,12 @@ public class IamAccessAuditHandler(
 
     public Task HandleAsync(SignInFailedEvent e, CancellationToken cancellationToken) =>
         RecordAsync(AuditEntry.Record(e.OccurredOn, AuditAction.SignInFailed, AuditOutcome.Failure,
-            e.UserId, e.Email, e.UserId, e.Email, e.HotelId, requestOrigin.ClientIpAddress, $"Reason: {e.Reason}"));
+            e.UserId, e.Email, e.UserId, e.Email, e.HotelId, requestOrigin.ClientIpAddress,
+            AuditDetails.FailureReason(e.Reason.ToString())));
 
     public Task HandleAsync(UserLockedOutEvent e, CancellationToken cancellationToken) =>
         RecordSelfAsync(e.OccurredOn, AuditAction.AccountLocked, AuditOutcome.Failure, e.UserId, e.Email, e.HotelId,
-            $"Locked until {e.LockedUntil.UtcDateTime:yyyy-MM-ddTHH:mm:ssZ}");
+            AuditDetails.Lock(e.LockedUntil));
 
     public Task HandleAsync(UserSignedOutEvent e, CancellationToken cancellationToken) =>
         RecordSelfAsync(e.OccurredOn, AuditAction.SignedOut, AuditOutcome.Success, e.UserId, e.Email, e.HotelId);
@@ -78,11 +79,11 @@ public class IamAccessAuditHandler(
 
     public Task HandleAsync(UserCreatedEvent e, CancellationToken cancellationToken) =>
         RecordByAdministratorAsync(e.OccurredOn, AuditAction.UserCreated, e.CreatedByUserId, e.UserId, e.Email, e.HotelId,
-            $"Role: {e.Role}");
+            AuditDetails.AssignedRole(e.Role));
 
     public Task HandleAsync(UserRoleChangedEvent e, CancellationToken cancellationToken) =>
         RecordByAdministratorAsync(e.OccurredOn, AuditAction.RoleChanged, e.ChangedByUserId, e.UserId, e.Email, e.HotelId,
-            $"Role: {e.PreviousRole} -> {e.NewRole}");
+            AuditDetails.RoleChange(e.PreviousRole, e.NewRole));
 
     public Task HandleAsync(UserDeactivatedEvent e, CancellationToken cancellationToken) =>
         RecordByAdministratorAsync(e.OccurredOn, AuditAction.UserDeactivated, e.DeactivatedByUserId, e.UserId, e.Email, e.HotelId);
@@ -91,13 +92,13 @@ public class IamAccessAuditHandler(
         RecordByAdministratorAsync(e.OccurredOn, AuditAction.UserActivated, e.ActivatedByUserId, e.UserId, e.Email, e.HotelId);
 
     private Task RecordSelfAsync(DateTimeOffset occurredOn, AuditAction action, AuditOutcome outcome,
-        int userId, string email, int? hotelId, string? details = null) =>
+        int userId, string email, int? hotelId, AuditDetails? details = null) =>
         RecordAsync(AuditEntry.Record(occurredOn, action, outcome, userId, email, userId, email, hotelId,
             requestOrigin.ClientIpAddress, details));
 
     /// <summary>An action performed by an administrator on an account (or by the user themselves when no actor is known).</summary>
     private async Task RecordByAdministratorAsync(DateTimeOffset occurredOn, AuditAction action, int? actorUserId,
-        int targetUserId, string targetEmail, int? hotelId, string? details = null)
+        int targetUserId, string targetEmail, int? hotelId, AuditDetails? details = null)
     {
         var actorId = actorUserId ?? targetUserId;
         var actorEmail = actorUserId is null ? targetEmail : await iamContextFacade.FetchEmailByUserId(actorUserId.Value);

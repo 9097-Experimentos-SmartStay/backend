@@ -9,14 +9,12 @@ namespace BackendAwSmartstay.API.Audit.Domain.Model.Aggregates;
 /// </summary>
 public class AuditEntry
 {
-    public const int MaxDetailsLength = 500;
-
     /// <summary>EF Core constructor.</summary>
     protected AuditEntry() { }
 
     private AuditEntry(DateTimeOffset occurredAt, AuditAction action, AuditOutcome outcome,
         int? actorUserId, string? actorEmail, int? targetUserId, string? targetEmail, int? hotelId,
-        string? ipAddress, string? details)
+        string? ipAddress, AuditDetails? details)
     {
         OccurredAt = occurredAt;
         Action = action;
@@ -52,17 +50,15 @@ public class AuditEntry
     /// <summary>Client IP address of the request.</summary>
     public string? IpAddress { get; private set; }
 
-    /// <summary>Additional facts (failure reason, role change...).</summary>
-    public string? Details { get; private set; }
+    /// <summary>Additional structured facts (failure reason, role change...), or null.</summary>
+    public AuditDetails? Details { get; private set; }
 
     public static AuditEntry Record(DateTimeOffset occurredAt, AuditAction action, AuditOutcome outcome,
         int? actorUserId, string? actorEmail, int? targetUserId, string? targetEmail, int? hotelId,
-        string? ipAddress, string? details = null)
+        string? ipAddress, AuditDetails? details = null)
     {
         if (actorUserId is null && string.IsNullOrWhiteSpace(actorEmail))
             throw new DomainValidationException(AuditErrorCodes.InternalInvariant, "An audit entry must identify who acted (user id or e-mail).");
-        if (details is { Length: > MaxDetailsLength })
-            details = details[..MaxDetailsLength];
 
         return new AuditEntry(occurredAt.ToUniversalTime(), action, outcome, actorUserId, actorEmail, targetUserId,
             targetEmail, hotelId, ipAddress, details);
