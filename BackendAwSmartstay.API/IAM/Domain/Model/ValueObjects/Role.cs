@@ -26,12 +26,14 @@ public sealed record Role
         if (string.IsNullOrWhiteSpace(value))
             throw new DomainValidationException("Role cannot be empty or whitespace.");
 
-        if (!RoleHierarchy.ContainsKey(value))
+        var normalized = value.Trim().ToLowerInvariant();
+        if (!RoleHierarchy.ContainsKey(normalized))
             throw new DomainValidationException(
                 $"Invalid role: '{value}'. Allowed roles are: {string.Join(", ", RoleHierarchy.Keys)}.");
 
-        Value = value;
-        HierarchyLevel = RoleHierarchy[value];
+        // Canonical lowercase value: role claims and policies compare it exactly.
+        Value = normalized;
+        HierarchyLevel = RoleHierarchy[normalized];
     }
 
     /// <summary>
