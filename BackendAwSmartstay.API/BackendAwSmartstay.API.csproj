@@ -7,6 +7,8 @@
         <!-- XML comments feed the OpenAPI document (US-32); undocumented members are not an error. -->
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>$(NoWarn);1591</NoWarn>
+        <!-- Local secrets for `dotnet run` (Development only): dotnet user-secrets set "TokenSettings:Secret" "..." -->
+        <UserSecretsId>smartstay-backend-api-7f3c2a91</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
