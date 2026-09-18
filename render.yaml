@@ -1,0 +1,92 @@
+# Render Blueprint — SmartStay API
+# Las variables con `sync: false` son secretos: Render las pide en el formulario al crear el Blueprint.
+# Nunca pongas sus valores en este archivo. El CA de Aiven se sube como Secret File `ca.pem`.
+services:
+  - type: web
+    name: smartstay-movildev-api
+    runtime: docker
+    repo: https://github.com/9097-Experimentos-SmartStay/backend
+    branch: main
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # --- Runtime ---
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+        value: "true"
+
+      # --- Base de datos (Aiven MySQL, TLS verificado con /etc/secrets/ca.pem) ---
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Database__MySqlServerVersion
+        value: 8.0.36
+
+      # --- JWT ---
+      - key: TokenSettings__Secret
+        sync: false
+
+      # --- URLs de los clientes (links de emails y CORS) ---
+      - key: App__WebBaseUrl
+        value: https://smartstay-movildev-web.vercel.app
+      - key: App__LandingBaseUrl
+        value: https://smartstay-movildev-landing.vercel.app
+      - key: Cors__AllowedOrigins
+        value: https://smartstay-movildev-web.vercel.app,https://smartstay-movildev-landing.vercel.app
+
+      # --- Email (Brevo SMTP) ---
+      - key: Email__Smtp__Host
+        value: smtp-relay.brevo.com
+      - key: Email__Smtp__Port
+        value: "587"
+      - key: Email__Smtp__EnableSsl
+        value: "true"
+      - key: Email__Smtp__Username
+        value: b9e733001@smtp-brevo.com
+      - key: Email__Smtp__Password
+        sync: false
+      - key: Email__From__Address
+        value: psulcasanchez@gmail.com
+      - key: Email__From__Name
+        value: SmartStay
+
+      # --- Solicitudes de demo (US-27) y scheduler externo (GitHub Actions) ---
+      - key: Sales__NotificationEmail
+        value: psulcasanchez@gmail.com
+      - key: DemoRequests__SchedulingUrl
+        value: https://cal.com/piero-sulca-sanchez-rhh1nt/demo-smartstay
+      - key: Cron__ApiKey
+        sync: false
+
+      # --- Cloudinary (subidas firmadas de imágenes de hoteles) ---
+      - key: Cloudinary__CloudName
+        sync: false
+      - key: Cloudinary__ApiKey
+        sync: false
+      - key: Cloudinary__ApiSecret
+        sync: false
+
+      # --- Reservas ---
+      - key: Bookings__TimeZone
+        value: America/Lima
+
+      # --- Primer chain_admin ---
+      - key: InitialChainAdmin__Email
+        sync: false
+      - key: InitialChainAdmin__Password
+        sync: false
+
+      # --- Datos de demostración (hotel 1 con pagos, hotel 2 sin pagos) ---
+      - key: DemoData__Enabled
+        value: "true"
+      - key: DemoData__EmailBase
+        value: psulcasanchez@gmail.com
+      - key: DemoData__DefaultPassword
+        sync: false
+      - key: DemoData__Hotel1Payment__AccountHolder
+        sync: false
+      - key: DemoData__Hotel1Payment__Yape
+        sync: false
