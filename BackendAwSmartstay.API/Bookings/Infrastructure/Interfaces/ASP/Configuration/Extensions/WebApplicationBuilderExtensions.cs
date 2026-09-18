@@ -4,6 +4,7 @@ using BackendAwSmartstay.API.Bookings.Application.Internal.EventHandlers;
 using BackendAwSmartstay.API.Bookings.Application.OutboundServices;
 using BackendAwSmartstay.API.Bookings.Domain.Model.Events;
 using BackendAwSmartstay.API.Bookings.Infrastructure.Notifications;
+using BackendAwSmartstay.API.Bookings.Infrastructure.Storage;
 using BackendAwSmartstay.API.Shared.Application.Internal.EventHandlers;
 using BackendAwSmartstay.API.Bookings.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Bookings.Application.Internal.QueryServices;
@@ -28,6 +29,15 @@ public static class WebApplicationBuilderExtensions
 
         // Repositories
         builder.Services.AddScoped<IBookingRepository, BookingRepository>();
+        builder.Services.AddScoped<IDigitalCheckInRepository, DigitalCheckInRepository>();
+
+        // Digital check-in (US-08): documents stored encrypted in the database, staff e-mails after the commit
+        builder.Services.AddScoped<IDocumentStorage, DatabaseDocumentStorage>();
+        builder.Services.AddScoped<ICheckInService, CheckInService>();
+        builder.Services.AddScoped<ICheckInNotificationService, CheckInEmailNotificationService>();
+        builder.Services.AddScoped<CheckInStaffNotificationHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<GuestCheckedInEvent>>(sp => sp.GetRequiredService<CheckInStaffNotificationHandler>());
+        builder.Services.AddScoped<IDomainEventHandler<CheckInAssistanceRequestedEvent>>(sp => sp.GetRequiredService<CheckInStaffNotificationHandler>());
 
         // Guest e-mails, sent by the handlers of the booking events
         builder.Services.AddScoped<IBookingNotificationService, BookingEmailNotificationService>();

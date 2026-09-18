@@ -24,3 +24,7 @@ public sealed record BookingRescheduledEvent(int BookingId, string Code, int Hot
 /// <summary>The guest completed the digital check-in (US-08): the stay started in <paramref name="RoomId"/>.</summary>
 public sealed record GuestCheckedInEvent(int BookingId, string Code, int HotelId, int RoomId, DateTimeOffset OccurredOn)
     : DomainEvent(OccurredOn);
+
+/// <summary>US-08 scenario 3: the guest asked the front desk for help with the check-in.</summary>
+public sealed record CheckInAssistanceRequestedEvent(int BookingId, string Code, int HotelId, int RoomId, string? Message, DateTimeOffset OccurredOn)
+    : DomainEvent(OccurredOn);

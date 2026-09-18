@@ -41,6 +41,9 @@ public static class Policies
     /// <summary>Cancel a booking (guests only their own: enforced by the Booking aggregate).</summary>
     public const string CancelBookings = nameof(CancelBookings);
 
+    /// <summary>Complete the digital check-in of an own booking and ask for help with it (US-08).</summary>
+    public const string CompleteCheckIn = nameof(CompleteCheckIn);
+
     // ── Payments ─────────────────────────────────────────────────────
     /// <summary>Read the payment of a booking (guests only of their own bookings).</summary>
     public const string ReadPayments = nameof(ReadPayments);
@@ -123,6 +126,7 @@ public static class Policies
         [ReadRoomBookings] = HotelStaff,
         [PlaceBookings] = GuestOrFrontDesk,
         [ManageBookings] = FrontDesk,
+        [CompleteCheckIn] = [UserRoles.Guest],
         [CancelBookings] = GuestOrFrontDesk,
 
         [ReadPayments] = GuestOrFrontDesk,

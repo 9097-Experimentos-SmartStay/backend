@@ -16,7 +16,7 @@ public class HotelCalendar(IOptions<BookingPolicySettings> settings, TimeProvide
     public DateTimeOffset At(DateTime date, TimeOnly time)
     {
         var local = DateTime.SpecifyKind(date.Date + time.ToTimeSpan(), DateTimeKind.Unspecified);
-        return new DateTimeOffset(local, Zone.GetUtcOffset(local));
+        return new DateTimeOffset(local, Zone.GetUtcOffset(local)).ToUniversalTime();
     }
 
     /// <summary>The check-out instant of a stay that ends on <paramref name="checkOutDate"/>.</summary>

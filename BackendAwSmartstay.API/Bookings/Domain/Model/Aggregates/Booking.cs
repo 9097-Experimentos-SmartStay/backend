@@ -259,6 +259,25 @@ public class Booking : IHasDomainEvents
         _domainEvents.Add(new GuestCheckedInEvent(Id, Code.Value, HotelId, RoomId, now));
     }
 
+    /// <summary>
+    ///     US-08 scenario 3: the guest has difficulties with the digital check-in and asks the front desk for help.
+    ///     Only their own booking, while it is Pending or Confirmed and the stay has not ended.
+    /// </summary>
+    public void RequestCheckInAssistance(BookingRequester requester, string? message, DateTime hotelToday, DateTimeOffset now)
+    {
+        if (!IsOwnedBy(requester)) throw new BookingNotFoundException(Id);
+        if (Status is not (BookingStatus.Pending or BookingStatus.Confirmed))
+            throw new InvalidBookingTransitionException(
+                $"Assistance with the check-in is only for pending or confirmed bookings; this one is {Status.ToString().ToLowerInvariant()}.");
+        if (hotelToday.Date >= CheckOutDate.Date)
+            throw new InvalidBookingTransitionException("The stay of this booking has already ended.");
+
+        var trimmed = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+        if (trimmed is { Length: > 500 })
+            throw new InvalidFieldException("message", "The message cannot exceed 500 characters.");
+        _domainEvents.Add(new CheckInAssistanceRequestedEvent(Id, Code.Value, HotelId, RoomId, trimmed, now));
+    }
+
     /// <summary>Throws when the digital check-in cannot be done today.</summary>
     public void EnsureCheckInAllowed(DateTime hotelToday)
     {

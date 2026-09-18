@@ -1,5 +1,6 @@
 using BackendAwSmartstay.API.Bookings.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Bookings.Domain.Model.ValueObjects;
+using BackendAwSmartstay.API.Bookings.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace BackendAwSmartstay.API.Bookings.Infrastructure.Persistence.EFC.Configuration.Extensions;
@@ -44,6 +45,27 @@ public static class ModelBuilderExtensions
         builder.Entity<Booking>().Property(b => b.Status)
             .HasConversion<int>()
             .IsRequired();
+    
+        // Digital check-in (US-08): one per booking; the access code is stored encrypted.
+        builder.Entity<DigitalCheckIn>().ToTable("digital_check_ins");
+        builder.Entity<DigitalCheckIn>().HasKey(c => c.Id);
+        builder.Entity<DigitalCheckIn>().Property(c => c.Id).ValueGeneratedOnAdd();
+        builder.Entity<DigitalCheckIn>().HasIndex(c => c.BookingId).IsUnique();
+        builder.Entity<DigitalCheckIn>().HasOne<Booking>().WithMany().HasForeignKey(c => c.BookingId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<DigitalCheckIn>().Property(c => c.DocumentType).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<DigitalCheckIn>().Property(c => c.DocumentNumber).HasMaxLength(20).IsRequired();
+        builder.Entity<DigitalCheckIn>().Property(c => c.Nationality).HasMaxLength(2).IsRequired();
+        builder.Entity<DigitalCheckIn>().Property(c => c.DocumentFileId).HasMaxLength(64).IsRequired();
+        builder.Entity<DigitalCheckIn>().Property(c => c.DocumentContentType).HasMaxLength(50).IsRequired();
+        builder.Entity<DigitalCheckIn>().Property(c => c.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Entity<DigitalCheckIn>().Property(c => c.AccessCodeProtected).HasMaxLength(1024).IsRequired();
+        builder.Entity<DigitalCheckIn>().Ignore(c => c.Identity);
+
+        // Identity documents stored by DatabaseDocumentStorage (encrypted content)
+        builder.Entity<StoredDocument>().ToTable("stored_documents");
+        builder.Entity<StoredDocument>().HasKey(d => d.Id);
+        builder.Entity<StoredDocument>().Property(d => d.Purpose).HasMaxLength(50).IsRequired();
+        builder.Entity<StoredDocument>().Property(d => d.ContentType).HasMaxLength(50).IsRequired();
+        builder.Entity<StoredDocument>().Property(d => d.ProtectedContent).HasColumnType("longblob").IsRequired();
     }
 }
-
