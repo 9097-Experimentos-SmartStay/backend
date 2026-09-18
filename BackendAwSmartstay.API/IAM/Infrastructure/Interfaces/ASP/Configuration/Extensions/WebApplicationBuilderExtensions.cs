@@ -1,3 +1,4 @@
+using System.Text;
 using BackendAwSmartstay.API.IAM.Application.ACL.Services;
 using BackendAwSmartstay.API.IAM.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.IAM.Application.Internal.QueryServices;
@@ -16,9 +17,19 @@ public static class WebApplicationBuilderExtensions
 {
     public static void AddIamContextServices(this WebApplicationBuilder builder)
     {
-        // TokenSettings Configuration
+        // TokenSettings Configuration (fail fast: the signing secret must come from configuration/env vars)
 
-        builder.Services.Configure<TokenSettings>(builder.Configuration.GetSection("TokenSettings"));
+        var tokenSettingsSection = builder.Configuration.GetSection("TokenSettings");
+        var tokenSecret = tokenSettingsSection["Secret"];
+        if (string.IsNullOrWhiteSpace(tokenSecret))
+            throw new InvalidOperationException(
+                "TokenSettings:Secret is not configured. Set the 'TokenSettings__Secret' environment variable " +
+                "(at least 32 random characters).");
+        if (Encoding.UTF8.GetByteCount(tokenSecret) < TokenSettings.MinimumSecretLength)
+            throw new InvalidOperationException(
+                $"TokenSettings:Secret is too short. HS256 requires at least {TokenSettings.MinimumSecretLength} bytes.");
+
+        builder.Services.Configure<TokenSettings>(tokenSettingsSection);
 
         // IAM Bounded Context Injection Configuration
 

@@ -14,8 +14,11 @@ public class IamSeeder
         try
         {
             var config = services.GetRequiredService<IConfiguration>();
-            var username = config["InitialChainAdmin:Username"] ?? Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_USERNAME");
-            var password = config["InitialChainAdmin:Password"] ?? Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_PASSWORD");
+            // Preferred: InitialChainAdmin__Username / InitialChainAdmin__Password.
+            // Legacy fallback: INITIAL_CHAIN_ADMIN_USERNAME / INITIAL_CHAIN_ADMIN_PASSWORD.
+            // appsettings.json ships empty placeholders, so blank values must also fall through.
+            var username = FirstNonBlank(config["InitialChainAdmin:Username"], Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_USERNAME"));
+            var password = FirstNonBlank(config["InitialChainAdmin:Password"], Environment.GetEnvironmentVariable("INITIAL_CHAIN_ADMIN_PASSWORD"));
 
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
@@ -46,4 +49,7 @@ public class IamSeeder
             throw;
         }
     }
+
+    private static string? FirstNonBlank(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 }

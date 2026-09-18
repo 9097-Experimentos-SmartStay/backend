@@ -9,14 +9,14 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace BackendAwSmartstay.API.IAM.Infrastructure.Tokens.JWT.Services;
 
-public class TokenService(IOptions<TokenSettings> tokenSettings) : ITokenService
+public class TokenService(IOptions<TokenSettings> tokenSettings, ILogger<TokenService> logger) : ITokenService
 {
     private readonly TokenSettings _tokenSettings = tokenSettings.Value;
 
     public string GenerateToken(User user)
     {
         var secret = _tokenSettings.Secret;
-        var key = Encoding.ASCII.GetBytes(secret);
+        var key = Encoding.UTF8.GetBytes(secret);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(new[]
@@ -43,7 +43,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings) : ITokenService
             return null;
 
         var tokenHandler = new JsonWebTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_tokenSettings.Secret);
+        var key = Encoding.UTF8.GetBytes(_tokenSettings.Secret);
 
         try
         {
@@ -72,7 +72,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings) : ITokenService
         }
         catch (Exception e)
         {
-            Console.WriteLine(e);
+            logger.LogWarning(e, "Token validation threw an exception.");
             return null;
         }
     }
