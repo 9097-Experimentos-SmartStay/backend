@@ -34,8 +34,8 @@ public partial class Room : IHasDomainEvents
     /// <param name="command">The command containing room creation data.</param>
     public Room(CreateRoomCommand command) : this()
     {
-        if (command.Price < 0)
-            throw new DomainValidationException("Price cannot be negative.");
+        Number = RoomNumber.Normalize(command.Number);
+        EnsureValidPrice(command.Price);
 
         RoomTypeId = command.RoomTypeId;
         // NUEVOS CAMPOS
@@ -46,6 +46,24 @@ public partial class Room : IHasDomainEvents
         Amenities = command.Amenities;
         Status = RoomStatus.Available;
         StatusChangedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    ///     The number staff and guests use for the room (e.g. "101", "2B"), unique within its hotel (US-53). It is what
+    ///     the room map shows (US-06).
+    /// </summary>
+    public string Number { get; private set; } = string.Empty;
+
+    /// <summary>Renumbers the room (uniqueness in the hotel is checked by the application service).</summary>
+    public void Renumber(string number) => Number = RoomNumber.Normalize(number);
+
+    /// <summary>US-53: a room is sold for a positive price per night.</summary>
+    private static void EnsureValidPrice(decimal price)
+    {
+        if (price <= 0)
+            throw new InvalidFieldException("price", "The price per night must be greater than 0.");
+        if (price > RoomNumber.MaxPrice)
+            throw new InvalidFieldException("price", $"The price per night cannot exceed {RoomNumber.MaxPrice}.");
     }
 
     /// <summary>Operational status (US-29). New rooms are Available.</summary>
@@ -114,9 +132,7 @@ public partial class Room : IHasDomainEvents
     /// <param name="amenities">The new list of amenities.</param>
     public void UpdateInformation(int roomTypeId, decimal price, string description, List<string> amenities)
     {
-        // Validation logic can be placed here (e.g., Price > 0)
-        if (price < 0) 
-            throw new DomainValidationException("Price cannot be negative.");
+        EnsureValidPrice(price);
 
         RoomTypeId = roomTypeId;
         Price = price;

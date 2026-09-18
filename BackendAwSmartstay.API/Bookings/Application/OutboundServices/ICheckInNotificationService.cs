@@ -8,8 +8,8 @@ namespace BackendAwSmartstay.API.Bookings.Application.OutboundServices;
 public interface ICheckInNotificationService
 {
     /// <summary>Scenario 4: the guest checked in; housekeeping is informed.</summary>
-    Task SendGuestCheckedInAsync(IReadOnlyList<UserContact> recipients, Booking booking, HotelSummary? hotel);
+    Task SendGuestCheckedInAsync(IReadOnlyList<UserContact> recipients, Booking booking, BookingPlace place);
 
     /// <summary>Scenario 3: the guest asked for help with the check-in.</summary>
-    Task SendCheckInAssistanceRequestedAsync(IReadOnlyList<UserContact> recipients, Booking booking, HotelSummary? hotel, string? message);
+    Task SendCheckInAssistanceRequestedAsync(IReadOnlyList<UserContact> recipients, Booking booking, BookingPlace place, string? message);
 }

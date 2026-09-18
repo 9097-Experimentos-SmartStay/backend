@@ -40,6 +40,6 @@ public class RoomAvailabilityController(IRoomAvailabilityQueryService roomAvaila
         return Ok(rooms.Select(available => new AvailableRoomResource(
             available.Room.RoomId, available.Room.HotelId, available.Room.RoomTypeId, available.Room.RoomTypeName,
             available.Room.Description, available.Room.Amenities, available.Room.Status, true,
-            available.Room.PricePerNight, available.Nights, available.TotalPrice, checkIn, checkOut)));
+            available.Room.PricePerNight, available.Nights, available.TotalPrice, checkIn, checkOut, available.Room.Number)));
     }
 }

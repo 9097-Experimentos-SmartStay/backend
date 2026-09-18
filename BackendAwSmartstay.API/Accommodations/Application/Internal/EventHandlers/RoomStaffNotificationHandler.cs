@@ -61,6 +61,6 @@ public class RoomStaffNotificationHandler(
     {
         var room = await roomRepository.FindByIdAsync(roomId);
         var hotel = await hotelRepository.FindByIdAsync(hotelId);
-        return new RoomNotice(roomId, room?.Description ?? $"Room {roomId}", hotelId, hotel?.Name ?? $"Hotel {hotelId}");
+        return new RoomNotice(roomId, room?.Number ?? roomId.ToString(), hotelId, hotel?.Name ?? $"Hotel {hotelId}");
     }
 }

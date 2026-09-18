@@ -1,4 +1,6 @@
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Aggregates;
+using BackendAwSmartstay.API.Accommodations.Domain.Model.Exceptions;
+using BackendAwSmartstay.API.Bookings.Interfaces.ACL;
 using BackendAwSmartstay.API.Accommodations.Domain.Model.Commands;
 using BackendAwSmartstay.API.Accommodations.Domain.Repositories;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
@@ -14,6 +16,8 @@ namespace BackendAwSmartstay.API.Accommodations.Application.Internal.CommandServ
 public class HotelCommandService(
     IHotelRepository hotelRepository,
     IIamContextFacade iamContextFacade,
+    IRoomRepository roomRepository,
+    IRoomReservationsFacade roomReservationsFacade,
     IUnitOfWork unitOfWork)
     : IHotelCommandService
 {
@@ -77,6 +81,13 @@ public class HotelCommandService(
     {
         var hotel = await hotelRepository.FindByIdAsync(command.Id);
         if (hotel is null) return null;
+
+        // Deleting a hotel deletes its rooms: none of them may still hold bookings.
+        var rooms = await roomRepository.ListByHotelAsync(hotel.Id);
+        var active = await roomReservationsFacade.CountActiveBookingsAsync(rooms.Select(room => room.Id).ToList());
+        if (active.Count > 0)
+            throw new RoomHasActiveBookingsException(
+                $"Hotel {hotel.Name} has {active.Values.Sum()} active booking(s). Cancel or complete them before deleting the hotel.");
 
         hotelRepository.Remove(hotel);
         await unitOfWork.CompleteAsync();

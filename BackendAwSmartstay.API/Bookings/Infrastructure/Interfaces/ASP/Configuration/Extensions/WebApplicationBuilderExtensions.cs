@@ -59,6 +59,7 @@ public static class WebApplicationBuilderExtensions
 
         // ACL Facade
         builder.Services.AddScoped<IBookingsContextFacade, BookingsContextFacade>();
+        builder.Services.AddScoped<IRoomReservationsFacade, RoomReservationsFacade>();
     }
 }
 

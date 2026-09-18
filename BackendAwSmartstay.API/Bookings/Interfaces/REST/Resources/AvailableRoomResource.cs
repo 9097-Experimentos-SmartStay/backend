@@ -14,6 +14,7 @@ namespace BackendAwSmartstay.API.Bookings.Interfaces.REST.Resources;
 /// <param name="TotalPrice">PricePerNight × Nights.</param>
 /// <param name="CheckInDate">Check-in date of the stay.</param>
 /// <param name="CheckOutDate">Check-out date of the stay.</param>
+/// <param name="Number">Room number, unique in its hotel (US-53).</param>
 public record AvailableRoomResource(
     int Id,
     int HotelId,
@@ -27,4 +28,5 @@ public record AvailableRoomResource(
     int Nights,
     decimal TotalPrice,
     DateOnly CheckInDate,
-    DateOnly CheckOutDate);
+    DateOnly CheckOutDate,
+    string Number);

@@ -91,6 +91,9 @@ public static class ModelBuilderExtensions
         builder.Entity<Room>().HasKey(r => r.Id);
         builder.Entity<Room>().Property(r => r.Id).IsRequired().ValueGeneratedOnAdd();
         builder.Entity<Room>().Property(r => r.Description).IsRequired().HasMaxLength(1000);
+        // US-53: the room number is unique within its hotel
+        builder.Entity<Room>().Property(r => r.Number).IsRequired().HasMaxLength(RoomNumber.MaxLength);
+        builder.Entity<Room>().HasIndex(r => new { r.HotelId, r.Number }).IsUnique();
         
         // Monetary value configuration (Precision, Scale)
         builder.Entity<Room>().Property(r => r.Price)
@@ -179,6 +182,7 @@ public static class ModelBuilderExtensions
             // Rooms for Hotel 1 (Bolivar)
             new {
                 Id = 101,
+                Number = "101",
                 StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
                 HotelId = 1,
                 RoomTypeId = 1,
@@ -189,6 +193,7 @@ public static class ModelBuilderExtensions
             },
             new {
                 Id = 102,
+                Number = "102",
                 StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
                 HotelId = 1,
                 RoomTypeId = 2,
@@ -200,6 +205,7 @@ public static class ModelBuilderExtensions
             // Rooms for Hotel 2 (Cusco)
             new {
                 Id = 201,
+                Number = "201",
                 StatusChangedAt = new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero),
                 HotelId = 2,
                 RoomTypeId = 3,

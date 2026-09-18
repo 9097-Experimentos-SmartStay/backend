@@ -20,6 +20,9 @@ public interface IRoomRepository : IBaseRepository<Room>
     /// <summary>Every room of a hotel with its type, by id (US-06 room map).</summary>
     Task<IReadOnlyList<Room>> ListByHotelAsync(int hotelId);
 
+    /// <summary>True when another room of the hotel already uses <paramref name="number"/> (US-53).</summary>
+    Task<bool> ExistsNumberInHotelAsync(int hotelId, string number, int? excludingRoomId = null);
+
     /// <summary>Rooms currently under maintenance (US-06 scenario 4).</summary>
     Task<IReadOnlyList<Room>> ListInMaintenanceAsync();
 }

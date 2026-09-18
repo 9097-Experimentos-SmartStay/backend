@@ -20,11 +20,11 @@ public class BookingEmailNotificationService(
 {
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-PE");
 
-    public Task SendBookingPlacedAsync(Booking booking, HotelSummary? hotel, PaymentInstructions instructions)
+    public Task SendBookingPlacedAsync(Booking booking, BookingPlace place, PaymentInstructions instructions)
     {
         var email = EmailLayout.Create()
             .Greeting(Greeting(booking))
-            .Paragraph($"Recibimos tu reserva {booking.Code} en {HotelName(hotel)}: habitación {booking.RoomId}, {Stay(booking)}.")
+            .Paragraph($"Recibimos tu reserva {booking.Code} en {HotelName(place.Hotel)}: habitación {place.RoomNumber}, {Stay(booking)}.")
             .Paragraph($"Total a pagar: {Money(booking.TotalPrice)} ({booking.Nights} {(booking.Nights == 1 ? "noche" : "noches")} × {Money(booking.PricePerNight)}).")
             .Paragraph($"Tu reserva queda pendiente hasta que registremos tu pago. Paga antes del {Deadline(booking.PaymentDueAt!.Value)}: si no, la reserva se cancela automáticamente y la habitación se libera.");
         foreach (var method in Methods(instructions))
@@ -36,16 +36,16 @@ public class BookingEmailNotificationService(
             .To(booking.GuestEmail, $"Reserva {booking.Code} recibida: completa tu pago"));
     }
 
-    public Task SendBookingConfirmedAsync(Booking booking, HotelSummary? hotel) =>
+    public Task SendBookingConfirmedAsync(Booking booking, BookingPlace place) =>
         emailSender.SendAsync(EmailLayout.Create()
             .Greeting(Greeting(booking))
-            .Paragraph($"Registramos tu pago de {Money(booking.TotalPrice)}. Tu reserva {booking.Code} en {HotelName(hotel)} está confirmada.")
-            .Paragraph($"Habitación {booking.RoomId}, {Stay(booking)}.")
+            .Paragraph($"Registramos tu pago de {Money(booking.TotalPrice)}. Tu reserva {booking.Code} en {HotelName(place.Hotel)} está confirmada.")
+            .Paragraph($"Habitación {place.RoomNumber}, {Stay(booking)}.")
             .Paragraph("El día de tu llegada podrás hacer el check-in digital desde la aplicación y recibir el código de acceso a tu habitación.")
             .Action("Ver mi reserva", urls.Value.WebLink("bookings"))
             .To(booking.GuestEmail, $"Reserva {booking.Code} confirmada"));
 
-    public Task SendBookingCancelledAsync(Booking booking, HotelSummary? hotel)
+    public Task SendBookingCancelledAsync(Booking booking, BookingPlace place)
     {
         var why = booking.CancellationReason switch
         {
@@ -55,7 +55,7 @@ public class BookingEmailNotificationService(
         };
         var email = EmailLayout.Create()
             .Greeting(Greeting(booking))
-            .Paragraph($"Tu reserva {booking.Code} en {HotelName(hotel)} ({Stay(booking)}) se canceló porque {why}. La habitación quedó liberada.");
+            .Paragraph($"Tu reserva {booking.Code} en {HotelName(place.Hotel)} ({Stay(booking)}) se canceló porque {why}. La habitación quedó liberada.");
         if (booking.ConfirmedAt is not null)
             email.Paragraph($"Como la reserva estaba pagada, el hotel te devolverá {Money(booking.TotalPrice)} por el mismo medio de pago. Si tienes dudas, contacta a recepción.");
         return emailSender.SendAsync(email
@@ -63,13 +63,13 @@ public class BookingEmailNotificationService(
             .To(booking.GuestEmail, $"Reserva {booking.Code} cancelada"));
     }
 
-    public Task SendBookingRescheduledAsync(Booking booking, HotelSummary? hotel, DateTime previousCheckIn,
-        DateTime previousCheckOut, int previousRoomId) =>
+    public Task SendBookingRescheduledAsync(Booking booking, BookingPlace place, DateTime previousCheckIn,
+        DateTime previousCheckOut, string previousRoomNumber) =>
         emailSender.SendAsync(EmailLayout.Create()
             .Greeting(Greeting(booking))
-            .Paragraph($"El hotel modificó tu reserva {booking.Code} en {HotelName(hotel)}.")
-            .Paragraph($"Antes: habitación {previousRoomId}, del {Date(previousCheckIn)} al {Date(previousCheckOut)}.")
-            .Paragraph($"Ahora: habitación {booking.RoomId}, {Stay(booking)}. Total: {Money(booking.TotalPrice)}.")
+            .Paragraph($"El hotel modificó tu reserva {booking.Code} en {HotelName(place.Hotel)}.")
+            .Paragraph($"Antes: habitación {previousRoomNumber}, del {Date(previousCheckIn)} al {Date(previousCheckOut)}.")
+            .Paragraph($"Ahora: habitación {place.RoomNumber}, {Stay(booking)}. Total: {Money(booking.TotalPrice)}.")
             .Paragraph("Si no pediste este cambio, contacta a recepción.")
             .Action("Ver mi reserva", urls.Value.WebLink("bookings"))
             .To(booking.GuestEmail, $"Reserva {booking.Code} modificada"));

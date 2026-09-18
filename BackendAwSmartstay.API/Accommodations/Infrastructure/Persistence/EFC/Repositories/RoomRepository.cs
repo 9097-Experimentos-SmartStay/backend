@@ -41,7 +41,11 @@ public class RoomRepository(AppDbContext context) : BaseRepository<Room>(context
     }
 
     public async Task<IReadOnlyList<Room>> ListByHotelAsync(int hotelId) =>
-        await Context.Set<Room>().Include(r => r.RoomType).Where(r => r.HotelId == hotelId).OrderBy(r => r.Id).ToListAsync();
+        await Context.Set<Room>().Include(r => r.RoomType).Where(r => r.HotelId == hotelId).OrderBy(r => r.Number).ToListAsync();
+
+    public Task<bool> ExistsNumberInHotelAsync(int hotelId, string number, int? excludingRoomId = null) =>
+        Context.Set<Room>().AnyAsync(r => r.HotelId == hotelId && r.Number == number
+                                          && (excludingRoomId == null || r.Id != excludingRoomId));
 
     public async Task<IReadOnlyList<Room>> ListInMaintenanceAsync() =>
         await Context.Set<Room>().Where(r => r.Status == RoomStatus.Maintenance).ToListAsync();

@@ -30,7 +30,14 @@ public class AccommodationsContextFacade(
 
     private static RoomOffer ToOffer(Domain.Model.Aggregates.Room room) =>
         new(room.Id, room.HotelId, room.RoomTypeId, room.RoomType?.Name ?? string.Empty,
-            room.Price, room.Description, room.Amenities, room.Status.ToString());
+            room.Price, room.Description, room.Amenities, room.Status.ToString(), room.Number);
+
+    public async Task<RoomOffer?> FetchRoomAsync(int roomId)
+    {
+        if (roomId <= 0) return null;
+        var room = await roomQueryService.Handle(new GetRoomByIdQuery(roomId));
+        return room is null ? null : ToOffer(room);
+    }
 
     public async Task<HotelSummary?> FetchHotelAsync(int hotelId)
     {

@@ -9,6 +9,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 /// <param name="Description">Description.</param>
 /// <param name="Amenities">Amenities.</param>
 /// <param name="Status">Available, Occupied, Cleaning or Maintenance (US-29).</param>
+/// <param name="Number">Room number, unique in the hotel (US-53).</param>
 public record RoomResource(
     int Id, 
     int HotelId, 
@@ -17,5 +18,6 @@ public record RoomResource(
     decimal Price, 
     string Description, 
     List<string> Amenities,
-    string Status
+    string Status,
+    string Number
 );

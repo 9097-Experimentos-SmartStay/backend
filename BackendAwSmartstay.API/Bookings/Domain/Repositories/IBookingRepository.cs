@@ -30,6 +30,9 @@ public interface IBookingRepository : IBaseRepository<Booking>
     /// <summary>Active bookings of a hotel (or every hotel) sharing a night with <paramref name="window"/>, by check-in.</summary>
     Task<IReadOnlyList<Booking>> ListActiveOverlappingAsync(int? hotelId, DateRange window);
 
+    /// <summary>Active bookings (Pending, Confirmed, CheckedIn) per room, for the given rooms (rooms without any are omitted).</summary>
+    Task<IReadOnlyDictionary<int, int>> CountActiveByRoomAsync(IReadOnlyCollection<int> roomIds);
+
     /// <summary>Pending bookings whose payment deadline is at or before <paramref name="now"/>.</summary>
     Task<IReadOnlyList<Booking>> ListPendingPaymentDueAsync(DateTimeOffset now);
 }

@@ -15,7 +15,8 @@ public static class RoomResourceFromEntityAssembler
             entity.Price,
             entity.Description,
             entity.Amenities,
-            entity.Status.ToString()
+            entity.Status.ToString(),
+            entity.Number
         );
     }
 }

@@ -25,7 +25,7 @@ public class CheckInStaffNotificationHandler(
         var booking = await bookingRepository.FindByIdAsync(e.BookingId);
         if (booking is null) return;
         var housekeeping = await iamContextFacade.ListHotelStaffAsync(e.HotelId, [UserRoles.Housekeeping]);
-        await notifications.SendGuestCheckedInAsync(housekeeping, booking, await accommodationsContextFacade.FetchHotelAsync(e.HotelId));
+        await notifications.SendGuestCheckedInAsync(housekeeping, booking, new BookingPlace(await accommodationsContextFacade.FetchHotelAsync(e.HotelId), (await accommodationsContextFacade.FetchRoomAsync(booking.RoomId))?.Number ?? booking.RoomId.ToString()));
     }
 
     public async Task HandleAsync(CheckInAssistanceRequestedEvent e, CancellationToken cancellationToken)
@@ -36,6 +36,6 @@ public class CheckInStaffNotificationHandler(
         if (frontDesk.Count == 0)
             frontDesk = await iamContextFacade.ListHotelStaffAsync(e.HotelId, [UserRoles.Admin]);
         await notifications.SendCheckInAssistanceRequestedAsync(frontDesk, booking,
-            await accommodationsContextFacade.FetchHotelAsync(e.HotelId), e.Message);
+            new BookingPlace(await accommodationsContextFacade.FetchHotelAsync(e.HotelId), (await accommodationsContextFacade.FetchRoomAsync(booking.RoomId))?.Number ?? booking.RoomId.ToString()), e.Message);
     }
 }

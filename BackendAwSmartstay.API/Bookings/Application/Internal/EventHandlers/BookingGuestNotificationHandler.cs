@@ -25,7 +25,7 @@ public class BookingGuestNotificationHandler(
     {
         var booking = await bookingRepository.FindByIdAsync(e.BookingId);
         if (booking is null) return;
-        await notifications.SendBookingPlacedAsync(booking, await accommodationsContextFacade.FetchHotelAsync(e.HotelId),
+        await notifications.SendBookingPlacedAsync(booking, await PlaceAsync(booking),
             paymentsContextFacade.GetPaymentInstructions());
     }
 
@@ -33,21 +33,27 @@ public class BookingGuestNotificationHandler(
     {
         var booking = await bookingRepository.FindByIdAsync(e.BookingId);
         if (booking is null) return;
-        await notifications.SendBookingConfirmedAsync(booking, await accommodationsContextFacade.FetchHotelAsync(e.HotelId));
+        await notifications.SendBookingConfirmedAsync(booking, await PlaceAsync(booking));
     }
 
     public async Task HandleAsync(BookingCancelledEvent e, CancellationToken cancellationToken)
     {
         var booking = await bookingRepository.FindByIdAsync(e.BookingId);
         if (booking is null) return;
-        await notifications.SendBookingCancelledAsync(booking, await accommodationsContextFacade.FetchHotelAsync(e.HotelId));
+        await notifications.SendBookingCancelledAsync(booking, await PlaceAsync(booking));
     }
 
     public async Task HandleAsync(BookingRescheduledEvent e, CancellationToken cancellationToken)
     {
         var booking = await bookingRepository.FindByIdAsync(e.BookingId);
         if (booking is null) return;
-        await notifications.SendBookingRescheduledAsync(booking, await accommodationsContextFacade.FetchHotelAsync(e.HotelId),
-            e.PreviousCheckIn, e.PreviousCheckOut, e.PreviousRoomId);
+        await notifications.SendBookingRescheduledAsync(booking, await PlaceAsync(booking),
+            e.PreviousCheckIn, e.PreviousCheckOut, await RoomNumberAsync(e.PreviousRoomId));
     }
+
+    private async Task<BookingPlace> PlaceAsync(Domain.Model.Aggregates.Booking booking) =>
+        new(await accommodationsContextFacade.FetchHotelAsync(booking.HotelId), await RoomNumberAsync(booking.RoomId));
+
+    private async Task<string> RoomNumberAsync(int roomId) =>
+        (await accommodationsContextFacade.FetchRoomAsync(roomId))?.Number ?? roomId.ToString();
 }

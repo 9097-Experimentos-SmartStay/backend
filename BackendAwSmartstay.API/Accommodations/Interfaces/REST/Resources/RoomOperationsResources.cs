@@ -2,6 +2,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 
 /// <summary>A room on the map (US-06 scenario 2).</summary>
 /// <param name="Id">Room id.</param>
+/// <param name="Number">Room number (what the map shows).</param>
 /// <param name="RoomTypeName">Room type.</param>
 /// <param name="Description">Description (e.g. "Room 101 - Standard view.").</param>
 /// <param name="Price">Price per night.</param>
@@ -9,7 +10,7 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.REST.Resources;
 /// <param name="StatusSince">Since when it has this status (UTC).</param>
 /// <param name="MaintenanceOverdue">Under maintenance for longer than the alert threshold.</param>
 /// <param name="AllowedNextStatuses">Statuses it can change to (for quick changes from the map).</param>
-public record RoomMapItemResource(int Id, string RoomTypeName, string Description, decimal Price, string Status,
+public record RoomMapItemResource(int Id, string Number, string RoomTypeName, string Description, decimal Price, string Status,
     DateTimeOffset StatusSince, bool MaintenanceOverdue, IReadOnlyList<string> AllowedNextStatuses);
 
 /// <summary>Every room of a hotel with its status and a count per status.</summary>

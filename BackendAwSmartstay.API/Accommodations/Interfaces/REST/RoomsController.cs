@@ -61,8 +61,8 @@ public class RoomsController(
     [HttpPost]
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
-        Summary = "Create a new room entry",
-        Description = "Registers a new room aggregate root within an existing property context. Restricted to management nodes.",
+        Summary = "Create a room (US-53)",
+        Description = "US-53 scenario 3. Admin: rooms of their own hotel; chain_admin: any hotel. The room number is unique in the hotel (409 otherwise), the price per night must be greater than 0 and every missing or invalid field is reported in `errors` (number, roomTypeId, price, description, hotelId). New rooms start Available.",
         OperationId = "CreateRoom")]
     [SwaggerResponse(StatusCodes.Status201Created, "The room aggregate root was successfully processed and initialized.", typeof(RoomResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "The provided construction resource layout contains invalid fields or broken constraints.")]
@@ -134,7 +134,7 @@ public class RoomsController(
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Update an existing room aggregate's context properties",
-        Description = "Mutates operational values and parameters on an active room instance. Restricted to verified corporate accounts.",
+        Description = "US-53 scenario 4. Changes type, price, description, amenities and optionally the number (unique in the hotel). A new price only applies to new bookings: existing bookings keep the price per night they were made at.",
         OperationId = "UpdateRoom")]
     [SwaggerResponse(StatusCodes.Status200OK, "The room aggregate state was updated successfully.", typeof(RoomResource))]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]
@@ -163,7 +163,7 @@ public class RoomsController(
     [Authorize(Policy = Policies.ManageHotels)]
     [SwaggerOperation(
         Summary = "Delete a room entity entry",
-        Description = "Triggers complete structural teardown processing for a single room target aggregate. Requires full administrative clearance.",
+        Description = "US-53 scenario 4. A room with active bookings (pending, confirmed or checked in) cannot be deleted: 409 with the number of bookings to cancel or move first.",
         OperationId = "DeleteRoom")]
     [SwaggerResponse(StatusCodes.Status200OK, "The room aggregate instance was successfully cleared and decommissioned from the asset cluster.", typeof(RoomResource))]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "The request lacks a valid identity identification token.")]

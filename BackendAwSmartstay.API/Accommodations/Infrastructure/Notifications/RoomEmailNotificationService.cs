@@ -21,11 +21,11 @@ public class RoomEmailNotificationService(
         foreach (var recipient in recipients)
             await emailSender.SendAsync(EmailLayout.Create()
                 .Greeting(Greeting(recipient))
-                .Paragraph($"La habitación {room.RoomId} de {room.HotelName} cambió de {Label(from)} a {Label(to)}" +
+                .Paragraph($"La habitación {room.RoomNumber} de {room.HotelName} cambió de {Label(from)} a {Label(to)}" +
                            (changedBy is null ? "." : $" (cambio hecho por {changedBy})."))
                 .Paragraph(Instruction(to))
                 .Action("Ver el mapa de habitaciones", urls.Value.WebLink("rooms"))
-                .To(recipient.Email, $"Habitación {room.RoomId}: {Label(to)}"));
+                .To(recipient.Email, $"Habitación {room.RoomNumber}: {Label(to)}"));
     }
 
     public async Task SendMaintenanceOverdueAsync(IReadOnlyList<UserContact> recipients, RoomNotice room, DateTimeOffset maintenanceSince)
@@ -34,10 +34,10 @@ public class RoomEmailNotificationService(
         foreach (var recipient in recipients)
             await emailSender.SendAsync(EmailLayout.Create()
                 .Greeting(Greeting(recipient))
-                .Paragraph($"La habitación {room.RoomId} de {room.HotelName} lleva {hours.ToString(CultureInfo.InvariantCulture)} horas en mantenimiento y no se puede reservar.")
+                .Paragraph($"La habitación {room.RoomNumber} de {room.HotelName} lleva {hours.ToString(CultureInfo.InvariantCulture)} horas en mantenimiento y no se puede reservar.")
                 .Paragraph("Revisa con el equipo de mantenimiento si la reparación avanza o si la habitación ya puede volver a limpieza o a disponible.")
                 .Action("Ver el mapa de habitaciones", urls.Value.WebLink("rooms"))
-                .To(recipient.Email, $"Alerta: habitación {room.RoomId} en mantenimiento desde hace {hours.ToString(CultureInfo.InvariantCulture)} horas"));
+                .To(recipient.Email, $"Alerta: habitación {room.RoomNumber} en mantenimiento desde hace {hours.ToString(CultureInfo.InvariantCulture)} horas"));
     }
 
     private static string Greeting(UserContact contact) =>

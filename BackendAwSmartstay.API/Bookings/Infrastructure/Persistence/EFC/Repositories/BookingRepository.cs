@@ -73,4 +73,11 @@ public class BookingRepository(AppDbContext context) : BaseRepository<Booking>(c
         await Context.Set<Booking>()
             .Where(b => b.Status == BookingStatus.Pending && b.PaymentDueAt != null && b.PaymentDueAt <= now)
             .ToListAsync();
+
+    public async Task<IReadOnlyDictionary<int, int>> CountActiveByRoomAsync(IReadOnlyCollection<int> roomIds) =>
+        await Context.Set<Booking>()
+            .Where(b => roomIds.Contains(b.RoomId) && ActiveStatuses.Contains(b.Status))
+            .GroupBy(b => b.RoomId)
+            .Select(group => new { RoomId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(row => row.RoomId, row => row.Count);
 }

@@ -9,8 +9,9 @@ namespace BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
 /// <param name="Description">Description.</param>
 /// <param name="Amenities">Amenities.</param>
 /// <param name="Status">Current operational status (Available, Occupied or Cleaning).</param>
+/// <param name="Number">Room number, unique in its hotel (what guests and staff see).</param>
 public sealed record RoomOffer(int RoomId, int HotelId, int RoomTypeId, string RoomTypeName, decimal PricePerNight,
-    string Description, IReadOnlyList<string> Amenities, string Status)
+    string Description, IReadOnlyList<string> Amenities, string Status, string Number)
 {
     /// <summary>A room under maintenance is never offered nor booked.</summary>
     public bool IsOfferedForBooking => Status != "Maintenance";
@@ -24,6 +25,9 @@ public sealed record HotelSummary(int HotelId, string Name, string Address);
 
 public interface IAccommodationsContextFacade
 {
+    /// <summary>The room, or null when it does not exist.</summary>
+    Task<RoomOffer?> FetchRoomAsync(int roomId);
+
     /// <summary>The hotel, or null when it does not exist.</summary>
     Task<HotelSummary?> FetchHotelAsync(int hotelId);
 

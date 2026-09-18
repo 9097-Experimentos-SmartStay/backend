@@ -10,7 +10,7 @@ public static class RoomMapResourceAssembler
     public static RoomMapResource ToResource(Hotel hotel, IReadOnlyList<Room> rooms, DateTimeOffset now, TimeSpan maintenanceThreshold) =>
         new(hotel.Id, hotel.Name, now,
             Enum.GetValues<RoomStatus>().ToDictionary(status => status.ToString(), status => rooms.Count(room => room.Status == status)),
-            rooms.Select(room => new RoomMapItemResource(room.Id, room.RoomType?.Name ?? string.Empty, room.Description,
+            rooms.Select(room => new RoomMapItemResource(room.Id, room.Number, room.RoomType?.Name ?? string.Empty, room.Description,
                 room.Price, room.Status.ToString(), room.StatusChangedAt,
                 room.Status == RoomStatus.Maintenance && now - room.StatusChangedAt >= maintenanceThreshold,
                 RoomStatusTransitions.AllowedFrom(room.Status).Select(status => status.ToString()).ToList())).ToList());

@@ -4,7 +4,7 @@ using BackendAwSmartstay.API.IAM.Interfaces.ACL;
 namespace BackendAwSmartstay.API.Accommodations.Application.OutboundServices;
 
 /// <summary>The room and hotel an e-mail is about.</summary>
-public sealed record RoomNotice(int RoomId, string RoomDescription, int HotelId, string HotelName);
+public sealed record RoomNotice(int RoomId, string RoomNumber, int HotelId, string HotelName);
 
 /// <summary>E-mails to the hotel staff about the rooms (US-06). Called after the commit.</summary>
 public interface IRoomNotificationService
