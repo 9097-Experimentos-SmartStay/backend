@@ -12,7 +12,8 @@ public class AnalyticsQueryService(IAnalyticsRepository analyticsRepository) : I
 {
     public async Task<PerformanceMetrics> Handle(GetMonthlyPerformanceQuery query)
     {
-        // Here we could add caching layers or more complex logic
-        return await analyticsRepository.GetMonthlyMetricsAsync();
+        // Metrics are hotel-scoped: without a hotel (and not the whole chain) there is nothing to report.
+        if (!query.WholeChain && query.HotelId is null) return new PerformanceMetrics();
+        return await analyticsRepository.GetMonthlyMetricsAsync(query.HotelId);
     }
 }

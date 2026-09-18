@@ -42,15 +42,18 @@ public class AnalyticsController(
     [Authorize(Policy = Policies.ViewAnalytics)]
     [SwaggerOperation(
         Summary = "Get monthly performance metrics",
-        Description = "Retrieves aggregated metrics like revenue and occupancy for the current month. Requires Admin or ChainAdmin.",
+        Description = "Retrieves aggregated metrics like revenue and occupancy for the current month. Requires Admin or ChainAdmin. An admin gets the metrics of their hotel; a chain admin gets those of hotelId, or of every hotel when it is omitted.",
         OperationId = "GetMonthlyPerformance")]
     [SwaggerResponse(StatusCodes.Status200OK, "The metrics", typeof(PerformanceMetricsResource))]
     [SwaggerResponse(StatusCodes.Status401Unauthorized, "Missing or invalid JWT Token")]
     [SwaggerResponse(StatusCodes.Status403Forbidden,
         "User does not have required permissions (Requires Admin/ChainAdmin)")]
-    public async Task<IActionResult> GetMonthlyPerformance()
+    public async Task<IActionResult> GetMonthlyPerformance([FromQuery] int? hotelId)
     {
-        var query = new GetMonthlyPerformanceQuery();
+        // A hotel admin only sees their own hotel (D2); only a chain admin can see another hotel or the whole chain.
+        var query = User.IsChainAdmin()
+            ? new GetMonthlyPerformanceQuery(hotelId, WholeChain: hotelId is null)
+            : new GetMonthlyPerformanceQuery(User.GetHotelId(), WholeChain: false);
         var metrics = await analyticsQueryService.Handle(query);
         var resource = PerformanceMetricsAssembler.ToResourceFromEntity(metrics);
         return Ok(resource);

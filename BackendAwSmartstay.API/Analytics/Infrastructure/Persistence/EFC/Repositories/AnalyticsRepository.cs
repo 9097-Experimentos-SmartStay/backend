@@ -11,7 +11,7 @@ namespace BackendAwSmartstay.API.Analytics.Infrastructure.Persistence.EFC.Reposi
 /// </summary>
 public class AnalyticsRepository(AppDbContext context) : IAnalyticsRepository
 {
-    public async Task<PerformanceMetrics> GetMonthlyMetricsAsync()
+    public async Task<PerformanceMetrics> GetMonthlyMetricsAsync(int? hotelId)
     {
         var now = DateTime.UtcNow;
         var startOfMonth = new DateTime(now.Year, now.Month, 1);
@@ -19,12 +19,17 @@ public class AnalyticsRepository(AppDbContext context) : IAnalyticsRepository
 
         // 1. Calculate Revenue (From Payments table ideally, or Bookings logic)
         // Assuming we look at Payments for confirmed revenue
+        var hotelBookings = hotelId is null
+            ? context.Set<Booking>()
+            : context.Set<Booking>().Where(b => b.HotelId == hotelId);
+
         var totalRevenue = await context.Set<Payments.Domain.Model.Aggregates.Payment>()
             .Where(p => p.PaymentDate >= startOfMonth && p.PaymentDate <= endOfMonth && p.Status == Payments.Domain.Model.Aggregates.PaymentStatus.Completed)
+            .Where(p => hotelBookings.Any(b => b.Id == p.BookingId))
             .SumAsync(p => p.Amount);
 
         // 2. Booking Stats
-        var bookingsQuery = context.Set<Booking>()
+        var bookingsQuery = hotelBookings
             .Where(b => b.CheckInDate >= startOfMonth && b.CheckInDate <= endOfMonth);
 
         var totalBookings = await bookingsQuery.CountAsync();
@@ -34,7 +39,9 @@ public class AnalyticsRepository(AppDbContext context) : IAnalyticsRepository
 
         // 3. Occupancy Rate (Simplified logic: Booked Rooms / Total Rooms * 100)
         // Note: For a real rigorous calculation, we'd check day-by-day availability.
-        var totalRooms = await context.Set<Accommodations.Domain.Model.Aggregates.Room>().CountAsync();
+        var rooms = context.Set<Accommodations.Domain.Model.Aggregates.Room>().AsQueryable();
+        if (hotelId is not null) rooms = rooms.Where(r => r.HotelId == hotelId);
+        var totalRooms = await rooms.CountAsync();
         
         double occupancyRate = 0;
         if (totalRooms > 0 && totalBookings > 0)
