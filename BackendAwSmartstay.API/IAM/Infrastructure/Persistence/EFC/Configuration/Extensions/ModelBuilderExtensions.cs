@@ -61,5 +61,32 @@ public static class ModelBuilderExtensions
             .IsRequired()
             .HasDefaultValueSql("CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)")
             .ValueGeneratedOnAddOrUpdate();
+
+        builder.Entity<User>().Property(u => u.FirstName).HasMaxLength(PersonName.MaxLength);
+        builder.Entity<User>().Property(u => u.LastName).HasMaxLength(PersonName.MaxLength);
+        builder.Entity<User>().Property(u => u.EmailVerified).IsRequired().HasDefaultValue(false);
+        builder.Entity<User>().Property(u => u.FailedSignInAttempts).IsRequired().HasDefaultValue(0);
+        builder.Entity<User>().Ignore(u => u.DomainEvents);
+
+        // Single-use links (e-mail verification, password reset). Only the hash is stored.
+        builder.Entity<AccountToken>().ToTable("account_tokens");
+        builder.Entity<AccountToken>().HasKey(t => t.Id);
+        builder.Entity<AccountToken>().Property(t => t.Id).ValueGeneratedOnAdd();
+        builder.Entity<AccountToken>().Property(t => t.Purpose).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Entity<AccountToken>().Property(t => t.TokenHash).HasMaxLength(64).IsRequired();
+        builder.Entity<AccountToken>().HasIndex(t => t.TokenHash).IsUnique();
+        builder.Entity<AccountToken>().HasIndex(t => new { t.UserId, t.Purpose });
+        builder.Entity<AccountToken>().HasOne<User>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        // Remembered sessions (refresh tokens with rotation). Only the hash is stored.
+        builder.Entity<RefreshToken>().ToTable("refresh_tokens");
+        builder.Entity<RefreshToken>().HasKey(t => t.Id);
+        builder.Entity<RefreshToken>().Property(t => t.Id).ValueGeneratedOnAdd();
+        builder.Entity<RefreshToken>().Property(t => t.TokenHash).HasMaxLength(64).IsRequired();
+        builder.Entity<RefreshToken>().Property(t => t.RevocationReason).HasConversion<string>().HasMaxLength(30);
+        builder.Entity<RefreshToken>().HasIndex(t => t.TokenHash).IsUnique();
+        builder.Entity<RefreshToken>().HasIndex(t => t.FamilyId);
+        builder.Entity<RefreshToken>().HasIndex(t => t.UserId);
+        builder.Entity<RefreshToken>().HasOne<User>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }
