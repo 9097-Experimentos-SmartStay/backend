@@ -11,9 +11,17 @@ La API lee su configuración por capas; cada capa sobrescribe a la anterior:
 3. **User secrets** (solo en `Development`): secretos de tu máquina, fuera del repositorio.
 4. **Variables de entorno**: lo que usan Docker Compose y Render. `__` (doble guion bajo) equivale a `:` (por ejemplo `TokenSettings__Secret` es `TokenSettings:Secret`).
 
-Las opciones se validan al iniciar: si falta un valor obligatorio (por ejemplo `TokenSettings__Secret` o `Email__Smtp__Host` en producción), la API no arranca y el log indica qué variable falta.
+Las opciones se validan al iniciar: si falta un valor obligatorio (por ejemplo `TokenSettings__Secret` o `Email__Brevo__ApiKey` en producción), la API no arranca y el log indica qué variable falta.
 
 Las imágenes de los hoteles se suben directo del navegador a Cloudinary con una **firma de corta vida** que emite la API (`POST /api/v1/media/hotel-images/signature`, solo administradores); el API secret vive solo en el servidor. Define `Cloudinary__CloudName`, `Cloudinary__ApiKey` y `Cloudinary__ApiSecret` (obligatorias en producción; sin ellas, en desarrollo la firma responde 503 `media.uploads_not_configured`). El upload preset firmado es `smartstay-hotels` (`Cloudinary__HotelImagesPreset`).
+
+**Correos.** El transporte se elige de forma explícita con `Email__Transport`:
+
+- `BrevoApi` (producción): API HTTP transaccional de Brevo (`POST https://api.brevo.com/v3/smtp/email`) por el puerto 443. Requiere `Email__Brevo__ApiKey` (secreto) y `Email__From__Address` (remitente verificado en Brevo). Se usa la API y no SMTP porque desde Render las conexiones salientes a `smtp-relay.brevo.com:587` fallan por timeout.
+- `Smtp`: cualquier relay SMTP (`Email__Smtp__Host`, `Port`, `Username`, `Password`, `EnableSsl`), pensado para uso local (por ejemplo Mailpit).
+- `Log`: el correo se escribe en el log con sus enlaces y códigos. Es el valor por defecto fuera de producción; en `Production` la API no arranca con `Log` ni sin transporte.
+
+Los correos se entregan en segundo plano (la respuesta no espera al proveedor), con reintentos de los fallos transitorios; los rechazos permanentes (remitente o destinatario inválido, API key incorrecta) no se reintentan. En el log queda una línea por correo enviado con el destinatario enmascarado; nunca la API key ni el cuerpo.
 
 Los medios de pago de las reservas (Yape, Plin, cuenta bancaria) **no** son variables de entorno: cada administrador los registra para su hotel desde la aplicación (`PUT /api/v1/hotels/{id}/payment-settings`). Un hotel sin medios de pago no acepta reservas.
 
@@ -30,7 +38,7 @@ dotnet user-secrets list
 dotnet run
 ```
 
-Los user secrets solo se cargan cuando `ASPNETCORE_ENVIRONMENT=Development` (el comportamiento por defecto de ASP.NET Core). Sin SMTP configurado, los correos se escriben en el log con sus enlaces y códigos.
+Los user secrets solo se cargan cuando `ASPNETCORE_ENVIRONMENT=Development` (el comportamiento por defecto de ASP.NET Core). Sin `Email:Transport` (o con `Log`), los correos se escriben en el log con sus enlaces y códigos.
 
 ### Docker Compose
 

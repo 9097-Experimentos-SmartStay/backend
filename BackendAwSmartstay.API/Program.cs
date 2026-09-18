@@ -109,8 +109,11 @@ app.UseStatusCodePages();
 app.UseOpenApiConfiguration();
 // CORS (origins from Cors__AllowedOrigins)
 app.UseCorsPolicy();
-// user httpRedirection
-app.UseHttpsRedirection();
+// HTTPS redirection only where Kestrel itself serves HTTPS (dotnet run, Development). Behind Render's proxy TLS ends
+// at the edge, which already redirects http→https; the container only listens on http (no https port to redirect
+// to, hence the old "Failed to determine the https port" warning) and the forwarded headers set the https scheme.
+if (app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 
 // Native ASP.NET Core authentication (JWT bearer) and authorization (fallback policy: authenticated user).
 // The rate limiter runs after authentication so per-user policies (media uploads) see the signed-in user.

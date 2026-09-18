@@ -7,8 +7,11 @@ using MimeKit;
 
 namespace BackendAwSmartstay.API.Shared.Infrastructure.Email.Transport;
 
-/// <summary>Delivers e-mails through an SMTP relay (Brevo in production) with MailKit.</summary>
-public class SmtpEmailTransport(IOptions<EmailSettings> options, ILogger<SmtpEmailTransport> logger) : IEmailTransport
+/// <summary>
+///     Delivers e-mails through an SMTP relay with MailKit (<c>Email:Transport=Smtp</c>), e.g. a local test server.
+///     Production uses the Brevo HTTP API instead: outbound SMTP ports are unreliable on the hosting provider.
+/// </summary>
+public class SmtpEmailTransport(IOptions<EmailSettings> options) : IEmailTransport
 {
     public async Task DeliverAsync(EmailMessage message, CancellationToken cancellationToken)
     {
@@ -24,12 +27,22 @@ public class SmtpEmailTransport(IOptions<EmailSettings> options, ILogger<SmtpEma
             : settings.Smtp.Port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
 
         using var client = new SmtpClient { Timeout = settings.Smtp.TimeoutSeconds * 1000 };
-        await client.ConnectAsync(settings.Smtp.Host!, settings.Smtp.Port, security, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(settings.Smtp.Username))
-            await client.AuthenticateAsync(settings.Smtp.Username, settings.Smtp.Password!, cancellationToken);
-        await client.SendAsync(mime, cancellationToken);
-        await client.DisconnectAsync(true, cancellationToken);
-
-        logger.LogInformation("E-mail '{Subject}' delivered to {Recipient} through SMTP.", message.Subject, message.To);
+        try
+        {
+            await client.ConnectAsync(settings.Smtp.Host!, settings.Smtp.Port, security, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(settings.Smtp.Username))
+                await client.AuthenticateAsync(settings.Smtp.Username, settings.Smtp.Password!, cancellationToken);
+            await client.SendAsync(mime, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+        }
+        catch (AuthenticationException exception)
+        {
+            throw new EmailDeliveryException("SMTP authentication failed.", isPermanent: true, exception);
+        }
+        catch (SmtpCommandException exception) when ((int)exception.StatusCode >= 500)
+        {
+            // 5xx replies are permanent (RFC 5321): unknown recipient, sender not allowed...
+            throw new EmailDeliveryException($"SMTP {(int)exception.StatusCode} {exception.ErrorCode}.", isPermanent: true, exception);
+        }
     }
 }
