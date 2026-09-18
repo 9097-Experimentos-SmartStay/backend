@@ -3,7 +3,8 @@ using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 namespace BackendAwSmartstay.API.IAM.Application.OutboundServices;
 
 /// <summary>
-///     E-mails about the account. The application services call it only after the unit of work has committed.
+///     E-mails about the account. The application services call it before the unit of work commits the change the
+///     e-mail announces (transactional outbox: stored only if the change commits).
 /// </summary>
 public interface IAccountNotificationService
 {

@@ -31,7 +31,7 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddScoped<IBookingRepository, BookingRepository>();
         builder.Services.AddScoped<IDigitalCheckInRepository, DigitalCheckInRepository>();
 
-        // Digital check-in (US-08): documents stored encrypted in the database, staff e-mails after the commit
+        // Digital check-in (US-08): documents stored encrypted in the database, staff e-mails through the outbox
         builder.Services.AddScoped<IDocumentStorage, DatabaseDocumentStorage>();
         builder.Services.AddScoped<ICheckInService, CheckInService>();
         builder.Services.AddScoped<ICheckInNotificationService, CheckInEmailNotificationService>();

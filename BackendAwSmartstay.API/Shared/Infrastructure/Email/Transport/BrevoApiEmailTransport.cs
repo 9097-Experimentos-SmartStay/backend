@@ -18,7 +18,7 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Email.Transport;
 ///     The typed <see cref="HttpClient"/> comes from <c>IHttpClientFactory</c> with a resilience pipeline (see
 ///     <c>EmailServiceCollectionExtensions</c>). Outcome of a request: 2xx = accepted; 4xx other than 408/429 =
 ///     permanent (<see cref="EmailDeliveryException.IsPermanent"/>: invalid sender or recipient, bad API key...);
-///     408, 429, 5xx, timeouts and connection errors = transient (retried later). Neither the API key nor
+///     408, 429, 5xx, timeouts and connection errors = transient (the outbox retries later). Neither the API key nor
 ///     the body of the e-mail is ever logged.
 /// </remarks>
 public class BrevoApiEmailTransport(HttpClient httpClient, IOptions<EmailSettings> options) : IEmailTransport

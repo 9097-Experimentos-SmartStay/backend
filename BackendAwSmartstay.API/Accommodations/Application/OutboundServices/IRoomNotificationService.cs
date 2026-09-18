@@ -6,7 +6,7 @@ namespace BackendAwSmartstay.API.Accommodations.Application.OutboundServices;
 /// <summary>The room and hotel an e-mail is about.</summary>
 public sealed record RoomNotice(int RoomId, string RoomNumber, int HotelId, string HotelName);
 
-/// <summary>E-mails to the hotel staff about the rooms (US-06). Called after the commit.</summary>
+/// <summary>E-mails to the hotel staff about the rooms (US-06). Enlisted in the outbox inside the transaction of the change.</summary>
 public interface IRoomNotificationService
 {
     /// <summary>Scenario 1: the status of a room changed; the staff in charge of the new status is notified.</summary>

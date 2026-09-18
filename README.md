@@ -21,7 +21,7 @@ Las imágenes de los hoteles se suben directo del navegador a Cloudinary con una
 - `Smtp`: cualquier relay SMTP (`Email__Smtp__Host`, `Port`, `Username`, `Password`, `EnableSsl`), pensado para uso local (por ejemplo Mailpit).
 - `Log`: el correo se escribe en el log con sus enlaces y códigos. Es el valor por defecto fuera de producción; en `Production` la API no arranca con `Log` ni sin transporte.
 
-Los correos se entregan en segundo plano (la respuesta no espera al proveedor), con reintentos de los fallos transitorios; los rechazos permanentes (remitente o destinatario inválido, API key incorrecta) no se reintentan. En el log queda una línea por correo enviado con el destinatario enmascarado; nunca la API key ni el cuerpo.
+Cada correo se guarda en la tabla `outbox_emails` **en la misma transacción** que el cambio que lo origina (outbox transaccional): si el cambio se revierte, el correo no existe; si se confirma, el correo se entrega aunque la API se reinicie o se redespliegue. Un despachador en segundo plano entrega los pendientes cada `Email__Outbox__PollIntervalSeconds` (10 s), reintenta los fallos transitorios con backoff exponencial hasta `Email__Outbox__MaxAttempts` (8) y marca `Failed` los rechazos permanentes (remitente o destinatario inválido, API key incorrecta). En el log queda una línea por correo enviado con el destinatario enmascarado; nunca la API key ni el cuerpo.
 
 Los medios de pago de las reservas (Yape, Plin, cuenta bancaria) **no** son variables de entorno: cada administrador los registra para su hotel desde la aplicación (`PUT /api/v1/hotels/{id}/payment-settings`). Un hotel sin medios de pago no acepta reservas.
 
@@ -54,7 +54,7 @@ curl http://localhost:10000/health
 
 Define cada valor como **variable de entorno** del servicio en Render (nunca en el repositorio). Los archivos sensibles, como el certificado CA de Aiven para MySQL, se suben como **Secret Files** (quedan en `/etc/secrets/`) y se referencian desde la variable, por ejemplo `SslMode=VerifyFull;SslCa=/etc/secrets/ca.pem;` en la cadena de conexión. `.env.example` lista todas las variables con su explicación.
 
-Las tareas programadas (`/demo-requests/follow-ups`, `/bookings/expire-pending`, `/rooms/maintenance-alerts`) las invoca un programador externo (por ejemplo, un cron de GitHub Actions) con la cabecera `X-Cron-Key`.
+Las tareas programadas (`/demo-requests/follow-ups`, `/bookings/expire-pending`, `/rooms/maintenance-alerts`, `/emails/dispatch`) las invoca un programador externo (por ejemplo, un cron de GitHub Actions) con la cabecera `X-Cron-Key`. `/emails/dispatch` entrega los correos pendientes o en reintento (el plan free de Render duerme la API cuando no hay tráfico) y es idempotente.
 
 ## Datos de demostración
 

@@ -7,7 +7,8 @@ namespace BackendAwSmartstay.API.Bookings.Application.OutboundServices;
 public sealed record BookingPlace(HotelSummary? Hotel, string RoomNumber);
 
 /// <summary>
-///     E-mails to the guest about their booking. Called by the booking event handlers, after the commit.
+///     E-mails to the guest about their booking. Called by the booking event handlers, inside the transaction
+///     of the change (the e-mails go through the outbox: stored only if the change commits).
 /// </summary>
 public interface IBookingNotificationService
 {

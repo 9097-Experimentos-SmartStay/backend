@@ -12,6 +12,7 @@ using BackendAwSmartstay.API.Payments.Infrastructure.Persistence.EFC.Configurati
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using BackendAwSmartstay.API.Profiles.Infrastructure.Persistence.EFC.Entities;
+using BackendAwSmartstay.API.Shared.Infrastructure.Email.Outbox;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 using EntityFrameworkCore.CreatedUpdatedDate.Extensions;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -144,6 +145,9 @@ public class AppDbContext(DbContextOptions options) : DbContext(options), IDataP
 
         // Apply configuration for Marketing Bounded Context
         builder.ApplyMarketingConfiguration();
+
+        // Transactional outbox of the e-mails (IEmailSender)
+        builder.ApplyEmailOutboxConfiguration();
 
         // Apply snake_case naming convention for database compatibility (e.g., MySQL)
         builder.UseSnakeCaseNamingConvention();

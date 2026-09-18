@@ -6,7 +6,7 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Email.Transport;
 /// <remarks>
 ///     Returning means the mail system accepted the message. A failure that retrying cannot fix (rejected recipient,
 ///     invalid sender, bad credentials...) is thrown as a permanent <see cref="EmailDeliveryException"/>; any other
-///     exception (timeouts, connection errors, 429, 5xx) is treated as transient and retried later.
+///     exception (timeouts, connection errors, 429, 5xx) is treated as transient and the outbox retries later.
 /// </remarks>
 public interface IEmailTransport
 {

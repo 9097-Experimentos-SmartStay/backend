@@ -8,7 +8,8 @@ namespace BackendAwSmartstay.API.Bookings.Application.Internal.EventHandlers;
 
 /// <summary>
 ///     Keeps the guest informed of every change of their booking (US-51 scenario 2, US-07 scenarios 3 and 4, D1).
-///     Runs after the commit, so an e-mail never announces a change that was rolled back.
+///     Runs inside the transaction of the change and the e-mails go through the outbox, so an e-mail never
+///     announces a change that was rolled back.
 /// </summary>
 public class BookingGuestNotificationHandler(
     IBookingRepository bookingRepository,

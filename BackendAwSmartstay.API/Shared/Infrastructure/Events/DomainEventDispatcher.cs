@@ -11,10 +11,10 @@ namespace BackendAwSmartstay.API.Shared.Infrastructure.Events;
 ///     event type from the current scope and runs them in order.
 /// </summary>
 /// <remarks>
-///     Events are dispatched after the commit, so a failing handler must not turn a committed operation into an
-///     error response: the failure is logged and the remaining handlers still run.
+///     The unit of work dispatches inside the transaction of the change, so a failing handler is not swallowed: its
+///     exception rolls the whole operation back (the change, the audit entries and the outbox e-mails alike).
 /// </remarks>
-public class DomainEventDispatcher(IServiceProvider serviceProvider, ILogger<DomainEventDispatcher> logger)
+public class DomainEventDispatcher(IServiceProvider serviceProvider)
     : IDomainEventDispatcher
 {
     private static readonly ConcurrentDictionary<Type, MethodInfo> DispatchMethods = new();
@@ -35,16 +35,6 @@ public class DomainEventDispatcher(IServiceProvider serviceProvider, ILogger<Dom
         where TEvent : IEvent
     {
         foreach (var handler in serviceProvider.GetServices<IDomainEventHandler<TEvent>>())
-        {
-            try
-            {
-                await handler.HandleAsync(domainEvent, cancellationToken);
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Handler {Handler} failed for domain event {Event}.",
-                    handler.GetType().Name, typeof(TEvent).Name);
-            }
-        }
+            await handler.HandleAsync(domainEvent, cancellationToken);
     }
 }
