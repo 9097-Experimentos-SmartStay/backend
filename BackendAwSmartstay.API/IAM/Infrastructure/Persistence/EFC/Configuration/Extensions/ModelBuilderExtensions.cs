@@ -89,6 +89,14 @@ public static class ModelBuilderExtensions
         builder.Entity<MfaRecoveryCode>().HasIndex(c => c.UserId);
         builder.Entity<MfaRecoveryCode>().HasOne<User>().WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Cascade);
 
+        // Profile pictures: one per user, apart from the users table so signing in never loads the image.
+        builder.Entity<UserAvatar>().ToTable("user_avatars");
+        builder.Entity<UserAvatar>().HasKey(a => a.UserId);
+        builder.Entity<UserAvatar>().Property(a => a.UserId).ValueGeneratedNever();
+        builder.Entity<UserAvatar>().Property(a => a.ContentType).HasMaxLength(20).IsRequired();
+        builder.Entity<UserAvatar>().Property(a => a.Content).IsRequired();
+        builder.Entity<UserAvatar>().HasOne<User>().WithOne().HasForeignKey<UserAvatar>(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
+
         // Single-use links (e-mail verification, password reset). Only the hash is stored.
         builder.Entity<AccountToken>().ToTable("account_tokens");
         builder.Entity<AccountToken>().HasKey(t => t.Id);

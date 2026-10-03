@@ -12,5 +12,7 @@ public enum PaymentMethod
     /// <summary>Cash at the front desk (no operation number).</summary>
     Cash,
     /// <summary>Card charged on the hotel's POS terminal (voucher/operation number required).</summary>
-    CardAtFrontDesk
+    CardAtFrontDesk,
+    /// <summary>Card paid online by the guest (brand and last four digits kept as the operation number).</summary>
+    OnlineCard
 }

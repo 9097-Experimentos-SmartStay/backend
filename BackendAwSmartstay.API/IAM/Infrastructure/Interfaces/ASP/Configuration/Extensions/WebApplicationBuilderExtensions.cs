@@ -67,6 +67,8 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddScoped<IAccountTokenRepository, AccountTokenRepository>();
         builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         builder.Services.AddScoped<IMfaRecoveryCodeRepository, MfaRecoveryCodeRepository>();
+        builder.Services.AddScoped<IUserAvatarRepository, UserAvatarRepository>();
+        builder.Services.AddScoped<UserAvatarCommandService>();
         builder.Services.AddScoped<SessionIssuer>();
         builder.Services.AddScoped<IMfaCommandService, MfaCommandService>();
         builder.Services.AddOptions<MfaSettings>()

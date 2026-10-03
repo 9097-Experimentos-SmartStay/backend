@@ -95,6 +95,23 @@ Qué se crea (las cuentas son `<buzón>+<alias>@<dominio>`):
 | `huesped1` | guest (con perfil de huésped) | Estadía en curso en la 103 (pagada en efectivo en recepción) y una reserva cancelada por el huésped después de pagar (pago reembolsado). |
 | `huesped2` | guest (con perfil de huésped) | Una reserva confirmada con pago por Yape registrado por recepción, una pendiente de pago (vence en menos de 24 h) y una vencida sin pago. |
 
+### Cuentas por rol
+
+Con el buzón por defecto, las cuentas para iniciar sesión con cada rol son estas. La contraseña de todas es la de `DemoData__DefaultPassword` (es un secreto: no se publica aquí; pídela al equipo o usa la que configuraste en tus user secrets).
+
+| Rol | Correo | Hotel | MFA |
+|---|---|---|---|
+| `chain_admin` | El de `InitialChainAdmin__Email` (no es parte de los datos de demostración) | Todos | Sí |
+| `admin` | `psulcasanchez+admin1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `admin` | `psulcasanchez+admin2@gmail.com` | Wayra Sacha Ecolodge | Sí |
+| `reception` | `psulcasanchez+recepcion1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `housekeeping` | `psulcasanchez+limpieza1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `maintenance` | `psulcasanchez+mantenimiento1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `guest` | `psulcasanchez+huesped1@gmail.com` | — | No |
+| `guest` | `psulcasanchez+huesped2@gmail.com` | — | No |
+
+El staff activa su app de autenticación (MFA) en el primer inicio de sesión; si pierde el acceso, un administrador puede reiniciarlo (`POST /api/v1/users/{id}/mfa/reset`). Los huéspedes nuevos se registran desde la web (`POST /api/v1/authentication/sign-up`).
+
 Flujos que se hacen **en vivo** durante la demostración (no se precargan):
 
 - Registro de un huésped nuevo y verificación de su correo (US-01).

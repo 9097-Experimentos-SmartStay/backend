@@ -22,6 +22,9 @@ public static class WebApplicationBuilderExtensions
         // Payment gateway port: payments received by the hotel (an online gateway adapter would replace it here)
         builder.Services.AddScoped<IPaymentGateway, ManualPaymentGateway>();
 
+        // Online card payments of guests: simulated, no provider contacted (a real gateway adapter would replace it here)
+        builder.Services.AddScoped<ICardPaymentGateway, SimulatedCardPaymentGateway>();
+
         // Subscriptions (R2: a cancelled paid booking gets its payment refunded)
         builder.Services.AddScoped<IDomainEventHandler<BookingCancelledEvent>, RefundPaymentOnBookingCancelledHandler>();
 

@@ -53,6 +53,8 @@ public static class Policies
     public const string ReadPayments = nameof(ReadPayments);
     /// <summary>Register the payment of a booking received by the hotel (US-07 scenario 5, D1).</summary>
     public const string RegisterPayments = nameof(RegisterPayments);
+    /// <summary>Pay one's own booking online with a card (guests).</summary>
+    public const string PayBookingsByCard = nameof(PayBookingsByCard);
 
     // ── Analytics ────────────────────────────────────────────────────
     /// <summary>Read the performance dashboard (KPIs).</summary>
@@ -137,6 +139,7 @@ public static class Policies
 
         [ReadPayments] = GuestOrFrontDesk,
         [RegisterPayments] = FrontDesk,
+        [PayBookingsByCard] = [UserRoles.Guest],
 
         [ViewAnalytics] = Administrators,
         [OperateAnalyticsLab] = [UserRoles.ChainAdmin],
@@ -151,8 +154,9 @@ public static class Policies
 
         [ManageDemoRequests] = [UserRoles.ChainAdmin],
 
-        // R5: guests (their current stay), maintenance and admins (their hotel), chain admins (all rooms).
-        [ReadRoomDevices] = RoomDeviceOperators,
+        // R5: guests (their current stay), hotel staff (their hotel), chain admins (all rooms).
+        // Every staff role reads the climate on the operations board; only operators send commands.
+        [ReadRoomDevices] = AllRoles,
         [ControlRoomDevices] = RoomDeviceOperators,
         [InjectTelemetry] = Administrators,
     };

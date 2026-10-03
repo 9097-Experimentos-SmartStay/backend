@@ -11,6 +11,7 @@ public static class PaymentErrorCodes
     public const string BookingNotPending = "payment.booking_not_pending";
     public const string CannotComplete = "payment.cannot_complete";
     public const string CannotFail = "payment.cannot_fail";
+    public const string CardDeclined = "payment.card_declined";
 
     /// <summary>An invariant of the Payment aggregate that only a programming error can break.</summary>
     public const string InternalInvariant = "payment.internal_invariant";
