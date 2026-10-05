@@ -42,7 +42,10 @@ public class UserAvatarController(UserAvatarCommandService avatarCommandService)
         if (avatar is null) return NotFound();
 
         Response.Headers.CacheControl = "private, no-cache";
-        return File(avatar.Content, avatar.ContentType, lastModified: avatar.UpdatedAt, entityTag: null);
+        return new FileContentResult(avatar.Content, avatar.ContentType)
+        {
+            LastModified = avatar.UpdatedAt
+        };
     }
 
     /// <summary>Sets or replaces the profile picture.</summary>

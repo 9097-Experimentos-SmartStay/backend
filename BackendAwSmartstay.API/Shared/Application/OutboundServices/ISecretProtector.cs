@@ -2,7 +2,7 @@ namespace BackendAwSmartstay.API.Shared.Application.OutboundServices;
 
 /// <summary>
 ///     Encrypts secrets that must be stored but read back later (MFA secrets, identity document images).
-///     <paramref name="purpose"/> isolates the uses: a value protected for one purpose cannot be read with another.
+///     The <c>purpose</c> isolates the uses: a value protected for one purpose cannot be read with another.
 /// </summary>
 public interface ISecretProtector
 {
