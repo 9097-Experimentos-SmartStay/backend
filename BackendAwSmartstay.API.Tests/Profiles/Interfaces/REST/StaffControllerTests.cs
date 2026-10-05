@@ -13,10 +13,11 @@ using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Interfaces.REST;
 
+[TestFixture]
 public class StaffControllerTests
 {
     private class FakeStaffCommandService : IStaffProfileCommandService
@@ -108,7 +109,7 @@ public class StaffControllerTests
             new PhoneNumber("+1987654321"));
     }
 
-    [Fact]
+    [Test]
     public async Task Create_ValidRequest_ShouldReturnCreatedAtAction_WithResource()
     {
         var staff = CreateSampleStaff();
@@ -132,7 +133,7 @@ public class StaffControllerTests
         resource.Code.Should().Be("EMP-00001");
     }
 
-    [Fact]
+    [Test]
     public async Task Create_WhenCommandFails_ShouldReturnBadRequest()
     {
         var commandService = new FakeStaffCommandService
@@ -150,7 +151,7 @@ public class StaffControllerTests
         result.Should().BeOfType<BadRequestResult>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetById_ExistingId_ShouldReturnOk_WithResource()
     {
         var staffId = StaffProfileId.New();
@@ -169,7 +170,7 @@ public class StaffControllerTests
         resource.Position.Should().Be("Manager");
     }
 
-    [Fact]
+    [Test]
     public async Task GetById_NonExistingId_ShouldReturnNotFound()
     {
         var queryService = new FakeStaffQueryService
@@ -183,7 +184,7 @@ public class StaffControllerTests
         result.Should().BeOfType<NotFoundResult>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetByCode_ExistingCode_ShouldReturnOk()
     {
         var staff = CreateSampleStaff(code: new EmployeeCode("EMP-00042"));
@@ -200,7 +201,7 @@ public class StaffControllerTests
         resource.Code.Should().Be("EMP-00042");
     }
 
-    [Fact]
+    [Test]
     public async Task GetByUserId_ExistingUserId_ShouldReturnOk()
     {
         var staff = CreateSampleStaff();
@@ -216,7 +217,7 @@ public class StaffControllerTests
         okResult.Value.Should().BeOfType<StaffProfileResource>();
     }
 
-    [Fact]
+    [Test]
     public async Task GetByHotel_ShouldReturnOk_WithList()
     {
         var staff1 = CreateSampleStaff();
@@ -233,7 +234,7 @@ public class StaffControllerTests
         list.Should().HaveCount(1);
     }
 
-    [Fact]
+    [Test]
     public async Task GetAll_ShouldReturnOk_WithList()
     {
         var staff1 = CreateSampleStaff();
@@ -251,7 +252,7 @@ public class StaffControllerTests
         list.Should().HaveCount(2);
     }
 
-    [Fact]
+    [Test]
     public async Task AddAssignment_ValidRequest_ShouldReturnOk()
     {
         var staff = CreateSampleStaff();
@@ -272,7 +273,7 @@ public class StaffControllerTests
         resource.Assignments.Should().HaveCount(1);
     }
 
-    [Fact]
+    [Test]
     public async Task TerminateAssignment_ValidRequest_ShouldReturnOk()
     {
         var staff = CreateSampleStaff();
@@ -289,7 +290,7 @@ public class StaffControllerTests
         okResult.Value.Should().BeOfType<StaffProfileResource>();
     }
 
-    [Fact]
+    [Test]
     public async Task ChangeLegalName_ValidRequest_ShouldReturnOk()
     {
         var staff = CreateSampleStaff();
@@ -306,7 +307,7 @@ public class StaffControllerTests
         okResult.Value.Should().BeOfType<StaffProfileResource>();
     }
 
-    [Fact]
+    [Test]
     public async Task ChangeJobPosition_ValidRequest_ShouldReturnOk()
     {
         var staff = CreateSampleStaff();
@@ -323,7 +324,7 @@ public class StaffControllerTests
         okResult.Value.Should().BeOfType<StaffProfileResource>();
     }
 
-    [Fact]
+    [Test]
     public async Task Deactivate_ValidRequest_ShouldReturnOk()
     {
         var staff = CreateSampleStaff();

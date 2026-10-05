@@ -1,10 +1,12 @@
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Profiles.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.OutboundServices;
 using BackendAwSmartstay.API.Profiles.Application.Internal.QueryServices;
 using BackendAwSmartstay.API.Profiles.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Profiles.Interfaces.ACL;
 using BackendAwSmartstay.API.Shared.Domain.Repositories;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Repositories;
 using BackendAwSmartstay.API.Shared.Infrastructure.Mediator.Cortex.Configuration.Extensions;
@@ -14,13 +16,14 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Infrastructure;
 
+[TestFixture]
 public class ProfilesDependencyInjectionTests
 {
-    [Fact]
+    [Test]
     public void AddProfilesContextServices_ShouldRegisterAllRequiredProfilesServices()
     {
         var builder = WebApplication.CreateBuilder();
@@ -29,11 +32,13 @@ public class ProfilesDependencyInjectionTests
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseInMemoryDatabase(Guid.NewGuid().ToString()));
 
+        builder.AddSharedContextServices();
         builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
         builder.AddCortexMediatorServices();
 
-        // Register Accommodations & Profiles services
+        // Register Accommodations, Bookings & Profiles services
         builder.AddAccommodationsContextServices();
+        builder.AddBookingsContextServices();
         builder.AddProfilesContextServices();
 
         var app = builder.Build();

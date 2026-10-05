@@ -8,7 +8,7 @@ using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Infrastructure.Persistence;
 
@@ -16,6 +16,7 @@ namespace BackendAwSmartstay.API.Tests.Profiles.Infrastructure.Persistence;
 /// Real integration tests for concurrent EmployeeCode generation against a live MySQL/MariaDB database.
 /// Verifies database-level atomic sequence generation without relying on in-memory locks or InMemory provider.
 /// </summary>
+[TestFixture]
 public class ProfilesMySqlConcurrencyIntegrationTests
 {
     private const string DefaultTestConnectionString = "server=localhost;user=root;password=12345678;database=backend-smartstay-test-db;";
@@ -34,7 +35,7 @@ public class ProfilesMySqlConcurrencyIntegrationTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task EmployeeCodeGenerator_RealMySqlConcurrency_GeneratesUniqueSequentialCodes()
     {
         var connectionString = Environment.GetEnvironmentVariable("TEST_MYSQL_CONNECTION") ?? DefaultTestConnectionString;

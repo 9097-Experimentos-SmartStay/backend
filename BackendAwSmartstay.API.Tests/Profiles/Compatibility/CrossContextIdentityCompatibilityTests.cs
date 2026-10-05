@@ -17,15 +17,21 @@ using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Events;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Compatibility;
 
+[TestFixture]
 public class CrossContextIdentityCompatibilityTests
 {
     private class FakeDomainEventPublisher : IDomainEventPublisher
     {
         public Task PublishAsync(IReadOnlyCollection<IEvent> domainEvents, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private class FakeDomainEventDispatcher : BackendAwSmartstay.API.Shared.Application.OutboundServices.IDomainEventDispatcher
+    {
+        public Task DispatchAsync(IEnumerable<IEvent> domainEvents, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private DbContextOptions<AppDbContext> CreateNewContextOptions()
@@ -35,7 +41,7 @@ public class CrossContextIdentityCompatibilityTests
             .Options;
     }
 
-    [Fact]
+    [Test]
     public void UserId_ShouldAcceptCanonicalIamUserId_AsInteger()
     {
         // Arrange: IAM canonical user ID is an int (e.g., auto-incremented primary key = 42)
@@ -49,7 +55,7 @@ public class CrossContextIdentityCompatibilityTests
         profileUserId.Value.Should().BeOfType(typeof(int));
     }
 
-    [Fact]
+    [Test]
     public void TargetId_ShouldAcceptCanonicalAccommodationsHotelId_AsInteger()
     {
         // Arrange: Accommodations canonical hotel ID is an int (e.g., auto-incremented primary key = 101)
@@ -63,7 +69,7 @@ public class CrossContextIdentityCompatibilityTests
         targetId.Value.Should().BeOfType(typeof(int));
     }
 
-    [Fact]
+    [Test]
     public async Task GuestProfile_LinkedToIamUser_ShouldPersistAndQueryByIntegerUserId()
     {
         var options = CreateNewContextOptions();
@@ -90,7 +96,7 @@ public class CrossContextIdentityCompatibilityTests
         {
             var repo = new GuestProfileRepository(context);
             var queryService = new GuestProfileQueryService(repo);
-            var unitOfWork = new UnitOfWork(context);
+            var unitOfWork = new UnitOfWork(context, new FakeDomainEventDispatcher());
             var eventPublisher = new FakeDomainEventPublisher();
             var commandService = new GuestProfileCommandService(repo, unitOfWork, eventPublisher);
             var facade = new GuestProfilesContextFacade(commandService, queryService);
@@ -108,7 +114,7 @@ public class CrossContextIdentityCompatibilityTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task StaffProfile_AssignedToAccommodationsHotel_ShouldPersistAndQueryByIntegerHotelId()
     {
         var options = CreateNewContextOptions();

@@ -13,11 +13,13 @@ using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 using BackendAwSmartstay.Domain.Profiles.Domain.Repositories;
 using BackendAwSmartstay.Domain.Profiles.Domain.Services;
 using BackendAwSmartstay.Domain.Shared.Domain.Model.Events;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using FluentAssertions;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Application;
 
+[TestFixture]
 public class StaffProfileCommandServiceAclIntegrationTests
 {
     private class FakeStaffRepository : IStaffProfileRepository
@@ -41,6 +43,7 @@ public class StaffProfileCommandServiceAclIntegrationTests
     {
         public bool CompleteCalled { get; private set; }
         public Task CompleteAsync() { CompleteCalled = true; return Task.CompletedTask; }
+        public Task ExecuteInTransactionAsync(Func<Task> work) => work();
     }
 
     private class FakeEmployeeCodeGenerator : IEmployeeCodeGenerator
@@ -65,6 +68,17 @@ public class StaffProfileCommandServiceAclIntegrationTests
             LastCheckedHotelId = hotelId;
             return HotelExistsHandler != null ? HotelExistsHandler(hotelId) : Task.FromResult(false);
         }
+
+        public Task<IReadOnlyDictionary<int, string>> FetchRoomNumbersAsync(IReadOnlyCollection<int> roomIds) => Task.FromResult<IReadOnlyDictionary<int, string>>(new Dictionary<int, string>());
+        public Task<RoomOffer?> FetchRoomAsync(int roomId) => Task.FromResult<RoomOffer?>(null);
+        public Task<HotelSummary?> FetchHotelAsync(int hotelId) => Task.FromResult<HotelSummary?>(null);
+        public Task<HotelPaymentInstructions?> FetchPaymentInstructionsAsync(int hotelId) => Task.FromResult<HotelPaymentInstructions?>(null);
+        public Task<bool> RoomExistsAsync(int roomId) => Task.FromResult(false);
+        public Task<decimal?> FetchRoomPricePerNightAsync(int roomId) => Task.FromResult<decimal?>(null);
+        public Task<int?> FetchHotelIdOfRoomAsync(int roomId) => Task.FromResult<int?>(null);
+        public Task<RoomOffer?> LockRoomForBookingAsync(int roomId) => Task.FromResult<RoomOffer?>(null);
+        public Task OccupyRoomForCheckInAsync(int roomId, int? guestUserId, string? guestEmail) => Task.CompletedTask;
+        public Task<IReadOnlyList<RoomOffer>> FetchRoomsOfferedForBookingAsync(int? hotelId) => Task.FromResult<IReadOnlyList<RoomOffer>>(Array.Empty<RoomOffer>());
     }
 
     private static StaffProfile CreateSampleStaff()
@@ -79,7 +93,7 @@ public class StaffProfileCommandServiceAclIntegrationTests
             HabitualShift.Morning);
     }
 
-    [Fact]
+    [Test]
     public async Task AddAssignment_ScopeLevelHotel_ValidHotel_ShouldCreateAssignment()
     {
         // Arrange
@@ -116,7 +130,7 @@ public class StaffProfileCommandServiceAclIntegrationTests
         staff.Assignments.Should().ContainSingle(a => a.TargetId == new TargetId(validHotelId));
     }
 
-    [Fact]
+    [Test]
     public async Task AddAssignment_ScopeLevelHotel_NonExistentHotel_ShouldThrowArgumentException_AndNotPersist()
     {
         // Arrange
@@ -145,7 +159,7 @@ public class StaffProfileCommandServiceAclIntegrationTests
         Func<Task> action = async () => await service.Handle(command);
 
         // Assert
-        await action.Should().ThrowAsync<ArgumentException>()
+        await action.Should().ThrowAsync<DomainValidationException>()
             .WithMessage($"*Hotel with ID {nonExistentHotelId} does not exist in Accommodations*");
 
         facade.WasCalled.Should().BeTrue();
@@ -155,7 +169,7 @@ public class StaffProfileCommandServiceAclIntegrationTests
         staff.Assignments.Should().BeEmpty();
     }
 
-    [Fact]
+    [Test]
     public async Task AddAssignment_ScopeLevelChain_ShouldNotInvokeHotelExistsAsync()
     {
         // Arrange

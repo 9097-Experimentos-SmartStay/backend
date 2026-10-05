@@ -1,10 +1,14 @@
-﻿namespace BackendAwSmartstay.API.Tests;
+using NUnit.Framework;
 
+namespace BackendAwSmartstay.API.Tests;
+
+[TestFixture]
 public class UnitTest1
 {
-    [Fact]
+    [Test]
     public void Test1()
     {
 
     }
 }
+

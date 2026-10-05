@@ -2,11 +2,13 @@ using BackendAwSmartstay.Domain.Profiles.Domain.Model.Aggregates;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Events;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using FluentAssertions;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Domain.Aggregates;
 
+[TestFixture]
 public class GuestProfileTests
 {
     private readonly PersonName _validName = new("Carlos", "Mendoza");
@@ -14,7 +16,7 @@ public class GuestProfileTests
     private readonly EmailAddress _validEmail = new("carlos@gmail.com");
     private readonly IdentificationDocument _validDni = new(DocumentType.Dni, "12345678");
 
-    [Fact]
+    [Test]
     public void Create_WithOnlyRequiredFields_ShouldHaveNullOptionalsAndEmitCreatedEvent()
     {
         // Act
@@ -30,7 +32,7 @@ public class GuestProfileTests
         guest.DomainEvents.Should().ContainSingle(e => e is GuestProfileCreatedEvent);
     }
 
-    [Fact]
+    [Test]
     public void LinkToUser_WhenGuestLacksEmail_ShouldAssignVerifiedEmailAndUserId()
     {
         // Arrange
@@ -47,7 +49,7 @@ public class GuestProfileTests
         guest.DomainEvents.Should().ContainSingle(e => e is GuestLinkedToUserEvent);
     }
 
-    [Fact]
+    [Test]
     public void LinkToUser_WhenGuestAlreadyHasEmail_ShouldPreserveExistingEmail()
     {
         // Arrange
@@ -64,7 +66,7 @@ public class GuestProfileTests
         guest.Email.Should().Be(initialEmail);
     }
 
-    [Fact]
+    [Test]
     public void LinkToUser_WhenAlreadyLinked_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -75,11 +77,11 @@ public class GuestProfileTests
         var act = () => guest.LinkToUser(new UserId(2), new EmailAddress("new@gmail.com"));
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*already linked*");
     }
 
-    [Fact]
+    [Test]
     public void LinkToUser_WhenProfileIsInactive_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -90,11 +92,11 @@ public class GuestProfileTests
         var act = () => guest.LinkToUser(new UserId(1), _validEmail);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*inactive*");
     }
 
-    [Fact]
+    [Test]
     public void SetIdentification_WhenNoDocumentExists_ShouldSetDocument()
     {
         // Arrange
@@ -107,7 +109,7 @@ public class GuestProfileTests
         guest.Document.Should().Be(_validDni);
     }
 
-    [Fact]
+    [Test]
     public void SetIdentification_WhenDocumentAlreadyExists_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -118,11 +120,11 @@ public class GuestProfileTests
         var act = () => guest.SetIdentification(passport);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*already set*");
     }
 
-    [Fact]
+    [Test]
     public void CorrectIdentification_WithValidReasonAndStaffId_ShouldUpdateDocumentAndEmitEvent()
     {
         // Arrange
@@ -138,9 +140,9 @@ public class GuestProfileTests
         guest.DomainEvents.Should().ContainSingle(e => e is GuestIdentificationCorrectedEvent);
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
+    [Test]
+    [TestCase("")]
+    [TestCase("   ")]
     public void CorrectIdentification_WithEmptyReason_ShouldThrowArgumentException(string reason)
     {
         // Arrange
@@ -151,10 +153,10 @@ public class GuestProfileTests
         var act = () => guest.CorrectIdentification(newDocument, reason, new UserId(99));
 
         // Assert
-        act.Should().Throw<ArgumentException>();
+        act.Should().Throw<DomainValidationException>();
     }
 
-    [Fact]
+    [Test]
     public void CorrectIdentification_WithoutPriorDocument_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -165,11 +167,11 @@ public class GuestProfileTests
         var act = () => guest.CorrectIdentification(newDocument, "Motivo válido", new UserId(99));
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*SetIdentification*");
     }
 
-    [Fact]
+    [Test]
     public void UpdateContactInformation_WhenInactive_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -180,11 +182,11 @@ public class GuestProfileTests
         var act = () => guest.UpdateContactInformation(new PhoneNumber("+51911111111"), null);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*inactive*");
     }
 
-    [Fact]
+    [Test]
     public void DeactivateAndActivate_ShouldToggleStatusCorrectly()
     {
         // Arrange
