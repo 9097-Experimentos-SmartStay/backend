@@ -9,10 +9,11 @@ using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Infrastructure.Persistence;
 
+[TestFixture]
 public class ProfilesPersistenceTests
 {
     private DbContextOptions<AppDbContext> CreateNewContextOptions()
@@ -22,7 +23,7 @@ public class ProfilesPersistenceTests
             .Options;
     }
 
-    [Fact]
+    [Test]
     public async Task GuestProfile_ShouldPersist_AndMaterializeCorrectly_WithoutDispatchedCreationEvents()
     {
         var options = CreateNewContextOptions();
@@ -70,7 +71,7 @@ public class ProfilesPersistenceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task GuestProfile_Queries_ByEmail_ByUserId_ByDocument_ShouldWorkCorrectly()
     {
         var options = CreateNewContextOptions();
@@ -118,7 +119,7 @@ public class ProfilesPersistenceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task StaffProfile_AndAssignments_ShouldPersist_AndMaterializeCorrectly()
     {
         var options = CreateNewContextOptions();
@@ -169,7 +170,7 @@ public class ProfilesPersistenceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task StaffProfile_Queries_ByCode_ByUserId_ByTargetId_ShouldWorkCorrectly()
     {
         var options = CreateNewContextOptions();
@@ -220,7 +221,7 @@ public class ProfilesPersistenceTests
         }
     }
 
-    [Fact]
+    [Test]
     public async Task EmployeeCodeGenerator_ShouldGenerateSequentially()
     {
         var options = CreateNewContextOptions();

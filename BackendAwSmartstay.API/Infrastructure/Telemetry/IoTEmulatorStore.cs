@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using BackendAwSmartstay.API.Models.IoT;
 
 namespace BackendAwSmartstay.API.Infrastructure.Telemetry;
@@ -9,18 +9,25 @@ public static class IoTEmulatorStore
 
     private static readonly ConcurrentDictionary<int, EmulatedRoomState> _roomStates = new();
 
+    private static EmulatedRoomState StateOf(int roomId) =>
+        _roomStates.GetOrAdd(roomId, id => new EmulatedRoomState { RoomId = id });
+
+    /// <summary>Snapshot of the room's state (created with the defaults the first time it is asked for).</summary>
     public static EmulatedRoomState GetOrAdd(int roomId)
     {
-        return _roomStates.GetOrAdd(roomId, id => new EmulatedRoomState
-        {
-            RoomId = id
-        });
+        var state = StateOf(roomId);
+        lock (state) return state.Snapshot();
     }
 
-    public static void Update(int roomId, Action<EmulatedRoomState> updateAction)
+    /// <summary>Applies the change under the room's lock and returns the resulting snapshot.</summary>
+    public static EmulatedRoomState Update(int roomId, Action<EmulatedRoomState> updateAction)
     {
-        var state = GetOrAdd(roomId);
-        updateAction(state);
-        state.Timestamp = DateTime.UtcNow;
+        var state = StateOf(roomId);
+        lock (state)
+        {
+            updateAction(state);
+            state.Timestamp = DateTime.UtcNow;
+            return state.Snapshot();
+        }
     }
 }

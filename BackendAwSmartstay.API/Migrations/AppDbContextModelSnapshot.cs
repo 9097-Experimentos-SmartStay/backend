@@ -951,6 +951,33 @@ namespace BackendAwSmartstay.API.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.UserAvatar", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("longblob")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("UserId")
+                        .HasName("p_k_user_avatars");
+
+                    b.ToTable("user_avatars", (string)null);
+                });
+
             modelBuilder.Entity("BackendAwSmartstay.API.Marketing.Domain.Model.Aggregates.DemoRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -1492,6 +1519,16 @@ namespace BackendAwSmartstay.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("f_k_refresh_tokens_users__user_id");
+                });
+
+            modelBuilder.Entity("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.UserAvatar", b =>
+                {
+                    b.HasOne("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.User", null)
+                        .WithOne()
+                        .HasForeignKey("BackendAwSmartstay.API.IAM.Domain.Model.Aggregates.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("f_k_user_avatars_users__user_id");
                 });
 
             modelBuilder.Entity("BackendAwSmartstay.Domain.Profiles.Domain.Model.Aggregates.GuestProfile", b =>

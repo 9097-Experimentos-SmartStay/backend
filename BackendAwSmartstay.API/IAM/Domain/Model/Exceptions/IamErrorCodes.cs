@@ -69,6 +69,11 @@ public static class IamErrorCodes
     public const string NotHotelAdministrator = "user.not_hotel_admin";
     public const string AdminAlreadyHasHotel = "hotel.admin_already_has_hotel";
 
+    // Profile picture
+    public const string AvatarRequired = "avatar.required";
+    public const string AvatarTooLarge = "avatar.too_large";
+    public const string AvatarFileType = "avatar.file_type";
+
     /// <summary>An invariant of an IAM aggregate that only a programming error can break.</summary>
     public const string InternalInvariant = "iam.internal_invariant";
 }

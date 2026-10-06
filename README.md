@@ -2,6 +2,13 @@
 
 API REST de SmartStay (ASP.NET Core 9, MySQL 8). Documentación interactiva en `/scalar` una vez que la API está en marcha.
 
+## Enlaces
+
+- **API (producción):** https://smartstay-movildev-api.onrender.com · documentación en [https://smartstay-movildev-api.onrender.com/scalar](https://smartstay-movildev-api.onrender.com/scalar)
+- **Frontend web:** https://smartstay-movildev-web.vercel.app
+- **Landing page:** https://smartstay-movildev-landing.vercel.app
+- **Repositorios:** [backend](https://github.com/9097-Experimentos-SmartStay/backend) · [frontend](https://github.com/9097-Experimentos-SmartStay/frontend) · [landing-page](https://github.com/9097-Experimentos-SmartStay/landing-page) · [mobile](https://github.com/9097-Experimentos-SmartStay/mobile) · [Report](https://github.com/9097-Experimentos-SmartStay/Report)
+
 ## Configuración y secretos
 
 La API lee su configuración por capas; cada capa sobrescribe a la anterior:
@@ -52,6 +59,8 @@ curl http://localhost:10000/health
 
 ### Producción (Render)
 
+La API está publicada en https://smartstay-movildev-api.onrender.com (documentación en https://smartstay-movildev-api.onrender.com/scalar, salud en https://smartstay-movildev-api.onrender.com/health).
+
 Define cada valor como **variable de entorno** del servicio en Render (nunca en el repositorio). Los archivos sensibles, como el certificado CA de Aiven para MySQL, se suben como **Secret Files** (quedan en `/etc/secrets/`) y se referencian desde la variable, por ejemplo `SslMode=VerifyFull;SslCa=/etc/secrets/ca.pem;` en la cadena de conexión. `.env.example` lista todas las variables con su explicación.
 
 Las tareas programadas (`/demo-requests/follow-ups`, `/bookings/expire-pending`, `/rooms/maintenance-alerts`, `/emails/dispatch`) las invoca un programador externo (por ejemplo, un cron de GitHub Actions) con la cabecera `X-Cron-Key`. `/emails/dispatch` entrega los correos pendientes o en reintento (el plan free de Render duerme la API cuando no hay tráfico) y es idempotente.
@@ -85,6 +94,23 @@ Qué se crea (las cuentas son `<buzón>+<alias>@<dominio>`):
 | `admin2` | admin de **Wayra Sacha Ecolodge** (Lamas) | Ecolodge con 5 habitaciones disponibles (bungalows B1–B2, M1–M2, D1), **sin medios de pago y sin staff**. |
 | `huesped1` | guest (con perfil de huésped) | Estadía en curso en la 103 (pagada en efectivo en recepción) y una reserva cancelada por el huésped después de pagar (pago reembolsado). |
 | `huesped2` | guest (con perfil de huésped) | Una reserva confirmada con pago por Yape registrado por recepción, una pendiente de pago (vence en menos de 24 h) y una vencida sin pago. |
+
+### Cuentas por rol
+
+Con el buzón por defecto, las cuentas para iniciar sesión con cada rol son estas. La contraseña de todas es la de `DemoData__DefaultPassword` (es un secreto: no se publica aquí; pídela al equipo o usa la que configuraste en tus user secrets).
+
+| Rol | Correo | Hotel | MFA |
+|---|---|---|---|
+| `chain_admin` | El de `InitialChainAdmin__Email` (no es parte de los datos de demostración) | Todos | Sí |
+| `admin` | `psulcasanchez+admin1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `admin` | `psulcasanchez+admin2@gmail.com` | Wayra Sacha Ecolodge | Sí |
+| `reception` | `psulcasanchez+recepcion1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `housekeeping` | `psulcasanchez+limpieza1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `maintenance` | `psulcasanchez+mantenimiento1@gmail.com` | Casa Ungurahui Hotel Boutique | Sí |
+| `guest` | `psulcasanchez+huesped1@gmail.com` | — | No |
+| `guest` | `psulcasanchez+huesped2@gmail.com` | — | No |
+
+El staff activa su app de autenticación (MFA) en el primer inicio de sesión; si pierde el acceso, un administrador puede reiniciarlo (`POST /api/v1/users/{id}/mfa/reset`). Los huéspedes nuevos se registran desde la web (`POST /api/v1/authentication/sign-up`).
 
 Flujos que se hacen **en vivo** durante la demostración (no se precargan):
 

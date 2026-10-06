@@ -8,15 +8,18 @@ using BackendAwSmartstay.API.Accommodations.Domain.Model.Queries;
 using BackendAwSmartstay.API.Accommodations.Domain.Services;
 using BackendAwSmartstay.API.Accommodations.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Accommodations.Interfaces.ACL;
+using BackendAwSmartstay.API.Bookings.Infrastructure.Interfaces.ASP.Configuration.Extensions;
+using BackendAwSmartstay.API.Shared.Infrastructure.Interfaces.ASP.Configuration.Extensions;
 using BackendAwSmartstay.API.Shared.Infrastructure.Persistence.EFC.Configuration;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Accommodations.Application.ACL;
 
+[TestFixture]
 public class AccommodationsContextFacadeTests
 {
     private class FakeHotelQueryService : IHotelQueryService
@@ -31,7 +34,7 @@ public class AccommodationsContextFacadeTests
             GetAllHandler != null ? GetAllHandler(query) : Task.FromResult<System.Collections.Generic.IEnumerable<Hotel>>(Enumerable.Empty<Hotel>());
     }
 
-    [Fact]
+    [Test]
     public async Task HotelExistsAsync_WhenHotelExists_ShouldReturnTrue()
     {
         // Arrange
@@ -40,7 +43,7 @@ public class AccommodationsContextFacadeTests
         {
             GetByIdHandler = q => Task.FromResult<Hotel?>(q.HotelId == validHotelId ? new Hotel() : null)
         };
-        var facade = new AccommodationsContextFacade(fakeQueryService);
+        var facade = new AccommodationsContextFacade(fakeQueryService, null!, null!, null!, null!);
 
         // Act
         var result = await facade.HotelExistsAsync(validHotelId);
@@ -49,7 +52,7 @@ public class AccommodationsContextFacadeTests
         result.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task HotelExistsAsync_WhenHotelDoesNotExist_ShouldReturnFalse()
     {
         // Arrange
@@ -58,7 +61,7 @@ public class AccommodationsContextFacadeTests
         {
             GetByIdHandler = _ => Task.FromResult<Hotel?>(null)
         };
-        var facade = new AccommodationsContextFacade(fakeQueryService);
+        var facade = new AccommodationsContextFacade(fakeQueryService, null!, null!, null!, null!);
 
         // Act
         var result = await facade.HotelExistsAsync(nonExistentHotelId);
@@ -67,12 +70,12 @@ public class AccommodationsContextFacadeTests
         result.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task HotelExistsAsync_WhenHotelIdIsZeroOrNegative_ShouldReturnFalse()
     {
         // Arrange
         var fakeQueryService = new FakeHotelQueryService();
-        var facade = new AccommodationsContextFacade(fakeQueryService);
+        var facade = new AccommodationsContextFacade(fakeQueryService, null!, null!, null!, null!);
 
         // Act
         var resultZero = await facade.HotelExistsAsync(0);
@@ -83,7 +86,7 @@ public class AccommodationsContextFacadeTests
         resultNegative.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void AddAccommodationsContextServices_ShouldRegisterIAccommodationsContextFacade()
     {
         // Arrange
@@ -92,7 +95,9 @@ public class AccommodationsContextFacadeTests
             options.UseInMemoryDatabase(Guid.NewGuid().ToString()));
 
         // Act
+        builder.AddSharedContextServices();
         builder.AddAccommodationsContextServices();
+        builder.AddBookingsContextServices();
         var serviceProvider = builder.Services.BuildServiceProvider();
 
         // Assert
@@ -101,7 +106,7 @@ public class AccommodationsContextFacadeTests
         facade.Should().BeOfType<AccommodationsContextFacade>();
     }
 
-    [Fact]
+    [Test]
     public void IAccommodationsContextFacade_Contract_ShouldNotExposeInternalDomainEntities()
     {
         // Arrange & Act
@@ -111,7 +116,7 @@ public class AccommodationsContextFacadeTests
         foreach (var method in methods)
         {
             var returnType = method.ReturnType;
-            returnType.FullName.Should().NotContain("Hotel", "Internal domain entities must not be leaked across ACL");
+            returnType.FullName.Should().NotContain("Domain.Model.Aggregates.Hotel", "Internal domain entities must not be leaked across ACL");
             returnType.FullName.Should().NotContain("DbContext", "EF Core context must not be leaked across ACL");
         }
     }

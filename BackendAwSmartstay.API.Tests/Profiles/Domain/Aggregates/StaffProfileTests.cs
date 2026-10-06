@@ -2,11 +2,13 @@ using BackendAwSmartstay.Domain.Profiles.Domain.Model.Aggregates;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Events;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using FluentAssertions;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Domain.Aggregates;
 
+[TestFixture]
 public class StaffProfileTests
 {
     private readonly UserId _userId = new(1);
@@ -22,7 +24,7 @@ public class StaffProfileTests
     private StaffProfile CreateValidStaff() =>
         new(StaffProfileId.New(), _userId, _code, _name, _email, _position, _shift);
 
-    [Fact]
+    [Test]
     public void Create_WithValidParameters_ShouldInstantiateAndPublishCreatedEvent()
     {
         // Act
@@ -34,7 +36,7 @@ public class StaffProfileTests
         staff.DomainEvents.Should().ContainSingle(e => e is StaffProfileCreatedEvent);
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_HotelScopeWithValidRole_ShouldAddAndPublishCreatedEvent()
     {
         // Arrange
@@ -51,7 +53,7 @@ public class StaffProfileTests
         staff.DomainEvents.Should().Contain(e => e is StaffAssignmentCreatedEvent);
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_ChainScopeWithChainAdmin_ShouldBeAllowed()
     {
         // Arrange
@@ -66,7 +68,7 @@ public class StaffProfileTests
         staff.Assignments.First().Role.Should().Be(StaffRole.ChainAdmin);
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_SecondChainAdmin_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -81,11 +83,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Chain, secondChainId, StaffRole.ChainAdmin, period2, _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*ChainAdmin*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_ChainScopeWithNonChainAdminRole_ShouldThrowArgumentException()
     {
         // Arrange
@@ -96,11 +98,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Chain, _chainId, StaffRole.Reception, period, _today);
 
         // Assert
-        act.Should().Throw<ArgumentException>()
+        act.Should().Throw<DomainValidationException>()
             .WithMessage("*Only ChainAdmin*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_HotelScopeWithChainAdminRole_ShouldThrowArgumentException()
     {
         // Arrange
@@ -111,11 +113,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Hotel, _hotelId, StaffRole.ChainAdmin, period, _today);
 
         // Assert
-        act.Should().Throw<ArgumentException>()
+        act.Should().Throw<DomainValidationException>()
             .WithMessage("*ChainAdmin role is not permitted at Hotel scope*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_WhenStaffHasActiveChainAdmin_CannotAddHotelAssignment()
     {
         // Arrange
@@ -126,11 +128,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Hotel, _hotelId, StaffRole.Admin, new DateRange(_today), _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*cannot take Hotel assignments*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_WhenStaffHasHotelAssignment_CannotAddChainAdmin()
     {
         // Arrange
@@ -141,11 +143,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Chain, _chainId, StaffRole.ChainAdmin, new DateRange(_today), _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*existing Hotel assignments*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_AdminAndReceptionInSameHotel_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -156,11 +158,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Hotel, _hotelId, StaffRole.Reception, new DateRange(_today), _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*already holds Admin duties*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_CompatibleOperationalRolesInSameHotel_ShouldBeAllowed()
     {
         // Arrange
@@ -174,7 +176,7 @@ public class StaffProfileTests
         staff.Assignments.Should().HaveCount(2);
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_DuplicateCurrentAssignment_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -185,11 +187,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Hotel, _hotelId, StaffRole.Housekeeping, new DateRange(_today), _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*identical scope, target, and role already exists*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_WhenPreviousAssignmentIsSuspended_ShouldStillBlockEquivalentDuplicate()
     {
         // Arrange
@@ -202,11 +204,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Hotel, _hotelId, StaffRole.Housekeeping, new DateRange(_today), _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*identical scope, target, and role already exists*");
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_WhenPreviousAssignmentIsTerminated_AllowsNewEquivalentAssignment()
     {
         // Arrange
@@ -223,7 +225,7 @@ public class StaffProfileTests
         staff.Assignments.Count(a => a.Status == AssignmentStatus.Active || a.Status == AssignmentStatus.Scheduled).Should().Be(1);
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_FutureStartDate_ShouldInstantiateAsScheduled()
     {
         // Arrange
@@ -237,7 +239,7 @@ public class StaffProfileTests
         staff.Assignments.First().Status.Should().Be(AssignmentStatus.Scheduled);
     }
 
-    [Fact]
+    [Test]
     public void AddAssignment_WhenStaffIsInactive_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -248,11 +250,11 @@ public class StaffProfileTests
         var act = () => staff.AddAssignment(ScopeLevel.Hotel, _hotelId, StaffRole.Staff, new DateRange(_today), _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*inactive*");
     }
 
-    [Fact]
+    [Test]
     public void Deactivate_ShouldSetProfileInactiveAndSuspendActiveAndScheduledAssignments()
     {
         // Arrange
@@ -269,7 +271,7 @@ public class StaffProfileTests
         staff.Assignments.Should().OnlyContain(a => a.Status == AssignmentStatus.Suspended);
     }
 
-    [Fact]
+    [Test]
     public void Activate_ShouldNotAutomaticallyReactivateAssignments()
     {
         // Arrange
@@ -285,7 +287,7 @@ public class StaffProfileTests
         staff.Assignments.First().Status.Should().Be(AssignmentStatus.Suspended);
     }
 
-    [Fact]
+    [Test]
     public void TerminateAssignment_WithValidId_ShouldTerminateAndEmitTerminatedEvent()
     {
         // Arrange
@@ -301,7 +303,7 @@ public class StaffProfileTests
         staff.DomainEvents.Should().Contain(e => e is StaffAssignmentTerminatedEvent);
     }
 
-    [Fact]
+    [Test]
     public void PersonalAndLaborUpdates_WhenActive_ShouldMutateCorrectly()
     {
         // Arrange
@@ -327,7 +329,7 @@ public class StaffProfileTests
         staff.Document.Should().Be(newDoc);
     }
 
-    [Fact]
+    [Test]
     public void AdministrativeOperations_WhenStaffInactive_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -342,9 +344,9 @@ public class StaffProfileTests
         var act3 = () => staff.TerminateAssignment(assignmentId, _today);
         var act4 = () => staff.ReactivateAssignment(assignmentId, _today);
 
-        act1.Should().Throw<InvalidOperationException>().WithMessage("*inactive*");
-        act2.Should().Throw<InvalidOperationException>().WithMessage("*inactive*");
-        act3.Should().Throw<InvalidOperationException>().WithMessage("*inactive*");
-        act4.Should().Throw<InvalidOperationException>().WithMessage("*inactive*");
+        act1.Should().Throw<BusinessRuleViolationException>().WithMessage("*inactive*");
+        act2.Should().Throw<BusinessRuleViolationException>().WithMessage("*inactive*");
+        act3.Should().Throw<BusinessRuleViolationException>().WithMessage("*inactive*");
+        act4.Should().Throw<BusinessRuleViolationException>().WithMessage("*inactive*");
     }
 }

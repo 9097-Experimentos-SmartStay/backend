@@ -25,12 +25,17 @@ public record RegisterPaymentResource : IValidatableObject
     /// <summary>The validated method (a method, so model validation never evaluates it).</summary>
     public PaymentMethod ToMethod() => Enum.Parse<PaymentMethod>(Method!, ignoreCase: true);
 
+    /// <summary>Methods the hotel can register: an online card payment is only made by the guest.</summary>
+    private static readonly string[] AllowedMethods =
+        Enum.GetNames<PaymentMethod>().Where(m => m != nameof(PaymentMethod.OnlineCard)).ToArray();
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (!string.IsNullOrWhiteSpace(Method)
-            && (int.TryParse(Method, out _) || !Enum.TryParse<PaymentMethod>(Method, true, out var parsed) || !Enum.IsDefined(parsed)))
+            && (int.TryParse(Method, out _) || !Enum.TryParse<PaymentMethod>(Method, true, out var parsed)
+                || !AllowedMethods.Contains(parsed.ToString())))
             yield return new CodedValidationResult(ErrorCodes.FieldNotAllowed,
-                $"Method must be one of: {string.Join(", ", Enum.GetNames<PaymentMethod>())}.", ["method"],
-                new Dictionary<string, object?> { ["allowed"] = Enum.GetNames<PaymentMethod>() });
+                $"Method must be one of: {string.Join(", ", AllowedMethods)}.", ["method"],
+                new Dictionary<string, object?> { ["allowed"] = AllowedMethods });
     }
 }

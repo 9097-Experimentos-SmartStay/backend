@@ -19,7 +19,7 @@ public sealed class RoomDeviceAccessRequirement : IAuthorizationRequirement
 
 /// <summary>
 ///     R5 (team decision, US-11): a guest reaches only the room of their Confirmed booking that is in effect today;
-///     hotel administrators and maintenance reach the rooms of their hotel; a chain administrator reaches every
+///     hotel staff reach the rooms of their hotel; a chain administrator reaches every
 ///     room. Which roles may call each endpoint is decided by the policies of <see cref="Policies"/>.
 /// </summary>
 public sealed class RoomDeviceAuthorizationHandler(IBookingsContextFacade bookingsContextFacade, TimeProvider timeProvider)
@@ -44,7 +44,7 @@ public sealed class RoomDeviceAuthorizationHandler(IBookingsContextFacade bookin
             return;
         }
 
-        // Hotel administrators and maintenance staff: rooms of the hotel they are assigned to.
+        // Hotel staff: rooms of the hotel they are assigned to.
         if (user.GetHotelId() == room.HotelId)
             context.Succeed(requirement);
     }

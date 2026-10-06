@@ -16,6 +16,8 @@ namespace BackendAwSmartstay.API.IAM.Interfaces.REST.Resources;
 /// <param name="LastName">Last name (null for accounts created before names were required).</param>
 /// <param name="EmailVerified">Whether the e-mail was verified.</param>
 /// <param name="LockedUntil">End of the temporary lock after failed sign-ins, if one is in effect or recent.</param>
+/// <param name="MfaEnabled">Indica si la autenticación multifactor está activa para el usuario.</param>
+/// <param name="MfaEnrollmentRequired">Indica si el usuario tiene pendiente enrolarse obligatoriamente en MFA.</param>
 public record UserResource(
     int Id,
     string Username,

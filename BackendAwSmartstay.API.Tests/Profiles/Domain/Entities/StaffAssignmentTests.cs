@@ -1,17 +1,19 @@
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Entities;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.Enums;
 using BackendAwSmartstay.Domain.Profiles.Domain.Model.ValueObjects;
+using BackendAwSmartstay.Domain.Shared.Domain.Model.Exceptions;
 using FluentAssertions;
-using Xunit;
+using NUnit.Framework;
 
 namespace BackendAwSmartstay.API.Tests.Profiles.Domain.Entities;
 
+[TestFixture]
 public class StaffAssignmentTests
 {
     private readonly DateOnly _today = new(2026, 9, 8);
     private readonly TargetId _hotelId = new(101);
 
-    [Fact]
+    [Test]
     public void Create_WhenStartDateIsTodayOrPast_ShouldHaveActiveStatus()
     {
         // Arrange
@@ -25,7 +27,7 @@ public class StaffAssignmentTests
         assignment.IsCurrentOrScheduled().Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void Create_WhenStartDateIsFuture_ShouldHaveScheduledStatus()
     {
         // Arrange
@@ -39,7 +41,7 @@ public class StaffAssignmentTests
         assignment.IsCurrentOrScheduled().Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void Create_WhenEndDateAlreadyPassed_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -51,11 +53,11 @@ public class StaffAssignmentTests
         var act = () => new StaffAssignment(AssignmentId.New(), ScopeLevel.Hotel, _hotelId, StaffRole.Reception, period, _today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*expired*");
     }
 
-    [Fact]
+    [Test]
     public void Suspend_WhenActiveOrScheduled_ShouldTransitionToSuspended()
     {
         // Arrange
@@ -69,7 +71,7 @@ public class StaffAssignmentTests
         assignment.IsCurrentOrScheduled().Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void Suspend_WhenTerminated_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -80,11 +82,11 @@ public class StaffAssignmentTests
         var act = () => assignment.Suspend();
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*terminated*");
     }
 
-    [Fact]
+    [Test]
     public void Reactivate_WhenStartDateIsFuture_ShouldReactivateAsScheduled()
     {
         // Arrange
@@ -100,7 +102,7 @@ public class StaffAssignmentTests
         assignment.Status.Should().Be(AssignmentStatus.Scheduled);
     }
 
-    [Fact]
+    [Test]
     public void Reactivate_WhenStartDateReached_ShouldReactivateAsActive()
     {
         // Arrange
@@ -116,7 +118,7 @@ public class StaffAssignmentTests
         assignment.Status.Should().Be(AssignmentStatus.Active);
     }
 
-    [Fact]
+    [Test]
     public void Reactivate_WhenNotSuspended_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -126,11 +128,11 @@ public class StaffAssignmentTests
         var act = () => assignment.Reactivate(_today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*Only suspended*");
     }
 
-    [Fact]
+    [Test]
     public void Reactivate_WhenContractualEndDateAlreadyPassed_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -144,11 +146,11 @@ public class StaffAssignmentTests
         var act = () => assignment.Reactivate(_today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*expired*");
     }
 
-    [Fact]
+    [Test]
     public void Terminate_WhenActive_ShouldAdjustEndDateAndMarkTerminated()
     {
         // Arrange
@@ -164,7 +166,7 @@ public class StaffAssignmentTests
         assignment.IsCurrentOrScheduled().Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void Terminate_WhenTerminationDatePrecedesStartDate_ShouldThrowArgumentException()
     {
         // Arrange
@@ -175,10 +177,10 @@ public class StaffAssignmentTests
         var act = () => assignment.Terminate(startDate.AddDays(-1));
 
         // Assert
-        act.Should().Throw<ArgumentException>();
+        act.Should().Throw<DomainValidationException>();
     }
 
-    [Fact]
+    [Test]
     public void Terminate_WhenAlreadyTerminated_ShouldThrowInvalidOperationException()
     {
         // Arrange
@@ -189,7 +191,7 @@ public class StaffAssignmentTests
         var act = () => assignment.Terminate(_today);
 
         // Assert
-        act.Should().Throw<InvalidOperationException>()
+        act.Should().Throw<BusinessRuleViolationException>()
             .WithMessage("*already terminated*");
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace BackendAwSmartstay.API.Models.IoT;
+namespace BackendAwSmartstay.API.Models.IoT;
 
 // DTO para inyección de telemetría (Simulación de entrada de sensor)
 public record InjectTelemetryRequest(
@@ -11,7 +11,7 @@ public record InjectTelemetryRequest(
 public record SetThermostatRequest(
     double TargetTemperatureCelsius,
     string FanSpeed, // "Low", "Medium", "High"
-    string SimulationMode = "CiscoPacketTracer_SBC"
+    string? SimulationMode = null // Opcional: si llega, reemplaza el EmulatedDevice de la habitación
 );
 
 // Modelo que representa el estado virtual de la habitación en memoria
@@ -24,4 +24,7 @@ public class EmulatedRoomState
     public string LastCommandReceived { get; set; } = "INITIALIZE_SYSTEM";
     public string HardwareStatus { get; set; } = "OPERATIONAL_EMULATED";
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Copy of the state, so a response is never serialized while another request mutates it.</summary>
+    public EmulatedRoomState Snapshot() => (EmulatedRoomState)MemberwiseClone();
 }

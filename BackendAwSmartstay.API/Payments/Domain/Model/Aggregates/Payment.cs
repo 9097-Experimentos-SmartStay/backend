@@ -40,7 +40,7 @@ public class Payment : IHasDomainEvents
 
     public string? Note { get; private set; }
 
-    /// <summary>The staff member who registered it.</summary>
+    /// <summary>The staff member who registered it (the guest for an online card payment).</summary>
     public int? RecordedByUserId { get; private set; }
 
     /// <summary>When it was registered (UTC).</summary>
