@@ -101,28 +101,28 @@ public class RoomCommandService(
         return alerted;
     }
 
-public async Task<Room?> Handle(DeleteRoomCommand command)
-{
-    // Find the room by its identifier
-    var room = await roomRepository.FindByIdAsync(command.Id);
+    public async Task<Room?> Handle(DeleteRoomCommand command)
+    {
+        // Find the room by its identifier
+        var room = await roomRepository.FindByIdAsync(command.Id);
 
-    // Return null if the room does not exist
-    if (room is null) return null;
+        // Return null if the room does not exist
+        if (room is null) return null;
 
-    // A room that still holds bookings cannot disappear under them.
-    var active = await roomReservationsFacade.CountActiveBookingsAsync([room.Id]);
-    if (active.TryGetValue(room.Id, out var count) && count > 0)
-        throw new RoomHasActiveBookingsException(AccommodationErrorCodes.RoomHasActiveBookings,
-            $"Room {room.Number} has {count} active booking(s) (pending, confirmed or checked in). Cancel or move them before deleting the room.",
-            count);
+        // A room that still holds bookings cannot disappear under them.
+        var active = await roomReservationsFacade.CountActiveBookingsAsync([room.Id]);
+        if (active.TryGetValue(room.Id, out var count) && count > 0)
+            throw new RoomHasActiveBookingsException(AccommodationErrorCodes.RoomHasActiveBookings,
+                $"Room {room.Number} has {count} active booking(s) (pending, confirmed or checked in). Cancel or move them before deleting the room.",
+                count);
 
-    // Remove the room from the repository
-    roomRepository.Remove(room);
+        // Remove the room from the repository
+        roomRepository.Remove(room);
 
-    // Save the changes to the database
-    await unitOfWork.CompleteAsync();
+        // Save the changes to the database
+        await unitOfWork.CompleteAsync();
 
-    // Return the deleted room
-    return room;
-}
+        // Return the deleted room
+        return room;
+    }
 }

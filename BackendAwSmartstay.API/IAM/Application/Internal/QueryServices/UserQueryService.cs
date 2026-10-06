@@ -20,7 +20,7 @@ public class UserQueryService(
         {
             var actor = await userRepository.FindByIdAsync(query.ActorUserId.Value);
             if (actor == null || !userScopeService.CanAccessUser(actor, target))
-                return null; 
+                return null;
         }
 
         return target;
@@ -32,7 +32,7 @@ public class UserQueryService(
         if (actor == null) return Enumerable.Empty<User>();
 
         var allUsers = await userRepository.ListAsync();
-        
+
         // Reutilizamos la lógica centralizada del dominio. DDD 10/10.
         return allUsers.Where(target => userScopeService.CanAccessUser(actor, target));
     }

@@ -21,10 +21,10 @@ public class RoomQueryService(IRoomRepository roomRepository, IRoomStatusChangeR
     public async Task<Room?> Handle(GetRoomByIdQuery query)
     {
         // Retrieves a room based on the provided room identifier.
-        return await roomRepository.FindByIdAsync(query.RoomId);  
-       
+        return await roomRepository.FindByIdAsync(query.RoomId);
+
     }
-  
+
     /// <summary>
     /// Retrieves a list of all rooms available in the system.
     /// </summary>
@@ -43,8 +43,8 @@ public class RoomQueryService(IRoomRepository roomRepository, IRoomStatusChangeR
         // Retrieves all rooms that belong to a specific room type.
         var rooms = await roomRepository.ListAsync();
         return rooms.Where(r => r.RoomTypeId == query.RoomTypeId);
-    }        
+    }
 
- 
+
 }
 

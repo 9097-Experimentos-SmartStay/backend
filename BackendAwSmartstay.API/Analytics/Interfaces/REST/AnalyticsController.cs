@@ -121,7 +121,7 @@ public class AnalyticsController(
             });
         }
     }
-    
+
     [HttpGet("cache")]
     [Authorize(Policy = Policies.OperateAnalyticsLab)]
     [SwaggerOperation(

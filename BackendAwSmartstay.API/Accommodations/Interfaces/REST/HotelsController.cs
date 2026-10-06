@@ -100,7 +100,7 @@ public class HotelsController(
                     : new RenewedSessionResource(session.AccessToken, "Bearer", session.AccessTokenExpiresAt,
                         session.RefreshToken, session.RefreshTokenExpiresAt)));
     }
-    
+
     /// <summary>
     ///     Updates the state representation parameters of a registered hotel aggregate root.
     /// </summary>

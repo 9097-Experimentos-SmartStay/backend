@@ -19,7 +19,7 @@ public static class ModelBuilderExtensions
         builder.Entity<Payment>().Property(p => p.FailureReason).HasMaxLength(200);
         builder.Entity<Payment>().HasIndex(p => p.BookingId);
         builder.Entity<Payment>().Ignore(p => p.DomainEvents);
-        
+
         builder.Entity<Payment>().Property(p => p.Amount)
             .HasColumnType("decimal(18,2)")
             .IsRequired();
