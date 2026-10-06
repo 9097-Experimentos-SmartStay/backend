@@ -23,8 +23,8 @@ namespace BackendAwSmartstay.API.Tests.Bookings.Application;
 public class BookingCommandServiceAclIntegrationTests
 {
     private const int HotelId = 1;
-    private static readonly DateTime Today = new(2026, 10, 5);
-    private static readonly DateTimeOffset Now = new(2026, 10, 5, 12, 0, 0, TimeSpan.Zero);
+    private static DateTime Today => DateTime.UtcNow.Date;
+    private static DateTimeOffset Now => DateTimeOffset.UtcNow;
     private static readonly TimeSpan PaymentHold = TimeSpan.FromHours(24);
 
     private static RoomOffer SampleRoom(int roomId = 101, decimal price = 150m, string status = "Available",
