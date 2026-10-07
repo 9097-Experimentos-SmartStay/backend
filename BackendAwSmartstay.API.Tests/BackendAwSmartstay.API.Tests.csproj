@@ -26,8 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.20" />
   </ItemGroup>
 
 </Project>
