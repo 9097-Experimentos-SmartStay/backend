@@ -47,7 +47,7 @@ public static class WebApplicationBuilderExtensions
                         Url = new Uri("https://www.apache.org/licenses/LICENSE-2.0.html")
                     }
                 });
-            
+
             // JWT bearer scheme: the "Authorize" button of Swagger UI sends "Authorization: Bearer <token>".
             options.AddSecurityDefinition(BearerSecurityRequirementOperationFilter.SchemeId, new OpenApiSecurityScheme
             {

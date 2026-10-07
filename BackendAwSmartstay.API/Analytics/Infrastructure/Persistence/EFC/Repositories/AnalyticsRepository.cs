@@ -33,7 +33,7 @@ public class AnalyticsRepository(AppDbContext context) : IAnalyticsRepository
             .Where(b => b.CheckInDate >= startOfMonth && b.CheckInDate <= endOfMonth);
 
         var totalBookings = await bookingsQuery.CountAsync();
-        
+
         var cancelledBookings = await bookingsQuery
             .CountAsync(b => b.Status == BookingStatus.Cancelled);
 
@@ -42,7 +42,7 @@ public class AnalyticsRepository(AppDbContext context) : IAnalyticsRepository
         var rooms = context.Set<Accommodations.Domain.Model.Aggregates.Room>().AsQueryable();
         if (hotelId is not null) rooms = rooms.Where(r => r.HotelId == hotelId);
         var totalRooms = await rooms.CountAsync();
-        
+
         double occupancyRate = 0;
         if (totalRooms > 0 && totalBookings > 0)
         {

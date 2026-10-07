@@ -88,12 +88,14 @@ public static class EmailServiceCollectionExtensions
                         ShouldRetryAfterHeader = true,
                         ShouldHandle = args => ValueTask.FromResult(args.Outcome switch
                         {
-                            { Exception: HttpRequestException
                             {
-                                HttpRequestError: HttpRequestError.NameResolutionError
+                                Exception: HttpRequestException
+                                {
+                                    HttpRequestError: HttpRequestError.NameResolutionError
                                 or HttpRequestError.ConnectionError
                                 or HttpRequestError.SecureConnectionError
-                            } } => true,
+                                }
+                            } => true,
                             { Result.StatusCode: HttpStatusCode.TooManyRequests or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable } => true,
                             _ => false
                         })

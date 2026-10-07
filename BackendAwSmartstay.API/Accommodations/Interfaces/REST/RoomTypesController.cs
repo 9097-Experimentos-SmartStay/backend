@@ -46,7 +46,7 @@ public class RoomTypesController(
         var resource = RoomTypeResourceFromEntityAssembler.ToResourceFromEntity(roomType);
         return Ok(resource);
     }
-    
+
     /// <summary>
     ///     Creates a new room type category entry inside the property catalog persistence subsystem.
     /// </summary>
@@ -70,7 +70,7 @@ public class RoomTypesController(
         var roomTypeResource = RoomTypeResourceFromEntityAssembler.ToResourceFromEntity(roomType);
         return CreatedAtAction(nameof(GetRoomTypeById), new { roomTypeId = roomType.Id }, roomTypeResource);
     }
-    
+
     /// <summary>
     ///     Retrieves an enumerable collection of all registered room type resources.
     /// </summary>

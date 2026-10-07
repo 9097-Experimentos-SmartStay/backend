@@ -27,7 +27,7 @@ public static class ModelBuilderExtensions
     public static void ApplyAccommodationsConfiguration(this ModelBuilder builder)
     {
         // --- 1. Value Converters ---
-        
+
         // Converter to handle List<string> as a JSON string in the database.
         var amenitiesConverter = new ValueConverter<List<string>, string>(
             v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
@@ -86,11 +86,11 @@ public static class ModelBuilderExtensions
         builder.Entity<Hotel>().Property(h => h.City).IsRequired().HasMaxLength(100);
         builder.Entity<Hotel>().Property(h => h.Country).IsRequired().HasMaxLength(100);
         builder.Entity<Hotel>().Property(h => h.Description).HasMaxLength(1000);
-        
+
         // Apply JSON converter to Hotel Amenities
         builder.Entity<Hotel>().Property(h => h.Amenities)
             .HasConversion(amenitiesConverter)
-            .HasColumnType("json") 
+            .HasColumnType("json")
             .IsRequired();
 
         // US-53: payment methods of the hotel, owned columns of "hotels" (all null = not configured yet).
@@ -121,7 +121,7 @@ public static class ModelBuilderExtensions
         // US-53: the room number is unique within its hotel
         builder.Entity<Room>().Property(r => r.Number).IsRequired().HasMaxLength(RoomNumber.MaxLength);
         builder.Entity<Room>().HasIndex(r => new { r.HotelId, r.Number }).IsUnique();
-        
+
         // Monetary value configuration (Precision, Scale)
         builder.Entity<Room>().Property(r => r.Price)
             .HasColumnType("decimal(18,2)")
@@ -160,7 +160,7 @@ public static class ModelBuilderExtensions
             .WithMany(h => h.Rooms)
             .HasForeignKey(r => r.HotelId)
             .OnDelete(DeleteBehavior.Cascade);
-        
+
         builder.Entity<Room>()
             .HasOne(r => r.RoomType)
             .WithMany()

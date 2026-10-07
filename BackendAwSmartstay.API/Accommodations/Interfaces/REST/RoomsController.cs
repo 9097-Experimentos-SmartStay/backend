@@ -103,7 +103,7 @@ public class RoomsController(
         var roomResources = rooms.Select(RoomResourceFromEntityAssembler.ToResourceFromEntity);
         return Ok(roomResources);
     }
-    
+
     /// <summary>
     ///     Filters and extracts a sub-collection of room resources associated with a specific structural type identifier.
     /// </summary>
@@ -123,7 +123,7 @@ public class RoomsController(
         var roomResources = rooms.Select(RoomResourceFromEntityAssembler.ToResourceFromEntity);
         return Ok(roomResources);
     }
-    
+
     /// <summary>
     ///     Updates the internal state representation details of an active room aggregate root.
     /// </summary>

@@ -31,8 +31,8 @@ public class GuestProfileRepository(AppDbContext context)
     public async Task<GuestProfile?> FindByDocumentAsync(IdentificationDocument document)
     {
         return await Context.GuestProfiles
-            .FirstOrDefaultAsync(g => g.Document != null 
-                                      && g.Document.Type == document.Type 
+            .FirstOrDefaultAsync(g => g.Document != null
+                                      && g.Document.Type == document.Type
                                       && g.Document.Number == document.Number);
     }
 
