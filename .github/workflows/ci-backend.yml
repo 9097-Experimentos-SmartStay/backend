@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLUTION: backend-aw-smartstay.sln
+  API_PROJECT: BackendAwSmartstay.API/BackendAwSmartstay.API.csproj
+  DOTNET_VERSION: 9.0.x
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore "$SOLUTION"
+
+      - name: Verify code formatting
+        run: dotnet format "$SOLUTION" --verify-no-changes --no-restore
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore "$SOLUTION"
+
+      - name: Fail on vulnerable packages
+        run: |
+          dotnet list "$SOLUTION" package --vulnerable --include-transitive | tee vulnerable-packages.txt
+          ! grep -q "has the following vulnerable packages" vulnerable-packages.txt
+
+  build-and-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore "$SOLUTION"
+
+      - name: Build
+        run: dotnet build "$SOLUTION" --configuration Release --no-restore --warnaserror
+
+      - name: Test
+        run: >
+          dotnet test "$SOLUTION"
+          --configuration Release
+          --no-build
+          --logger trx
+          --results-directory TestResults
+          --collect "XPlat Code Coverage"
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults
+          retention-days: 14
+
+  package:
+    name: Package API
+    if: github.event_name == 'push'
+    needs: [lint, dependency-audit, build-and-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Publish
+        run: dotnet publish "$API_PROJECT" --configuration Release --output publish
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: smartstay-api-${{ github.sha }}
+          path: publish
+          retention-days: 14
