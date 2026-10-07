@@ -1,3 +1,4 @@
+using BackendAwSmartstay.API.IAM.Application.Internal.CommandServices;
 using BackendAwSmartstay.API.IAM.Application.OutboundServices;
 using BackendAwSmartstay.API.IAM.Domain.Model.Aggregates;
 using BackendAwSmartstay.API.IAM.Domain.Model.Constants;
@@ -8,9 +9,14 @@ using Microsoft.Extensions.Options;
 
 namespace BackendAwSmartstay.API.IAM.Infrastructure.Seed;
 
-/// <summary>Creates the initial chain administrator when <see cref="InitialChainAdminSettings"/> are provided.</summary>
+/// <summary>
+///     Creates the initial chain administrator when <see cref="InitialChainAdminSettings"/> are provided. Its password
+///     goes through the same policy as any other password: an unacceptable one stops the startup.
+/// </summary>
 public static class IamSeeder
 {
+    private const string PasswordSettingKey = $"{InitialChainAdminSettings.SectionName}:Password";
+
     public static async Task SeedAsync(IServiceProvider services)
     {
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(IamSeeder));
@@ -29,6 +35,9 @@ public static class IamSeeder
             logger.LogInformation("IamSeeder: user '{Email}' already exists; skipping seed.", email.Value);
             return;
         }
+
+        await services.GetRequiredService<NewPasswordValidator>().EnsureAcceptableAsync(
+            settings.Password, new Role(UserRoles.ChainAdmin), email, PasswordSettingKey);
 
         var hashingService = services.GetRequiredService<IHashingService>();
         var user = new User(email.Value, hashingService.HashPassword(settings.Password!), UserRoles.ChainAdmin,
