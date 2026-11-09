@@ -45,3 +45,13 @@ Feature: Reserva de habitación por huésped
     When un nuevo huésped solicita registrar una reserva para la habitación "104" del "hoy+34" al "hoy+39"
     Then la reserva debe crearse exitosamente
     And el estado inicial de la reserva debe ser "Pending"
+
+  @US-51
+  @validation
+  @negative
+  Scenario: Rechazar una reserva cuya fecha de entrada ya pasó
+    Given que existe un hotel registrado y operativo
+    And existe una habitación "105" de tipo "Single" disponible con precio por noche de 100.00 soles
+    And existe un huésped registrado con correo "carlos.ruiz@smartstay.pe" y nombre "Carlos Ruiz"
+    When el huésped solicita registrar una reserva desde "hoy-3" hasta "hoy-1"
+    Then la solicitud de reserva debe ser rechazada porque la fecha de entrada ya pasó

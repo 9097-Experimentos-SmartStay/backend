@@ -269,6 +269,50 @@ namespace BackendAwSmartstay.API.BddTests.Features.Bookings
             }
             await this.ScenarioCleanupAsync();
         }
+        
+        [NUnit.Framework.TestAttribute()]
+        [NUnit.Framework.DescriptionAttribute("Rechazar una reserva cuya fecha de entrada ya pasó")]
+        [NUnit.Framework.CategoryAttribute("US-51")]
+        [NUnit.Framework.CategoryAttribute("validation")]
+        [NUnit.Framework.CategoryAttribute("negative")]
+        public async System.Threading.Tasks.Task RechazarUnaReservaCuyaFechaDeEntradaYaPaso()
+        {
+            string[] tagsOfScenario = new string[] {
+                    "US-51",
+                    "validation",
+                    "negative"};
+            System.Collections.Specialized.OrderedDictionary argumentsOfScenario = new System.Collections.Specialized.OrderedDictionary();
+            global::Reqnroll.ScenarioInfo scenarioInfo = new global::Reqnroll.ScenarioInfo("Rechazar una reserva cuya fecha de entrada ya pasó", null, tagsOfScenario, argumentsOfScenario, featureTags);
+#line 52
+  this.ScenarioInitialize(scenarioInfo);
+#line hidden
+            if ((global::Reqnroll.TagHelper.ContainsIgnoreTag(scenarioInfo.CombinedTags) || global::Reqnroll.TagHelper.ContainsIgnoreTag(featureTags)))
+            {
+                testRunner.SkipScenario();
+            }
+            else
+            {
+                await this.ScenarioStartAsync();
+#line 53
+    await testRunner.GivenAsync("que existe un hotel registrado y operativo", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
+#line hidden
+#line 54
+    await testRunner.AndAsync("existe una habitación \"105\" de tipo \"Single\" disponible con precio por noche de 1" +
+                        "00.00 soles", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 55
+    await testRunner.AndAsync("existe un huésped registrado con correo \"carlos.ruiz@smartstay.pe\" y nombre \"Carl" +
+                        "os Ruiz\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "And ");
+#line hidden
+#line 56
+    await testRunner.WhenAsync("el huésped solicita registrar una reserva desde \"hoy-3\" hasta \"hoy-1\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+#line hidden
+#line 57
+    await testRunner.ThenAsync("la solicitud de reserva debe ser rechazada porque la fecha de entrada ya pasó", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");
+#line hidden
+            }
+            await this.ScenarioCleanupAsync();
+        }
     }
 }
 #pragma warning restore

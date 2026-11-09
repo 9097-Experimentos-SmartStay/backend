@@ -257,4 +257,12 @@ public class US51_ReservaHabitacionStepDefinitions
         _caughtException.Should().NotBeNull();
         _caughtException.Should().BeOfType<DomainValidationException>();
     }
+
+    [Then(@"la solicitud de reserva debe ser rechazada porque la fecha de entrada ya pasó")]
+    public void ThenLaSolicitudDeReservaDebeSerRechazadaPorqueLaFechaDeEntradaYaPaso()
+    {
+        _caughtException.Should().BeOfType<DomainValidationException>()
+            .Which.Code.Should().Be(BookingErrorCodes.CheckInInPast);
+        _createdBooking.Should().BeNull();
+    }
 }
