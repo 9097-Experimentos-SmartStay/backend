@@ -138,8 +138,8 @@ public class US51_ReservaHabitacionStepDefinitions
             RoomId: _roomId,
             GuestName: "Existing Guest",
             GuestEmail: "existing@smartstay.pe",
-            CheckInDate: DateTime.Parse(checkIn),
-            CheckOutDate: DateTime.Parse(checkOut),
+            CheckInDate: RelativeDates.Parse(checkIn),
+            CheckOutDate: RelativeDates.Parse(checkOut),
             UserId: 20);
 
         await service.Handle(command);
@@ -156,8 +156,8 @@ public class US51_ReservaHabitacionStepDefinitions
                 RoomId: _roomId,
                 GuestName: _guestName,
                 GuestEmail: _guestEmail,
-                CheckInDate: DateTime.Parse(checkIn),
-                CheckOutDate: DateTime.Parse(checkOut),
+                CheckInDate: RelativeDates.Parse(checkIn),
+                CheckOutDate: RelativeDates.Parse(checkOut),
                 UserId: _guestUserId);
 
             _createdBooking = await service.Handle(command);
@@ -181,8 +181,8 @@ public class US51_ReservaHabitacionStepDefinitions
                 RoomId: _roomId,
                 GuestName: "Other Guest",
                 GuestEmail: "other@smartstay.pe",
-                CheckInDate: DateTime.Parse(checkIn),
-                CheckOutDate: DateTime.Parse(checkOut),
+                CheckInDate: RelativeDates.Parse(checkIn),
+                CheckOutDate: RelativeDates.Parse(checkOut),
                 UserId: 30);
 
             _createdBooking = await service.Handle(command);
@@ -206,8 +206,8 @@ public class US51_ReservaHabitacionStepDefinitions
                 RoomId: _roomId,
                 GuestName: "Consecutive Guest",
                 GuestEmail: "consecutive@smartstay.pe",
-                CheckInDate: DateTime.Parse(checkIn),
-                CheckOutDate: DateTime.Parse(checkOut),
+                CheckInDate: RelativeDates.Parse(checkIn),
+                CheckOutDate: RelativeDates.Parse(checkOut),
                 UserId: 40);
 
             _createdBooking = await service.Handle(command);
