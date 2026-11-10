@@ -16,7 +16,7 @@ public class RoomType
         Name = string.Empty;
         Description = string.Empty;
     }
-    
+
     /// <summary>
     /// Initializes a new instance of the <see cref="RoomType"/> class with specified name and description.
     /// </summary>

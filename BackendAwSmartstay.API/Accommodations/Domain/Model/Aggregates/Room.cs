@@ -121,7 +121,7 @@ public partial class Room : IHasDomainEvents
         _domainEvents.Add(new RoomMaintenanceOverdueEvent(Id, HotelId, StatusChangedAt, now));
         return true;
     }
-    
+
     /// <summary>
     /// Updates the mutable information of the room aggregate.
     /// This method enforces business invariants during updates.
@@ -148,7 +148,7 @@ public partial class Room : IHasDomainEvents
     /// The identifier of the room type.
     /// </summary>
     public int RoomTypeId { get; private set; }
-    
+
     // NUEVOS CAMPOS
     /// <summary>
     /// The identifier of the hotel this room belongs to.
@@ -158,8 +158,8 @@ public partial class Room : IHasDomainEvents
     /// The price per night for the room.
     /// </summary>
     public decimal Price { get; private set; } // Precio por noche
-    // -------------
-    
+                                               // -------------
+
     /// <summary>
     /// A description of the room.
     /// </summary>

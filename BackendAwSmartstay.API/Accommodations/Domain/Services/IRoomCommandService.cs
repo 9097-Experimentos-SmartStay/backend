@@ -9,7 +9,7 @@ namespace BackendAwSmartstay.API.Accommodations.Domain.Services;
 public interface IRoomCommandService
 {
     Task<Room?> Handle(CreateRoomCommand command);
-    
+
     /// <summary>
     /// Handles the update of a room.
     /// </summary>

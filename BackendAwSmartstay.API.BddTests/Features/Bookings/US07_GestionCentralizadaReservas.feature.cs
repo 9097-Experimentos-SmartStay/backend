@@ -182,8 +182,8 @@ namespace BackendAwSmartstay.API.BddTests.Features.Bookings
     await testRunner.GivenAsync("que existe una reserva activa con identificador 503 para la habitación 101", ((string)(null)), ((global::Reqnroll.Table)(null)), "Given ");
 #line hidden
 #line 27
-    await testRunner.WhenAsync("el staff solicita reprogramar la reserva 503 a las fechas \"2026-12-10\" hasta \"202" +
-                        "6-12-15\"", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
+    await testRunner.WhenAsync("el staff solicita reprogramar la reserva 503 a las fechas \"hoy+40\" hasta \"hoy+45\"" +
+                        "", ((string)(null)), ((global::Reqnroll.Table)(null)), "When ");
 #line hidden
 #line 28
     await testRunner.ThenAsync("las fechas de estadía de la reserva deben actualizarse correctamente", ((string)(null)), ((global::Reqnroll.Table)(null)), "Then ");

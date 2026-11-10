@@ -18,7 +18,7 @@ public static class WebApplicationBuilderExtensions
 
         // Query Services
         builder.Services.AddScoped<IAnalyticsQueryService, AnalyticsQueryService>();
-        
+
         // Note: Commands are not implemented yet as Analytics is currently Read-Only
     }
 

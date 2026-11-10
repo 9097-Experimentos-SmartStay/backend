@@ -12,18 +12,18 @@ public static class WebApplicationExtensions
         var services = scope.ServiceProvider;
         var logger = services.GetRequiredService<ILogger<AppDbContext>>();
         var context = services.GetRequiredService<AppDbContext>();
-        
+
         try
         {
             logger.LogInformation("Verificando y creando la base de datos si no existe...");
             var canConnect = context.Database.CanConnect();
             logger.LogInformation("¿Puede conectar a la base de datos? {CanConnect}", canConnect);
-            
+
             if (!canConnect)
             {
                 logger.LogInformation("La base de datos no existe. Creándola...");
             }
-            
+
             context.Database.EnsureCreated();
             logger.LogInformation("Base de datos verificada/creada exitosamente.");
         }

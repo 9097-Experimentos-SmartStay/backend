@@ -121,7 +121,7 @@ public class UsersController(
 
         var getUsersByScopeQuery = new GetUsersByScopeQuery(User.GetUserId());
         var users = await userQueryService.Handle(getUsersByScopeQuery);
-        
+
         var userResources = users.Select(UserResourceFromEntityAssembler.ToResourceFromEntity);
         return Ok(userResources);
     }
@@ -145,7 +145,7 @@ public class UsersController(
     {
 
         var command = new ChangePasswordCommand(User.GetUserId(), resource.CurrentPassword, resource.NewPassword);
-        
+
         await userCommandService.Handle(command);
         return Ok(new { message = "Password updated successfully" });
     }

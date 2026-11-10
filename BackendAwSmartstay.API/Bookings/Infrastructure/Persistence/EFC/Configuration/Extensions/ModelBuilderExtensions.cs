@@ -45,7 +45,7 @@ public static class ModelBuilderExtensions
         builder.Entity<Booking>().Property(b => b.Status)
             .HasConversion<int>()
             .IsRequired();
-    
+
         // Digital check-in (US-08): one per booking; the access code is stored encrypted.
         builder.Entity<DigitalCheckIn>().ToTable("digital_check_ins");
         builder.Entity<DigitalCheckIn>().HasKey(c => c.Id);

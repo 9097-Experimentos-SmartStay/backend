@@ -21,7 +21,7 @@ public static class SignUpCommandFromResourceAssembler
             resource.LastName ?? string.Empty,
             resource.LoginEmail,
             resource.Password ?? string.Empty,
-            resource.Role, 
+            resource.Role,
             actorUserId);
     }
 }

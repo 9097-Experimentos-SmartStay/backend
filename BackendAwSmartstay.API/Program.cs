@@ -40,7 +40,7 @@ builder.AddOpenApiConfigurationServices();
 // CORS
 builder.AddCorsServices();
 
- 
+
 // DI / Contextos
 builder.AddSharedContextServices();
 builder.AddAccommodationsContextServices();
@@ -62,8 +62,8 @@ builder.AddCortexMediatorServices();
 
 // New implementation - Health Checks
 builder.Services.AddHealthChecks()
-    .AddMySql(builder.Configuration.GetConnectionString("DefaultConnection")!, 
-        name: "mysql-db-check", 
+    .AddMySql(builder.Configuration.GetConnectionString("DefaultConnection")!,
+        name: "mysql-db-check",
         tags: new[] { "database" });
 
 // Optional analytics cache lab: Redis + ActiveMQ fallback (only when configured)
@@ -87,15 +87,15 @@ using (var scope = app.Services.CreateScope())
     var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
-        var context = services.GetRequiredService<AppDbContext>(); 
-        
+        var context = services.GetRequiredService<AppDbContext>();
+
         // Ejecuta las migraciones pendientes en la nube o local de forma automática
         if (context.Database.IsRelational())
         {
             logger.LogInformation("Applying pending database migrations...");
             await context.Database.MigrateAsync();
         }
-        
+
         await app.SeedDatabaseAsync();
         await app.SeedDemoDataAsync();
     }

@@ -80,13 +80,13 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
     {
         var exists = await context.Set<Domain.Model.Entities.HotelCategory>()
             .AnyAsync(category => category.Name == resource.Name);
-            
+
         if (exists)
             throw new BusinessRuleViolationException(AccommodationErrorCodes.CategoryAlreadyExists,
                 $"Category '{resource.Name}' already exists.");
-        
+
         var category = new Domain.Model.Entities.HotelCategory { Name = resource.Name };
-        
+
         context.Set<Domain.Model.Entities.HotelCategory>().Add(category);
         await context.SaveChangesAsync();
 
@@ -112,13 +112,13 @@ public class AccommodationOptionsController(AppDbContext context) : ControllerBa
     {
         var exists = await context.Set<Domain.Model.Entities.Amenity>()
             .AnyAsync(amenity => amenity.Name == resource.Name);
-            
+
         if (exists)
             throw new BusinessRuleViolationException(AccommodationErrorCodes.AmenityAlreadyExists,
                 $"Amenity '{resource.Name}' already exists.");
 
         var amenity = new Domain.Model.Entities.Amenity { Name = resource.Name };
-        
+
         context.Set<Domain.Model.Entities.Amenity>().Add(amenity);
         await context.SaveChangesAsync();
 

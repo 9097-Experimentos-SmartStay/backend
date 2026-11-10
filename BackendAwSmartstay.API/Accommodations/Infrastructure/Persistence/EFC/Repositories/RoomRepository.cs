@@ -15,8 +15,8 @@ public class RoomRepository(AppDbContext context) : BaseRepository<Room>(context
     public override async Task<Room?> FindByIdAsync(int id)
     {
         return await Context.Set<Room>()
-            .Include(r => r.RoomType) 
-            .Include(r => r.Hotel) 
+            .Include(r => r.RoomType)
+            .Include(r => r.Hotel)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 

@@ -40,7 +40,7 @@ public class ProfilesPersistenceTests
         {
             var repo = new GuestProfileRepository(context);
             var guest = new GuestProfile(guestId, name, phone, email, document, address, userId);
-            
+
             // Verify creation event exists before persistence
             guest.DomainEvents.Should().HaveCount(1);
 
@@ -98,7 +98,7 @@ public class ProfilesPersistenceTests
         using (var context = new AppDbContext(options))
         {
             var repo = new GuestProfileRepository(context);
-            
+
             var byEmail = await repo.FindByEmailAsync(email);
             byEmail.Should().NotBeNull();
             byEmail!.Id.Should().Be(guestId);

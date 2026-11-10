@@ -24,7 +24,7 @@ public interface IHotelCommandService
     /// <param name="command">The create command.</param>
     /// <returns>The created hotel and, for a hotel administrator registering their own hotel, their new session.</returns>
     Task<HotelRegistration> Handle(CreateHotelCommand command);
-    
+
     /// <summary>
     /// Handles the update of a hotel.
     /// </summary>

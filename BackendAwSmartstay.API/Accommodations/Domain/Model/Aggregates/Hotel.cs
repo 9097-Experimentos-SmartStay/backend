@@ -22,7 +22,7 @@ public partial class Hotel
         Type = string.Empty;
         Amenities = new List<string>();
     }
-    
+
     /// <summary>
     /// Initializes a new instance of the <see cref="Hotel"/> class from a create command.
     /// </summary>
@@ -35,13 +35,13 @@ public partial class Hotel
         Address = command.Address;
         City = command.City;
         Country = command.Country;
-        
+
         ImageUrl = command.ImageUrl;
         Description = command.Description;
         Type = command.Type;
         Amenities = command.Amenities;
     }
-    
+
     /// <summary>
     /// Navigation property for the rooms belonging to this hotel.
     /// Required for calculating dynamic pricing (e.g., "From $X").
@@ -60,7 +60,7 @@ public partial class Hotel
         }
         return Rooms.Min(r => r.Price);
     }
-    
+
     /// <summary>
     /// Updates the mutable information of the hotel aggregate.
     /// This method enforces business invariants during updates.

@@ -24,5 +24,5 @@ Feature: Gestión centralizada de reservas
   @happy-path
   Scenario: Reprogramar las fechas de una reserva existente
     Given que existe una reserva activa con identificador 503 para la habitación 101
-    When el staff solicita reprogramar la reserva 503 a las fechas "2026-12-10" hasta "2026-12-15"
+    When el staff solicita reprogramar la reserva 503 a las fechas "hoy+40" hasta "hoy+45"
     Then las fechas de estadía de la reserva deben actualizarse correctamente

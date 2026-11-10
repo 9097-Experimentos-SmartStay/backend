@@ -52,8 +52,8 @@ public class StaffAssignment
         if (Period.EndDate.HasValue && today > Period.EndDate.Value)
             throw new BusinessRuleViolationException(ProfileErrorCodes.AssignmentPeriodExpired, "Cannot reactivate an assignment whose contractual period has already expired.");
 
-        Status = Period.StartDate > today 
-            ? AssignmentStatus.Scheduled 
+        Status = Period.StartDate > today
+            ? AssignmentStatus.Scheduled
             : AssignmentStatus.Active;
     }
 

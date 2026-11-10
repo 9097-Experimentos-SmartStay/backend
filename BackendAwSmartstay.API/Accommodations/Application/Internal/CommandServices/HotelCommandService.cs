@@ -70,13 +70,13 @@ public class HotelCommandService(
 
         // Apply domain logic update
         hotel.UpdateInformation(
-            command.Name, 
-            command.Address, 
-            command.City, 
-            command.Country, 
-            command.ImageUrl, 
-            command.Description, 
-            command.Type, 
+            command.Name,
+            command.Address,
+            command.City,
+            command.Country,
+            command.ImageUrl,
+            command.Description,
+            command.Type,
             command.Amenities);
 
         hotelRepository.Update(hotel);

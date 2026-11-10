@@ -7,7 +7,7 @@ public interface IRoomTypeQueryService
 {
 
     Task<RoomType?> Handle(GetRoomTypeByIdQuery query);
-    
+
     Task<IEnumerable<RoomType>> Handle(GetAllRoomTypesQuery query);
 }
 
