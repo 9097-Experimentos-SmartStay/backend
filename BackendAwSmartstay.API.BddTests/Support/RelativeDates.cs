@@ -1,9 +1,6 @@
 namespace BackendAwSmartstay.API.BddTests.Support;
 
-/// <summary>
-/// Resolves the dates written in Gherkin scenarios. Besides ISO dates it understands
-/// <c>hoy+N</c> (N days after today) or <c>hoy-N</c> (N days before), so scenarios never go stale as the calendar moves.
-/// </summary>
+/// <summary>Parses ISO dates or <c>hoy+N</c> / <c>hoy-N</c> (days from today) so scenarios never go stale.</summary>
 public static class RelativeDates
 {
     private const string Today = "hoy";
