@@ -45,6 +45,10 @@
         <!-- Data Protection key ring persisted in the database (MFA secrets, identity documents) -->
         <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="9.0.20" />
         <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.19.2" />
+        <!-- Patched versions of vulnerable transitive packages (GHSA-473q-m89c-ghf8, GHSA-846f-f764-76mx, GHSA-r955-8q5j-3h83) -->
+        <PackageReference Include="MySqlConnector" Version="2.6.1" />
+        <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+        <PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.21" />
         <!-- Mediator pattern related packages -->
         <PackageReference Include="Cortex.Mediator" Version="2.1.0" />
     </ItemGroup>
