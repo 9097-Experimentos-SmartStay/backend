@@ -74,6 +74,22 @@ jobs:
     name: Build & test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0.36
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_password
+          MYSQL_DATABASE: smartstay_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pci_root_password --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_MYSQL_CONNECTION: server=127.0.0.1;port=3306;user=root;password=ci_root_password;database=smartstay_test;
+      REQUIRE_MYSQL_TESTS: "true"
     steps:
       - uses: actions/checkout@v7
 

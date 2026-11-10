@@ -32,6 +32,8 @@ public class US07_GestionReservasStepDefinitions
 
     private Booking? _currentBooking;
     private int _bookingId;
+    private DateTime _rescheduledCheckIn;
+    private DateTime _rescheduledCheckOut;
     private int _guestUserId = 20;
     private string _guestEmail = "guest20@smartstay.pe";
     private int _roomId = 101;
@@ -173,13 +175,15 @@ public class US07_GestionReservasStepDefinitions
     [When(@"el staff solicita reprogramar la reserva (.*) a las fechas ""(.*)"" hasta ""(.*)""")]
     public async Task WhenElStaffSolicitaReprogramarLaReserva(int bookingId, string checkIn, string checkOut)
     {
+        _rescheduledCheckIn = RelativeDates.Parse(checkIn);
+        _rescheduledCheckOut = RelativeDates.Parse(checkOut);
         var service = CreateService();
         var requester = BookingRequester.HotelStaff(userId: 1, hotelId: _hotelId);
         var command = new RescheduleBookingCommand(
             _bookingId,
             requester,
-            DateTime.Parse(checkIn),
-            DateTime.Parse(checkOut),
+            _rescheduledCheckIn,
+            _rescheduledCheckOut,
             RoomId: _roomId);
 
         _currentBooking = await service.Handle(command);
@@ -196,7 +200,7 @@ public class US07_GestionReservasStepDefinitions
     public void ThenLasFechasDeEstadiaDebenActualizarseCorrectamente()
     {
         _currentBooking.Should().NotBeNull();
-        _currentBooking!.CheckInDate.Should().Be(new DateTime(2026, 12, 10));
-        _currentBooking.CheckOutDate.Should().Be(new DateTime(2026, 12, 15));
+        _currentBooking!.CheckInDate.Should().Be(_rescheduledCheckIn);
+        _currentBooking.CheckOutDate.Should().Be(_rescheduledCheckOut);
     }
 }
