@@ -43,9 +43,16 @@ public class ProfilesMySqlConcurrencyIntegrationTests
         bool isAvailable = await IsMySqlAvailableAsync(connectionString);
         if (!isAvailable)
         {
-            // Environment constraint: Docker/MySQL daemon is not accessible in current execution environment.
-            // Transparency: We do not fake success on InMemory.
-            return;
+            // CI sets REQUIRE_MYSQL_TESTS=true and provides a MySQL service container, so an unreachable
+            // database there is a failure. Locally the test is reported as skipped, never as passed.
+            // Start a database with: docker compose up -d mysql (see docker-compose.yml) and point
+            // TEST_MYSQL_CONNECTION at it.
+            if (string.Equals(Environment.GetEnvironmentVariable("REQUIRE_MYSQL_TESTS"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail("REQUIRE_MYSQL_TESTS is set but MySQL is not reachable with TEST_MYSQL_CONNECTION.");
+            }
+
+            Assert.Ignore("MySQL is not reachable; set TEST_MYSQL_CONNECTION to run this test.");
         }
 
         var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
